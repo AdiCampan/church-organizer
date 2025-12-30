@@ -37,8 +37,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ae440514-b04d-4dad-a5de-6e9fb5eda6a1"
+        "projectId": "4e97cd73-f633-4e29-9d97-a2972277401c"
       }
-    }
+    },
+    "owner": "adi_es"
   }
 }
