@@ -51,12 +51,17 @@ jobs:
         working-directory: ./mobile
         run: npx expo prebuild -p android
 
-      - name: Build APK (Debug)
+      - name: Generate Keystore
+        working-directory: ./mobile
+        run: |
+          keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Build APK (Release)
         working-directory: ./mobile/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$(pwd)/../release.keystore -Pandroid.injected.signing.store.password=android -Pandroid.injected.signing.key.alias=release -Pandroid.injected.signing.key.password=android
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
