@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "439942894629",
+    "firebase_url": "https://organizer-ee1d1-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "organizer-ee1d1",
+    "storage_bucket": "organizer-ee1d1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:439942894629:android:adabc2a1a4038d641adbcc",
+        "android_client_info": {
+          "package_name": "com.adi_es.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ5VqNWFpmkAQ-grh7QPhNiljz1rmG4TA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
