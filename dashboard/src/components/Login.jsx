@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { Calendar } from 'lucide-react';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { Calendar, ArrowLeft } from 'lucide-react';
 
 const Login = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showForgot, setShowForgot] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setMessage('');
         setLoading(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // Success is handled by auth state observer in App.jsx
         } catch (err) {
             setError('Error al iniciar sesión. Verifica tus credenciales.');
             console.error(err);
@@ -23,6 +26,65 @@ const Login = ({ onLoginSuccess }) => {
             setLoading(false);
         }
     };
+
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        setMessage('');
+        setLoading(true);
+        try {
+            await sendPasswordResetEmail(auth, resetEmail);
+            setMessage('Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.');
+            setResetEmail('');
+        } catch (err) {
+            setError('Error al enviar el correo. Verifica que la dirección sea correcta.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (showForgot) {
+        return (
+            <div style={styles.container}>
+                <div style={styles.loginCard}>
+                    <button
+                        onClick={() => { setShowForgot(false); setError(''); setMessage(''); }}
+                        style={{ background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', cursor: 'pointer', marginBottom: '24px', padding: 0 }}
+                    >
+                        <ArrowLeft size={18} />
+                        Volver al inicio
+                    </button>
+
+                    <div style={styles.logoContainer}>
+                        <h2 style={styles.title}>Restablecer Contraseña</h2>
+                        <p style={styles.subtitle}>Escribe tu correo y te enviaremos un enlace para cambiar tu contraseña.</p>
+                    </div>
+
+                    <form onSubmit={handleForgotPassword} style={styles.form}>
+                        {error && <div style={styles.error}>{error}</div>}
+                        {message && <div style={styles.success}>{message}</div>}
+
+                        <div style={styles.inputGroup}>
+                            <label style={styles.label}>Correo Electrónico</label>
+                            <input
+                                type="email"
+                                value={resetEmail}
+                                onChange={(e) => setResetEmail(e.target.value)}
+                                style={styles.input}
+                                placeholder="ejemplo@iglesia.com"
+                                required
+                            />
+                        </div>
+
+                        <button type="submit" disabled={loading} style={styles.button}>
+                            {loading ? 'Enviando...' : 'Enviar enlace'}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={styles.container}>
@@ -58,6 +120,13 @@ const Login = ({ onLoginSuccess }) => {
                             placeholder="••••••••"
                             required
                         />
+                        <button
+                            type="button"
+                            onClick={() => { setShowForgot(true); setError(''); setMessage(''); }}
+                            style={{ background: 'none', border: 'none', color: '#007bff', fontSize: '13px', textAlign: 'right', cursor: 'pointer', padding: '4px 0' }}
+                        >
+                            ¿Olvidaste tu contraseña?
+                        </button>
                     </div>
 
                     <button type="submit" disabled={loading} style={styles.button}>
@@ -141,6 +210,15 @@ const styles = {
         borderRadius: '8px',
         fontSize: '14px',
         border: '1px solid #fee2e2',
+    },
+    success: {
+        backgroundColor: '#f0fdf4',
+        color: '#166534',
+        padding: '12px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        border: '1px solid #dcfce7',
+        marginBottom: '16px',
     }
 };
 

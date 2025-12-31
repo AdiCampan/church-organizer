@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react
 import { LayoutDashboard, Users, Calendar, Settings as SettingsIcon, Bell, LogOut, Music, Megaphone } from 'lucide-react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 // Components
 import Login from './components/Login';
@@ -32,24 +32,28 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        try {
-          const docRef = doc(db, 'users', currentUser.uid);
-          const docSnap = await getDoc(docRef);
+        // Set real-time listener for user profile
+        const docRef = doc(db, 'users', currentUser.uid);
+        const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           }
-        } catch (e) {
+        }, (e) => {
           console.error("Error fetching user profile:", e);
-        }
+        });
+
+        return () => {
+          unsubscribeProfile();
+        };
       } else {
         setUserProfile(null);
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   const handleLogout = () => {

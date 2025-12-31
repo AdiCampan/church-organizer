@@ -4,11 +4,13 @@ import ServiceTypeSettings from '../components/settings/ServiceTypeSettings';
 import LocationSettings from '../components/settings/LocationSettings';
 import RoleSettings from '../components/settings/RoleSettings';
 import SongTagSettings from '../components/settings/SongTagSettings';
+import AccountSettings from '../components/settings/AccountSettings';
 
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState('service_types');
+    const [activeTab, setActiveTab] = useState('account');
 
     const tabs = [
+        { id: 'account', label: 'Mi Cuenta', icon: <Users size={18} /> },
         { id: 'service_types', label: 'Tipos de Servicio', icon: <LayoutList size={18} /> },
         { id: 'locations', label: 'Lugares', icon: <MapPin size={18} /> },
         { id: 'roles', label: 'Roles y Permisos', icon: <Users size={18} /> },
@@ -17,6 +19,8 @@ const Settings = () => {
 
     const renderContent = () => {
         switch (activeTab) {
+            case 'account':
+                return <AccountSettings />;
             case 'service_types':
                 return <ServiceTypeSettings />;
             case 'locations':

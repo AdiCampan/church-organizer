@@ -1,14 +1,13 @@
 {
   "project_info": {
-    "project_number": "439942894629",
-    "firebase_url": "https://organizer-ee1d1-default-rtdb.europe-west1.firebasedatabase.app",
-    "project_id": "organizer-ee1d1",
-    "storage_bucket": "organizer-ee1d1.firebasestorage.app"
+    "project_number": "973766657344",
+    "project_id": "church-teams",
+    "storage_bucket": "church-teams.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:439942894629:android:adabc2a1a4038d641adbcc",
+        "mobilesdk_app_id": "1:973766657344:android:a372c1d19c4b7e747ca6a5",
         "android_client_info": {
           "package_name": "com.adi_es.mobile"
         }
@@ -16,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBJ5VqNWFpmkAQ-grh7QPhNiljz1rmG4TA"
+          "current_key": "AIzaSyAIHvny6nPEXY70AjrYmXeP1I2aD8aSk5U"
         }
       ],
       "services": {

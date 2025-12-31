@@ -7,13 +7,13 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 // Use same config to create a secondary app instance for auth creation
 const firebaseConfig = {
-    apiKey: "AIzaSyDCLvO6kslY5NYdS2JzWeh5AqVWHSoAcd0",
-    authDomain: "organizer-ee1d1.firebaseapp.com",
-    databaseURL: "https://organizer-ee1d1-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "organizer-ee1d1",
-    storageBucket: "organizer-ee1d1.firebasestorage.app",
-    messagingSenderId: "439942894629",
-    appId: "1:439942894629:web:b888ddc1ce5bf24d1adbcc"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const People = () => {
