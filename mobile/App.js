@@ -24,6 +24,9 @@ async function registerForPushNotificationsAsync() {
   let token;
 
   try {
+    console.log('Starting push registration...');
+    Alert.alert('Debug', 'Iniciando registro de notificaciones...');
+
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'default',
@@ -37,34 +40,35 @@ async function registerForPushNotificationsAsync() {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
+      console.log('Existing permission status:', existingStatus);
+
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
+        console.log('Requested permission status:', finalStatus);
       }
 
       if (finalStatus !== 'granted') {
-        Alert.alert('Notificación', 'Permiso para notificaciones no concedido. No recibirás avisos.');
+        Alert.alert('Aviso', 'No se concedieron permisos. Las notificaciones no funcionarán.');
         return;
       }
 
-      // Hardcoded projectId as fallback to ensure it works in standalone APK
       const EXPO_PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId ?? '4e97cd73-f633-4e29-9d97-a2972277401c';
-
-      console.log('Fetching Expo token for Project ID:', EXPO_PROJECT_ID);
+      console.log('Fetching Expo token for:', EXPO_PROJECT_ID);
 
       const expoTokenResponse = await Notifications.getExpoPushTokenAsync({
         projectId: EXPO_PROJECT_ID,
       });
 
       token = expoTokenResponse.data;
-      console.log('Token fetched:', token);
-      // alert('Token obtenido: ' + token); // Descomentar solo para depuración pesada
+      console.log('Token successfully generated:', token);
+      Alert.alert('Debug', '¡Token generado!\n' + token.substring(0, 30) + '...');
     } else {
-      console.log('Not a physical device, push tokens skip.');
+      Alert.alert('Aviso', 'Debes usar un dispositivo físico para recibir notificaciones.');
     }
   } catch (error) {
-    console.error('Error in push registration:', error);
-    Alert.alert('Debug Info', 'Error en registro Push: ' + error.message);
+    console.error('Push registration error:', error);
+    Alert.alert('ERROR Registro', error.message);
   }
 
   return token;
@@ -73,17 +77,18 @@ async function registerForPushNotificationsAsync() {
 // Save push token to Firestore
 async function savePushToken(userId, token) {
   try {
+    console.log('Saving token to Firestore for user:', userId);
     await setDoc(doc(db, 'fcmTokens', userId), {
       userId: userId,
       token: token,
       platform: Platform.OS,
       updatedAt: new Date()
     });
-    console.log('Push token saved successfully to Firestore');
-    // Alert.alert('Debug Info', 'Token de notificación guardado correctamente.');
+    console.log('Token saved to Firestore');
+    Alert.alert('Debug', 'Token guardado en base de datos correctamente.');
   } catch (error) {
-    console.error('Error saving push token:', error);
-    Alert.alert('Debug Info', 'Error al guardar token: ' + error.message);
+    console.error('Firestore save error:', error);
+    Alert.alert('ERROR Firestore', 'No se pudo guardar el token: ' + error.message);
   }
 }
 
