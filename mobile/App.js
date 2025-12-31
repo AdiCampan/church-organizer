@@ -23,34 +23,48 @@ Notifications.setNotificationHandler({
 async function registerForPushNotificationsAsync() {
   let token;
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-  }
-
-  if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
     }
 
-    if (finalStatus !== 'granted') {
-      Alert.alert('Error', 'No se pudo obtener permiso para notificaciones');
-      return;
-    }
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
 
-    token = (await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId ?? 'your-project-id',
-    })).data;
-  } else {
-    Alert.alert('Info', 'Debes usar un dispositivo físico para recibir notificaciones push');
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        Alert.alert('Notificación', 'Permiso para notificaciones no concedido. No recibirás avisos.');
+        return;
+      }
+
+      // Hardcoded projectId as fallback to ensure it works in standalone APK
+      const EXPO_PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId ?? '4e97cd73-f633-4e29-9d97-a2972277401c';
+
+      console.log('Fetching Expo token for Project ID:', EXPO_PROJECT_ID);
+
+      const expoTokenResponse = await Notifications.getExpoPushTokenAsync({
+        projectId: EXPO_PROJECT_ID,
+      });
+
+      token = expoTokenResponse.data;
+      console.log('Token fetched:', token);
+      // alert('Token obtenido: ' + token); // Descomentar solo para depuración pesada
+    } else {
+      console.log('Not a physical device, push tokens skip.');
+    }
+  } catch (error) {
+    console.error('Error in push registration:', error);
+    Alert.alert('Debug Info', 'Error en registro Push: ' + error.message);
   }
 
   return token;
@@ -65,9 +79,11 @@ async function savePushToken(userId, token) {
       platform: Platform.OS,
       updatedAt: new Date()
     });
-    console.log('Push token saved:', token);
+    console.log('Push token saved successfully to Firestore');
+    // Alert.alert('Debug Info', 'Token de notificación guardado correctamente.');
   } catch (error) {
     console.error('Error saving push token:', error);
+    Alert.alert('Debug Info', 'Error al guardar token: ' + error.message);
   }
 }
 
