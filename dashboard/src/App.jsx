@@ -16,7 +16,7 @@ import Songs from './pages/Songs';
 import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
 
-const APP_VERSION = "1.0.5 - Name Display Fix";
+const APP_VERSION = "1.0.5 ";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -138,7 +138,8 @@ function App() {
         <nav className="sidebar">
           <div className="logo">
             <Calendar size={28} />
-            <span>ChurchTeams</span>
+            <span> EbenEzer</span>
+            <span>Castellón</span>
           </div>
 
           <div className="nav-links">
@@ -190,17 +191,23 @@ function App() {
             </div>
           </header>
 
-          <Routes>
-            <Route path="/" element={<Navigate to="/events" />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/events/:eventId" element={<EventDetails />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/songs" element={<Songs />} />
-            <Route path="/announcements" element={<Announcements />} />
-            <Route path="/people" element={<People />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="/events" />} />
-          </Routes>
+          <div className="content-scroll">
+            <Routes>
+              <Route path="/" element={<Navigate to="/events" />} />
+              <Route path="/events" element={<Events />} />
+              <Route path="/events/:eventId" element={<EventDetails />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route path="/songs" element={<Songs />} />
+              <Route path="/announcements" element={<Announcements />} />
+              <Route path="/people" element={<People />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/events" />} />
+            </Routes>
+          </div>
+
+          <footer className="footer">
+            <p>© {new Date().getFullYear()} ChurchTeams. Versión {APP_VERSION}- Media EbenEzer Castellon</p>
+          </footer>
         </main>
       </div>
     </Router>
