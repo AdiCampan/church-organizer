@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { User, Phone, Lock, Save, AlertCircle, CheckCircle } from 'lucide-react';
 
@@ -36,10 +36,10 @@ const AccountSettings = () => {
         setSuccess('');
         try {
             const docRef = doc(db, 'users', auth.currentUser.uid);
-            await updateDoc(docRef, {
+            await setDoc(docRef, {
                 name: profile.name,
                 phone: profile.phone
-            });
+            }, { merge: true });
             setSuccess('Perfil actualizado correctamente.');
         } catch (err) {
             console.error("Error updating profile:", err);

@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { initializeFirestore, getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDCLvO6kslY5NYdS2JzWeh5AqVWHSoAcd0",
-    authDomain: "organizer-ee1d1.firebaseapp.com",
-    databaseURL: "https://organizer-ee1d1-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "organizer-ee1d1",
-    storageBucket: "organizer-ee1d1.firebasestorage.app",
-    messagingSenderId: "439942894629",
-    appId: "1:439942894629:web:b888ddc1ce5bf24d1adbcc"
+    apiKey: "AIzaSyC6pZYxoN437Ns3Smkk9TRCnWHeWKJsu3A",
+    authDomain: "church-teams.firebaseapp.com",
+    databaseURL: "https://church-teams.firebaseio.com",
+    projectId: "church-teams",
+    storageBucket: "church-teams.firebasestorage.app",
+    messagingSenderId: "973766657344",
+    appId: "1:973766657344:web:cbec3b33f3b2cf5c7ca6a5"
 };
 
 import { initializeAuth, getReactNativePersistence } from "firebase/auth";
