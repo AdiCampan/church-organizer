@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc } from 'firebase/firestore';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
@@ -98,39 +98,73 @@ const LoginScreen = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      return Alert.alert(
+        "Email Requerido",
+        "Por favor escribe tu email en el campo de arriba para enviarte el enlace de recuperación."
+      );
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        "Email Enviado",
+        `Se ha enviado un correo a ${email} para restablecer tu contraseña.`
+      );
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "No pudimos enviar el correo de recuperación. Verifica que el email sea correcto.");
+    }
+  };
+
   return (
-    <View style={styles.loginContainer}>
-      <Calendar size={64} color="#007bff" style={{ marginBottom: 20 }} />
-      <Text style={styles.loginTitle}>ChurchOrg Mobile</Text>
-      <Text style={styles.loginSubtitle}>Accede a tu agenda de servicio</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.loginContainer}>
+          <Calendar size={64} color="#007bff" style={{ marginBottom: 20 }} />
+          <Text style={styles.loginTitle}>ChurchOrg Mobile</Text>
+          <Text style={styles.loginSubtitle}>Accede a tu agenda de servicio</Text>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="email@ejemplo.com"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-      </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="email@ejemplo.com"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Contraseña</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="••••••••"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-      </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Contraseña</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
 
-      <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
-        {loading ? <ActivityIndicator color="white" /> : <Text style={styles.loginButtonText}>Entrar</Text>}
-      </TouchableOpacity>
-    </View>
+          <TouchableOpacity
+            style={styles.forgotPasswordBtn}
+            onPress={handleForgotPassword}
+          >
+            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="white" /> : <Text style={styles.loginButtonText}>Entrar</Text>}
+          </TouchableOpacity>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -878,6 +912,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: '#f8fafc' },
   loginButton: { backgroundColor: '#007bff', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 10 },
   loginButtonText: { color: 'white', fontSize: 16, fontWeight: '700' },
+  forgotPasswordBtn: { alignSelf: 'flex-end', marginBottom: 20, marginTop: -10 },
+  forgotPasswordText: { color: '#007bff', fontSize: 14, fontWeight: '600' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 20, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   headerSub: { fontSize: 14, color: '#64748b' },
   headerTitle: { fontSize: 15, fontWeight: '700', color: '#1e293b' },
