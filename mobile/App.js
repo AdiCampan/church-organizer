@@ -25,7 +25,6 @@ async function registerForPushNotificationsAsync() {
 
   try {
     console.log('Starting push registration...');
-    Alert.alert('Debug', 'Iniciando registro de notificaciones...');
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
@@ -40,35 +39,26 @@ async function registerForPushNotificationsAsync() {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
-      console.log('Existing permission status:', existingStatus);
-
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
-        console.log('Requested permission status:', finalStatus);
       }
 
       if (finalStatus !== 'granted') {
-        Alert.alert('Aviso', 'No se concedieron permisos. Las notificaciones no funcionarán.');
         return;
       }
 
       const EXPO_PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId ?? '4e97cd73-f633-4e29-9d97-a2972277401c';
-      console.log('Fetching Expo token for:', EXPO_PROJECT_ID);
 
       const expoTokenResponse = await Notifications.getExpoPushTokenAsync({
         projectId: EXPO_PROJECT_ID,
       });
 
       token = expoTokenResponse.data;
-      console.log('Token successfully generated:', token);
-      Alert.alert('Debug', '¡Token generado!\n' + token.substring(0, 30) + '...');
-    } else {
-      Alert.alert('Aviso', 'Debes usar un dispositivo físico para recibir notificaciones.');
+      console.log('Token successfully generated');
     }
   } catch (error) {
     console.error('Push registration error:', error);
-    Alert.alert('ERROR Registro', error.message);
   }
 
   return token;
@@ -77,7 +67,6 @@ async function registerForPushNotificationsAsync() {
 // Save push token to Firestore
 async function savePushToken(userId, token) {
   try {
-    console.log('Saving token to Firestore for user:', userId);
     await setDoc(doc(db, 'fcmTokens', userId), {
       userId: userId,
       token: token,
@@ -85,10 +74,8 @@ async function savePushToken(userId, token) {
       updatedAt: new Date()
     });
     console.log('Token saved to Firestore');
-    Alert.alert('Debug', 'Token guardado en base de datos correctamente.');
   } catch (error) {
     console.error('Firestore save error:', error);
-    Alert.alert('ERROR Firestore', 'No se pudo guardar el token: ' + error.message);
   }
 }
 

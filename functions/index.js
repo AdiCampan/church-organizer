@@ -14,37 +14,41 @@ exports.onScheduleCreated = functions.firestore
     .onCreate(async (snap, context) => {
         const schedule = snap.data();
         const userId = schedule.userId;
+        const scheduleId = context.params.scheduleId;
 
-        console.log(`New assignment for user ${userId}`);
+        console.log(`[TRIGGER] New assignment detected. scheduleId: ${scheduleId}, userId: ${userId}`);
 
         try {
             // Get user's push token
+            console.log(`[DB] Fetching token for user: ${userId}`);
             const tokenDoc = await admin.firestore()
                 .collection('fcmTokens')
                 .doc(userId)
                 .get();
 
             if (!tokenDoc.exists) {
-                console.log(`No push token found for user ${userId}`);
+                console.warn(`[NOT-FOUND] No push token found in 'fcmTokens' collection for user: ${userId}`);
                 return null;
             }
 
             const pushToken = tokenDoc.data().token;
+            console.log(`[TOKEN] Found token: ${pushToken.substring(0, 20)}...`);
 
             // Validate Expo push token
             if (!Expo.isExpoPushToken(pushToken)) {
-                console.error(`Invalid Expo push token: ${pushToken}`);
+                console.error(`[INVALID-TOKEN] The token is not a valid ExpoPushToken: ${pushToken}`);
                 return null;
             }
 
             // Get event details
+            console.log(`[DB] Fetching event details: ${schedule.eventId}`);
             const eventDoc = await admin.firestore()
                 .collection('events')
                 .doc(schedule.eventId)
                 .get();
 
             if (!eventDoc.exists) {
-                console.log(`Event ${schedule.eventId} not found`);
+                console.warn(`[NOT-FOUND] Event ${schedule.eventId} not found`);
                 return null;
             }
 
@@ -57,6 +61,7 @@ exports.onScheduleCreated = functions.firestore
             });
 
             // Send notification
+            console.log(`[EXPO] Preparing to send notification to ${pushToken.substring(0, 15)}...`);
             const message = {
                 to: pushToken,
                 sound: 'default',
@@ -65,17 +70,19 @@ exports.onScheduleCreated = functions.firestore
                 data: {
                     type: 'assignment',
                     eventId: schedule.eventId,
-                    scheduleId: snap.id
+                    scheduleId: scheduleId
                 },
+                priority: 'high',
+                channelId: 'default',
                 badge: 1,
             };
 
             const ticket = await expo.sendPushNotificationsAsync([message]);
-            console.log('Notification sent:', ticket);
+            console.log('[RESULT] Expo Ticket:', JSON.stringify(ticket));
 
             return ticket;
         } catch (error) {
-            console.error('Error sending notification:', error);
+            console.error('[ERROR] Failure in onScheduleCreated:', error);
             return null;
         }
     });
@@ -88,22 +95,23 @@ exports.onAnnouncementCreated = functions.firestore
     .document('announcements/{announcementId}')
     .onCreate(async (snap, context) => {
         const announcement = snap.data();
+        const announcementId = context.params.announcementId;
 
-        console.log(`New announcement: ${announcement.title}`);
+        console.log(`[TRIGGER] New announcement detected: ${announcement.title} (${announcementId})`);
 
         try {
             let targetUserIds = [];
 
             // Determine target audience
             if (announcement.targetTeamId === 'all') {
-                // Get all users with push tokens
+                console.log('[AUDIENCE] Targeting ALL users');
                 const tokensSnapshot = await admin.firestore()
                     .collection('fcmTokens')
                     .get();
 
                 targetUserIds = tokensSnapshot.docs.map(doc => doc.id);
             } else {
-                // Get team members
+                console.log(`[AUDIENCE] Targeting team: ${announcement.targetTeamId}`);
                 const teamDoc = await admin.firestore()
                     .collection('teams')
                     .doc(announcement.targetTeamId)
@@ -114,8 +122,10 @@ exports.onAnnouncementCreated = functions.firestore
                 }
             }
 
+            console.log(`[AUDIENCE] Found ${targetUserIds.length} potential users`);
+
             if (targetUserIds.length === 0) {
-                console.log('No target users found');
+                console.warn('[AUDIENCE] No target users found');
                 return null;
             }
 
@@ -139,20 +149,28 @@ exports.onAnnouncementCreated = functions.firestore
                             body: announcement.content.substring(0, 100) + (announcement.content.length > 100 ? '...' : ''),
                             data: {
                                 type: 'announcement',
-                                announcementId: snap.id
+                                announcementId: announcementId
                             },
+                            priority: 'high',
+                            channelId: 'default',
                             badge: 1,
                         });
+                    } else {
+                        console.warn(`[INVALID-TOKEN] Skipping invalid token for user ${userId}`);
                     }
+                } else {
+                    console.log(`[DB] No token found for user ${userId}`);
                 }
             }
 
             if (messages.length === 0) {
-                console.log('No valid push tokens found');
+                console.warn('[EXPO] No valid push tokens to send to');
                 return null;
             }
 
-            // Send notifications in chunks (Expo recommends max 100 per request)
+            console.log(`[EXPO] Sending ${messages.length} notifications...`);
+
+            // Send notifications in chunks
             const chunks = expo.chunkPushNotifications(messages);
             const tickets = [];
 
@@ -161,10 +179,10 @@ exports.onAnnouncementCreated = functions.firestore
                 tickets.push(...ticketChunk);
             }
 
-            console.log(`Sent ${tickets.length} notifications`);
+            console.log(`[RESULT] Sent ${tickets.length} notifications. Tickets:`, JSON.stringify(tickets));
             return tickets;
         } catch (error) {
-            console.error('Error sending announcements:', error);
+            console.error('[ERROR] Failure in onAnnouncementCreated:', error);
             return null;
         }
     });
