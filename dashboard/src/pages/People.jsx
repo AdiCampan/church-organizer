@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, setDoc, doc, getDocs, query, orderBy } from 'firebase/firestore';
 import { UserPlus, Search, Mail, Calendar, CalendarX } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
+
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
@@ -17,7 +19,9 @@ const firebaseConfig = {
 };
 
 const People = () => {
+    const { t } = useLanguage();
     const [people, setPeople] = useState([]);
+
     const [showAddForm, setShowAddForm] = useState(false);
     const [newPerson, setNewPerson] = useState({ name: '', email: '', role: 'volunteer' });
     const [loading, setLoading] = useState(false);
@@ -60,7 +64,7 @@ const People = () => {
                 createdAt: new Date(),
             });
 
-            alert(`¡Usuario creado con éxito!\nEmail: ${newPerson.email}\nContraseña temporal: ${tempPassword}\n\nIndícale al usuario que cambie su contraseña al entrar.`);
+            alert(`${t('userCreatedSuccess')}\nEmail: ${newPerson.email}\n${t('tempPassword')}: ${tempPassword}\n\n${t('notifyUserChangePassword')}`);
 
             setNewPerson({ name: '', email: '', role: 'volunteer' });
             setShowAddForm(false);
@@ -68,10 +72,11 @@ const People = () => {
         } catch (err) {
             console.error("Error adding person:", err);
             if (err.code === 'auth/email-already-in-use') {
-                alert("Este correo electrónico ya está registrado en la base de datos de autenticación.");
+                alert(t('emailAlreadyInUse'));
             } else {
-                alert("Error al añadir persona: " + err.message);
+                alert(t('error') + ": " + err.message);
             }
+
         } finally {
             if (secondaryApp) {
                 await deleteApp(secondaryApp);
@@ -97,26 +102,26 @@ const People = () => {
     return (
         <div className="page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h1>Personas</h1>
+                <h1>{t('peopleTitle')}</h1>
                 <button
                     className="btn-primary"
                     onClick={() => setShowAddForm(!showAddForm)}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <UserPlus size={18} />
-                    Añadir Persona
+                    {t('addPerson')}
                 </button>
             </div>
 
             {showAddForm && (
                 <div className="card" style={{ marginBottom: '24px', maxWidth: '500px' }}>
-                    <h3>Nueva Persona</h3>
+                    <h3>{t('newPerson')}</h3>
                     <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
-                        Al añadir a alguien, se creará automáticamente su cuenta de acceso.
+                        {t('peopleDescription')}
                     </p>
                     <form onSubmit={handleAddPerson} style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={styles.inputGroup}>
-                            <label>Nombre Completo</label>
+                            <label>{t('fullName')}</label>
                             <input
                                 type="text"
                                 value={newPerson.name}
@@ -126,7 +131,7 @@ const People = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Email</label>
+                            <label>{t('email')}</label>
                             <input
                                 type="email"
                                 value={newPerson.email}
@@ -136,23 +141,23 @@ const People = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Rol</label>
+                            <label>{t('role')}</label>
                             <select
                                 value={newPerson.role}
                                 onChange={e => setNewPerson({ ...newPerson, role: e.target.value })}
                                 style={styles.input}
                             >
-                                <option value="volunteer">Voluntario</option>
-                                <option value="leader">Líder de Equipo</option>
-                                <option value="admin">Administrador</option>
+                                <option value="volunteer">{t('volunteer')}</option>
+                                <option value="leader">{t('teamLeader')}</option>
+                                <option value="admin">{t('admin_role')}</option>
                             </select>
                         </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>
-                                {loading ? 'Creando cuenta...' : 'Guardar y Crear Cuenta'}
+                                {loading ? t('creatingAccount') : t('saveAndCreateAccount')}
                             </button>
                             <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>
-                                Cancelar
+                                {t('cancel')}
                             </button>
                         </div>
                     </form>
@@ -164,7 +169,7 @@ const People = () => {
                     <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input
                         type="text"
-                        placeholder="Buscar personas..."
+                        placeholder={t('searchPeople')}
                         style={{ ...styles.input, paddingLeft: '40px', width: '100%', maxWidth: '300px' }}
                     />
                 </div>
@@ -172,17 +177,17 @@ const People = () => {
                 <table style={styles.table}>
                     <thead>
                         <tr>
-                            <th style={styles.th}>Nombre</th>
-                            <th style={styles.th}>Email</th>
-                            <th style={styles.th}>Rol</th>
-                            <th style={styles.th}>Disponibilidad</th>
+                            <th style={styles.th}>{t('name')}</th>
+                            <th style={styles.th}>{t('email')}</th>
+                            <th style={styles.th}>{t('role')}</th>
+                            <th style={styles.th}>{t('availability')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {people.length === 0 ? (
                             <tr>
                                 <td colSpan="3" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
-                                    No hay personas registradas aún.
+                                    {t('noPeople')}
                                 </td>
                             </tr>
                         ) : (
@@ -208,18 +213,18 @@ const People = () => {
                                             backgroundColor: person.role === 'admin' ? '#fee2e2' : person.role === 'leader' ? '#e0e7ff' : '#f1f5f9',
                                             color: person.role === 'admin' ? '#991b1b' : person.role === 'leader' ? '#3730a3' : '#475569'
                                         }}>
-                                            {person.role === 'admin' ? 'Admin' : person.role === 'leader' ? 'Líder' : 'Voluntario'}
+                                            {person.role === 'admin' ? t('admin_role') : person.role === 'leader' ? (t('admin_role') === 'Administrador' ? 'Líder' : (t('admin_role') === 'Administrator' ? 'Lider' : 'Leader')) : t('volunteer')}
                                         </span>
                                     </td>
                                     <td style={styles.td}>
                                         {/* Status Badge */}
                                         {isUnavailableToday(person.blockoutDates) ? (
                                             <div style={{ ...styles.statusBadge, backgroundColor: '#fee2e2', color: '#991b1b' }}>
-                                                <CalendarX size={12} /> No disponible hoy
+                                                <CalendarX size={12} /> {t('unavailableToday')}
                                             </div>
                                         ) : (
                                             <div style={{ ...styles.statusBadge, backgroundColor: '#dcfce7', color: '#166534' }}>
-                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#166534' }} /> Disponible
+                                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#166534' }} /> {t('available')}
                                             </div>
                                         )}
 
@@ -229,11 +234,11 @@ const People = () => {
                                             if (upcoming.length > 0) {
                                                 return (
                                                     <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748b' }}>
-                                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>Próximas ausencias:</div>
+                                                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>{t('upcomingAbsences')}</div>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                             {upcoming.map((range, idx) => (
                                                                 <div key={idx} style={{ display: 'flex', gap: '4px' }}>
-                                                                    <span>• {range.start} al {range.end}</span>
+                                                                    <span>• {range.start} {t('to')} {range.end}</span>
                                                                     {range.reason && <span style={{ fontStyle: 'italic', opacity: 0.8 }}>({range.reason})</span>}
                                                                 </div>
                                                             ))}

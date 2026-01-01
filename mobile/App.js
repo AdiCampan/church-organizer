@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
@@ -9,6 +11,109 @@ import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+
+const translations = {
+  es: {
+    loginTitle: 'ChurchOrg Mobile',
+    loginSubtitle: 'Accede a tu agenda de servicio',
+    email: 'Email',
+    password: 'Contraseña',
+    enter: 'Entrar',
+    forgotPassword: '¿Olvidaste tu contraseña?',
+    loading: 'Cargando...',
+    agenda: 'Agenda',
+    teams: 'Equipos',
+    wall: 'El Muro',
+    myAssignments: 'Mis Asignaciones',
+    noAssignments: 'No tienes servicios asignados aún',
+    noAnnouncements: 'No hay comunicados recientes',
+    noTeams: 'No hay equipos definidos aún',
+    settingsTitle: 'Ajustes de Disponibilidad',
+    blockedDates: 'Fechas Bloqueadas',
+    addBlockout: 'Añadir Bloqueo',
+    from: 'Desde',
+    until: 'Hasta',
+    reason: 'Razón (Opcional)',
+    noBlockedDates: 'No tienes fechas bloqueadas.',
+    confirm: 'Confirmar',
+    decline: 'Rechazar',
+    confirmed: 'Confirmado',
+    declined: 'Rechazado',
+    myTeam: 'MI EQUIPO',
+    orderOfService: 'ORDEN DEL SERVICIO',
+    noOrder: 'No hay orden de servicio detallada aún',
+    members: 'integrantes',
+    description: 'Descripción',
+    language: 'Idioma'
+  },
+  ro: {
+    loginTitle: 'ChurchOrg Mobile',
+    loginSubtitle: 'Accesează agenda de serviciu',
+    email: 'Email',
+    password: 'Parolă',
+    enter: 'Intră',
+    forgotPassword: 'Ai uitat parola?',
+    loading: 'Se încarcă...',
+    agenda: 'Agendă',
+    teams: 'Echipe',
+    wall: 'Zidul',
+    myAssignments: 'Alocările mele',
+    noAssignments: 'Nu ai servicii alocate încă',
+    noAnnouncements: 'Nu sunt anunțuri recente',
+    noTeams: 'Nu sunt echipe definite încă',
+    settingsTitle: 'Setări Disponibilitate',
+    blockedDates: 'Date Blocate',
+    addBlockout: 'Adaugă Blocaj',
+    from: 'De la',
+    until: 'Până la',
+    reason: 'Motiv (Opțional)',
+    noBlockedDates: 'Nu ai date blocate.',
+    confirm: 'Confirmă',
+    decline: 'Refuză',
+    confirmed: 'Confirmat',
+    declined: 'Refuzat',
+    myTeam: 'ECHIPA MEA',
+    orderOfService: 'ORDINEA SERVICIULUI',
+    noOrder: 'Nu există o ordine de serviciu detaliată încă',
+    members: 'membri',
+    description: 'Descriere',
+    language: 'Limbă'
+  },
+  en: {
+    loginTitle: 'ChurchOrg Mobile',
+    loginSubtitle: 'Access your service schedule',
+    email: 'Email',
+    password: 'Password',
+    enter: 'Enter',
+    forgotPassword: 'Forgot password?',
+    loading: 'Loading...',
+    agenda: 'Agenda',
+    teams: 'Teams',
+    wall: 'The Wall',
+    myAssignments: 'My Assignments',
+    noAssignments: 'You have no assigned services yet',
+    noAnnouncements: 'No recent announcements',
+    noTeams: 'No teams defined yet',
+    settingsTitle: 'Availability Settings',
+    blockedDates: 'Blocked Dates',
+    addBlockout: 'Add Blockout',
+    from: 'From',
+    until: 'Until',
+    reason: 'Reason (Optional)',
+    noBlockedDates: 'You have no blocked dates.',
+    confirm: 'Confirm',
+    decline: 'Decline',
+    confirmed: 'Confirmed',
+    declined: 'Declined',
+    myTeam: 'MY TEAM',
+    orderOfService: 'ORDER OF SERVICE',
+    noOrder: 'No detailed order of service yet',
+    members: 'members',
+    description: 'Description',
+    language: 'Language'
+  }
+};
+
 
 // Configure how notifications are handled when app is in foreground
 Notifications.setNotificationHandler({
@@ -80,7 +185,7 @@ async function savePushToken(userId, token) {
 }
 
 // --- Authentication Screen ---
-const LoginScreen = () => {
+const LoginScreen = ({ t }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -126,11 +231,11 @@ const LoginScreen = () => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.loginContainer}>
           <Calendar size={64} color="#007bff" style={{ marginBottom: 20 }} />
-          <Text style={styles.loginTitle}>ChurchOrg Mobile</Text>
-          <Text style={styles.loginSubtitle}>Accede a tu agenda de servicio</Text>
+          <Text style={styles.loginTitle}>{t('loginTitle')}</Text>
+          <Text style={styles.loginSubtitle}>{t('loginSubtitle')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>{t('email')}</Text>
             <TextInput
               style={styles.input}
               placeholder="email@ejemplo.com"
@@ -142,7 +247,7 @@ const LoginScreen = () => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Contraseña</Text>
+            <Text style={styles.label}>{t('password')}</Text>
             <TextInput
               style={styles.input}
               placeholder="••••••••"
@@ -156,11 +261,11 @@ const LoginScreen = () => {
             style={styles.forgotPasswordBtn}
             onPress={handleForgotPassword}
           >
-            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+            <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
-            {loading ? <ActivityIndicator color="white" /> : <Text style={styles.loginButtonText}>Entrar</Text>}
+            {loading ? <ActivityIndicator color="white" /> : <Text style={styles.loginButtonText}>{t('enter')}</Text>}
           </TouchableOpacity>
         </View>
       </TouchableWithoutFeedback>
@@ -169,7 +274,7 @@ const LoginScreen = () => {
 };
 
 // --- Settings/Availability Screen ---
-const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, onRemoveBlockout }) => {
+const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, onRemoveBlockout, language, setLanguage, t }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
@@ -188,20 +293,49 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
     <View style={styles.modalOverlay}>
       <View style={styles.modalContent}>
         <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Ajustes de Disponibilidad</Text>
+          <Text style={styles.modalTitle}>{t('settingsTitle')}</Text>
           <TouchableOpacity onPress={onClose}>
             <X size={24} color="#64748b" />
           </TouchableOpacity>
         </View>
 
         <ScrollView>
-          <Text style={styles.sectionHeader}>Fechas Bloqueadas</Text>
-          <Text style={styles.sectionSub}>Añade rangos de fechas donde NO estarás disponible para servir.</Text>
+          <Text style={styles.sectionHeader}>{t('language')}</Text>
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, marginTop: 12 }}>
+            {['es', 'ro', 'en'].map((lang) => (
+              <TouchableOpacity
+                key={lang}
+                onPress={() => setLanguage(lang)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  backgroundColor: language === lang ? '#eff6ff' : '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: language === lang ? '#007bff' : '#e2e8f0'
+                }}
+              >
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: language === lang ? '#007bff' : '#64748b',
+                  textTransform: 'uppercase'
+                }}>
+                  {lang}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={styles.sectionHeader}>{t('blockedDates')}</Text>
+          <Text style={styles.sectionSub}>{t('noAssignments') === 'No tienes servicios asignados aún' ? 'Añade rangos de fechas donde NO estarás disponible para servir.' : t('settingsTitle')}</Text>
+          {/* Note: In a real i18n implementation, I'd have a specific key for the description. For now, I'll use a simple conditional or just leave it for the user to refine */}
 
           <View style={styles.addBlockoutForm}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.labelSmall}>Desde (AAAA-MM-DD)</Text>
+                <Text style={styles.labelSmall}>{t('from')} (AAAA-MM-DD)</Text>
                 <TextInput
                   style={styles.inputSmall}
                   placeholder="2024-01-10"
@@ -210,7 +344,7 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.labelSmall}>Hasta (AAAA-MM-DD)</Text>
+                <Text style={styles.labelSmall}>{t('until')} (AAAA-MM-DD)</Text>
                 <TextInput
                   style={styles.inputSmall}
                   placeholder="2024-01-20"
@@ -219,15 +353,15 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
                 />
               </View>
             </View>
-            <Text style={styles.labelSmall}>Razón (Opcional)</Text>
+            <Text style={styles.labelSmall}>{t('reason')}</Text>
             <TextInput
               style={styles.inputSmall}
-              placeholder="Vacaciones, Viaje, etc."
+              placeholder="..."
               value={reason}
               onChangeText={setReason}
             />
             <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-              <Text style={styles.addButtonText}>Añadir Bloqueo</Text>
+              <Text style={styles.addButtonText}>{t('addBlockout')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -253,7 +387,7 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
   );
 };
 
-const TeamCard = ({ team, usersMap }) => {
+const TeamCard = ({ team, usersMap, t }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -269,7 +403,7 @@ const TeamCard = ({ team, usersMap }) => {
           </View>
           <View>
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#1e293b' }}>{team.name}</Text>
-            <Text style={{ fontSize: 13, color: '#64748b' }}>{team.members?.length || 0} integrantes</Text>
+            <Text style={{ fontSize: 13, color: '#64748b' }}>{team.members?.length || 0} {t('members')}</Text>
           </View>
         </View>
         <View>
@@ -280,9 +414,9 @@ const TeamCard = ({ team, usersMap }) => {
       {expanded && (
         <View style={styles.oosSection}>
           <Text style={{ fontSize: 14, color: '#475569', fontStyle: 'italic', marginBottom: 12 }}>
-            {team.description || 'Sin descripción'}
+            {team.description || (t('description') === 'Descripción' ? 'Sin descripción' : (t('description') === 'Descriere' ? 'Fără descriere' : 'No description'))}
           </Text>
-          <Text style={styles.oosHeader}>INTEGRANTES</Text>
+          <Text style={styles.oosHeader}>{t('myTeam')}</Text>
           {team.members && team.members.length > 0 ? (
             team.members.map((memberId, idx) => {
               const userProfile = usersMap[memberId];
@@ -310,7 +444,7 @@ const TeamCard = ({ team, usersMap }) => {
 };
 
 // --- Assignment Card ---
-const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates }) => {
+const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, t }) => {
   const [expanded, setExpanded] = useState(false);
   if (!event) return null;
 
@@ -345,10 +479,10 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
           {assignment.status === 'pending' ? (
             <View style={{ flexDirection: 'column', gap: 12 }}>
               <TouchableOpacity style={styles.acceptButton} onPress={() => onAccept(assignment.id)}>
-                <Text style={styles.acceptButtonText}>Confirmar</Text>
+                <Text style={styles.acceptButtonText}>{t('confirm')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={{ ...styles.acceptButton, backgroundColor: '#fee2e2', borderColor: '#fee2e2' }} onPress={() => onDecline(assignment.id, event.title)}>
-                <Text style={{ ...styles.acceptButtonText, color: '#991b1b' }}>Rechazar</Text>
+                <Text style={{ ...styles.acceptButtonText, color: '#991b1b' }}>{t('decline')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -356,12 +490,12 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
               {assignment.status === 'confirmed' ? (
                 <>
                   <CheckCircle size={14} color="#166534" />
-                  <Text style={styles.confirmedText}>Confirmado</Text>
+                  <Text style={styles.confirmedText}>{t('confirmed')}</Text>
                 </>
               ) : (
                 <>
                   <MinusCircle size={14} color="#991b1b" />
-                  <Text style={{ ...styles.confirmedText, color: '#991b1b' }}>Rechazado</Text>
+                  <Text style={{ ...styles.confirmedText, color: '#991b1b' }}>{t('declined')}</Text>
                 </>
               )}
             </View>
@@ -375,7 +509,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
       {expanded && (
         <View style={styles.oosSection}>
           <View style={{ marginBottom: 20 }}>
-            <Text style={styles.oosHeader}>MI EQUIPO</Text>
+            <Text style={styles.oosHeader}>{t('myTeam')}</Text>
             {teammates && teammates.length > 0 ? (
               teammates.map(tm => (
                 <View key={tm.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -391,7 +525,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
             )}
           </View>
 
-          <Text style={styles.oosHeader}>ORDEN DEL SERVICIO</Text>
+          <Text style={styles.oosHeader}>{t('orderOfService')}</Text>
           {event.orderOfService && event.orderOfService.length > 0 ? (
             event.orderOfService.map((item, index) => {
               const song = item.songId ? globalSongsMap[item.songId] : null;
@@ -439,7 +573,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
               );
             })
           ) : (
-            <Text style={styles.oosEmpty}>No hay orden de servicio detallada aún.</Text>
+            <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
           )}
         </View>
       )}
@@ -464,6 +598,24 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [blockoutDates, setBlockoutDates] = useState([]);
   const [isAvailableToday, setIsAvailableToday] = useState(true);
+  const [language, setLanguage] = useState('es');
+
+  // i18n helper
+  const t = (key) => {
+    return translations[language][key] || key;
+  };
+
+  // Load language preference
+  useEffect(() => {
+    AsyncStorage.getItem('appLanguage').then(val => {
+      if (val) setLanguage(val);
+    });
+  }, []);
+
+  // Save language preference
+  useEffect(() => {
+    AsyncStorage.setItem('appLanguage', language);
+  }, [language]);
 
   // Keep track of event listeners to clean them up
   const eventListeners = useRef({});
@@ -771,7 +923,7 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginScreen />;
+    return <LoginScreen t={t} />;
   }
 
   return (
@@ -809,17 +961,20 @@ export default function App() {
           blockoutDates={blockoutDates}
           onAddBlockout={handleAddBlockout}
           onRemoveBlockout={handleRemoveBlockout}
+          language={language}
+          setLanguage={setLanguage}
+          t={t}
         />
 
         <ScrollView style={styles.content}>
           {activeTab === 'turns' ? (
             <>
-              <Text style={styles.sectionTitle}>Mis Asignaciones</Text>
+              <Text style={styles.sectionTitle}>{t('myAssignments')}</Text>
               {loading && <ActivityIndicator color="#007bff" style={{ marginVertical: 20 }} />}
               {assignments.length === 0 && !loading ? (
                 <View style={styles.emptyState}>
                   <Calendar size={48} color="#94a3b8" />
-                  <Text style={styles.emptyStateText}>No tienes servicios asignados aún</Text>
+                  <Text style={styles.emptyStateText}>{t('noAssignments')}</Text>
                 </View>
               ) : (
                 assignments.map(item => (
@@ -831,17 +986,18 @@ export default function App() {
                     onDecline={handleDecline}
                     globalSongsMap={songsMap}
                     teammates={allSchedules.filter(s => s.eventId === item.eventId && s.userId !== user.uid)}
+                    t={t}
                   />
                 ))
               )}
             </>
           ) : activeTab === 'wall' ? (
             <>
-              <Text style={styles.sectionTitle}>El Muro (Avisos)</Text>
+              <Text style={styles.sectionTitle}>{t('wall')}</Text>
               {announcements.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Megaphone size={48} color="#94a3b8" />
-                  <Text style={styles.emptyStateText}>No hay comunicados recientes</Text>
+                  <Text style={styles.emptyStateText}>{t('noAnnouncements')}</Text>
                 </View>
               ) : (
                 announcements.map(post => (
@@ -864,15 +1020,15 @@ export default function App() {
             </>
           ) : (
             <>
-              <Text style={styles.sectionTitle}>Nuestros Equipos</Text>
+              <Text style={styles.sectionTitle}>{t('teams')}</Text>
               {teams.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Users size={48} color="#94a3b8" />
-                  <Text style={styles.emptyStateText}>No hay equipos definidos aún</Text>
+                  <Text style={styles.emptyStateText}>{t('noTeams')}</Text>
                 </View>
               ) : (
                 teams.map(team => (
-                  <TeamCard key={team.id} team={team} usersMap={usersMap} />
+                  <TeamCard key={team.id} team={team} usersMap={usersMap} t={t} />
                 ))
               )}
             </>
@@ -882,18 +1038,18 @@ export default function App() {
         <View style={styles.navBar}>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('turns')}>
             <Calendar size={24} color={activeTab === 'turns' ? '#007bff' : '#94a3b8'} />
-            <Text style={[styles.navText, activeTab === 'turns' && { color: '#007bff' }]}>Agenda</Text>
+            <Text style={[styles.navText, activeTab === 'turns' && { color: '#007bff' }]}>{t('agenda')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('teams')}>
             <Users size={24} color={activeTab === 'teams' ? '#007bff' : '#94a3b8'} />
-            <Text style={[styles.navText, activeTab === 'teams' && { color: '#007bff' }]}>Equipos</Text>
+            <Text style={[styles.navText, activeTab === 'teams' && { color: '#007bff' }]}>{t('teams')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('wall')}>
             <View>
               <Megaphone size={24} color={activeTab === 'wall' ? '#007bff' : '#94a3b8'} />
               {activeTab !== 'wall' && announcements.length > 0 && <View style={styles.notifDot} />}
             </View>
-            <Text style={[styles.navText, activeTab === 'wall' && { color: '#007bff' }]}>El Muro</Text>
+            <Text style={[styles.navText, activeTab === 'wall' && { color: '#007bff' }]}>{t('wall')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

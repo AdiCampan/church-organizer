@@ -3,9 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
+
 
 const EventDetails = () => {
+    const { t, language } = useLanguage();
     const { eventId } = useParams();
+
     const navigate = useNavigate();
     const [event, setEvent] = useState(null);
     const [teams, setTeams] = useState([]);
@@ -89,8 +93,9 @@ const EventDetails = () => {
             setShowAddMember(null);
         } catch (err) {
             console.error("Error assigning:", err);
-            alert("Error al asignar");
+            alert(t('errorAssigning'));
         }
+
     };
 
     const handleRemoveAssignment = async (assignmentId) => {
@@ -165,26 +170,30 @@ const EventDetails = () => {
         );
     };
 
-    if (loading || !event) return <div className="page">Cargando...</div>;
+    if (loading || !event) return <div className="page">{t('loading')}...</div>;
+
 
     return (
         <div className="page">
             <button onClick={() => navigate('/events')} style={styles.backBtn}>
-                <ArrowLeft size={16} /> Volver a eventos
+                <ArrowLeft size={16} /> {t('backToEvents')}
             </button>
+
 
             <div style={styles.header}>
                 <div style={styles.eventInfo}>
                     <h1>{event.title}</h1>
                     <div style={styles.meta}>
-                        <div style={styles.metaItem}><Calendar size={16} /> {event.date?.toDate().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
-                        <div style={styles.metaItem}><Clock size={16} /> {event.date?.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</div>
-                        <div style={styles.metaItem}><MapPin size={16} /> {event.location || 'Sin ubicación'}</div>
+                        <div style={styles.metaItem}><Calendar size={16} /> {event.date?.toDate().toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+                        <div style={styles.metaItem}><Clock size={16} /> {event.date?.toDate().toLocaleTimeString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { hour: '2-digit', minute: '2-digit' })}</div>
+                        <div style={styles.metaItem}><MapPin size={16} /> {event.location || t('noLocation')}</div>
                     </div>
+
                 </div>
                 <div style={styles.statusBadge}>
-                    {event.status === 'published' ? 'Publicado' : 'Borrador'}
+                    {event.status === 'published' ? t('published') : t('draft')}
                 </div>
+
             </div>
 
             <div style={styles.content}>
@@ -192,8 +201,9 @@ const EventDetails = () => {
                 <div style={styles.schedulingSection}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                         <Users size={20} color="#64748b" />
-                        <h2 style={{ margin: 0 }}>Equipos y Personas</h2>
+                        <h2 style={{ margin: 0 }}>{t('teamsAndPeople')}</h2>
                     </div>
+
 
                     {teams.map(team => (
                         <div key={team.id} className="card" style={styles.teamCard}>
@@ -203,14 +213,16 @@ const EventDetails = () => {
                                     onClick={() => setShowAddMember(team.id)}
                                     style={styles.addBtn}
                                 >
-                                    <Plus size={14} /> Añadir
+                                    <Plus size={14} /> {t('add')}
                                 </button>
                             </div>
 
+
                             <div style={styles.assignmentsList}>
                                 {assignments.filter(a => a.teamId === team.id).length === 0 ? (
-                                    <p style={{ fontSize: '13px', color: '#94a3b8', margin: '8px 0' }}>Nadie asignado aún.</p>
+                                    <p style={{ fontSize: '13px', color: '#94a3b8', margin: '8px 0' }}>{t('noOneAssigned')}</p>
                                 ) : (
+
                                     assignments.filter(a => a.teamId === team.id).map(assignment => (
                                         <div key={assignment.id} style={styles.assignmentRow}>
                                             <div style={styles.userInfo}>
@@ -223,17 +235,18 @@ const EventDetails = () => {
                                             <div style={styles.assignmentActions}>
                                                 {assignment.status === 'confirmed' ? (
                                                     <div style={{ ...styles.statusTag, backgroundColor: '#dcfce7', color: '#166534', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                        <CheckCircle size={10} /> Confirmado
+                                                        <CheckCircle size={10} /> {t('confirmed')}
                                                     </div>
                                                 ) : assignment.status === 'declined' ? (
                                                     <div style={{ ...styles.statusTag, backgroundColor: '#fee2e2', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                        <Users size={10} /> Rechazado
+                                                        <Users size={10} /> {t('declined')}
                                                     </div>
                                                 ) : (
                                                     <span style={{ ...styles.statusTag, backgroundColor: '#f1f5f9', color: '#475569' }}>
-                                                        Pendiente
+                                                        {t('pending')}
                                                     </span>
                                                 )}
+
                                                 <button onClick={() => handleRemoveAssignment(assignment.id)} style={styles.deleteBtn}>
                                                     <Trash2 size={14} />
                                                 </button>
@@ -250,36 +263,41 @@ const EventDetails = () => {
                                         onChange={e => setSelectedUser(e.target.value)}
                                         style={styles.select}
                                     >
-                                        <option value="">Selecciona persona...</option>
+                                        <option value="">{t('selectPerson')}</option>
+
                                         {availablePeople
                                             .filter(p => team.members?.includes(p.id))
                                             .map(p => {
                                                 const isAvailable = isUserAvailable(p);
                                                 return (
                                                     <option key={p.id} value={p.id} disabled={!isAvailable}>
-                                                        {p.name} {!isAvailable ? '(NO DISPONIBLE)' : ''}
+                                                        {p.name} {!isAvailable ? t('notAvailable') : ''}
                                                     </option>
+
                                                 );
                                             })
                                         }
                                         {team.members?.length === 0 && (
-                                            <option disabled>No hay miembros en este equipo</option>
+                                            <option disabled>{t('noMembersInTeam')}</option>
                                         )}
+
                                     </select>
                                     <select
                                         value={selectedPosition}
                                         onChange={e => setSelectedPosition(e.target.value)}
                                         style={styles.select}
                                     >
-                                        <option value="">Posición...</option>
+                                        <option value="">{t('position')}...</option>
+
                                         {team.positions?.map((p, i) => (
                                             <option key={i} value={p}>{p}</option>
                                         ))}
                                     </select>
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button onClick={() => handleAssign(team.id)} className="btn-primary" style={{ flex: 1, padding: '8px' }}>Guardar</button>
-                                        <button onClick={() => setShowAddMember(null)} style={styles.cancelBtn}>Cancelar</button>
+                                        <button onClick={() => handleAssign(team.id)} className="btn-primary" style={{ flex: 1, padding: '8px' }}>{t('save')}</button>
+                                        <button onClick={() => setShowAddMember(null)} style={styles.cancelBtn}>{t('cancel')}</button>
                                     </div>
+
                                 </div>
                             )}
                         </div>
@@ -290,14 +308,16 @@ const EventDetails = () => {
                 <div style={styles.sidePanel}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                         <Clock size={20} color="#64748b" />
-                        <h2 style={{ margin: 0 }}>Orden de Servicio</h2>
+                        <h2 style={{ margin: 0 }}>{t('orderOfService')}</h2>
                     </div>
+
 
                     <div className="card" style={{ padding: '0' }}>
                         <div style={styles.oosList}>
                             {oos.length === 0 ? (
-                                <p style={{ color: '#64748b', fontSize: '14px', padding: '24px', textAlign: 'center' }}>No hay elementos definidos.</p>
+                                <p style={{ color: '#64748b', fontSize: '14px', padding: '24px', textAlign: 'center' }}>{t('noElementsDefined')}</p>
                             ) : (
+
                                 oos.map((item, index) => (
                                     <div key={item.id} style={styles.oosItem}>
                                         <div style={styles.oosNumber}>{index + 1}</div>
@@ -307,7 +327,8 @@ const EventDetails = () => {
                                                 {item.songId && <Music size={12} color="#007bff" />}
                                             </div>
                                             <div style={styles.oosDurationText}>
-                                                {item.duration} min
+                                                {item.duration} {t('min')}
+
                                                 {item.songId && ` • ${allSongs.find(s => s.id === item.songId)?.title}`}
                                             </div>
                                             {item.details && (
@@ -330,10 +351,11 @@ const EventDetails = () => {
                         </div>
 
                         <form onSubmit={handleAddOOSItem} style={styles.oosAddForm}>
-                            {editingOosId && <div style={{ fontSize: '12px', fontWeight: '700', color: '#007bff', marginBottom: '4px' }}>Editando momento...</div>}
+                            {editingOosId && <div style={{ fontSize: '12px', fontWeight: '700', color: '#007bff', marginBottom: '4px' }}>{t('saving')}...</div>}
+
                             <input
                                 type="text"
-                                placeholder="Momento (ej: Bienvenida)"
+                                placeholder={t('momentPlaceholder')}
                                 value={newItem.title}
                                 onChange={e => setNewItem({ ...newItem, title: e.target.value })}
                                 style={styles.oosInput}
@@ -344,13 +366,13 @@ const EventDetails = () => {
                                 onChange={e => setNewItem({ ...newItem, songId: e.target.value })}
                                 style={styles.oosInput}
                             >
-                                <option value="">(Sin canción)</option>
+                                <option value="">{t('noSong')}</option>
                                 {allSongs.map(s => (
                                     <option key={s.id} value={s.id}>{s.title}</option>
                                 ))}
                             </select>
                             <textarea
-                                placeholder="Detalles (opcional)"
+                                placeholder={`${t('details')} (${t('optional')})`}
                                 value={newItem.details}
                                 onChange={e => setNewItem({ ...newItem, details: e.target.value })}
                                 style={{ ...styles.oosInput, minHeight: '60px', resize: 'vertical' }}
@@ -358,18 +380,18 @@ const EventDetails = () => {
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <input
                                     type="number"
-                                    placeholder="Min"
+                                    placeholder={t('min')}
                                     value={newItem.duration}
                                     onChange={e => setNewItem({ ...newItem, duration: e.target.value })}
                                     style={{ ...styles.oosInput, width: '70px' }}
                                     required
                                 />
                                 <button type="submit" className="btn-primary" style={{ flex: 1, padding: '8px', fontSize: '13px' }}>
-                                    {editingOosId ? 'Guardar' : 'Añadir'}
+                                    {editingOosId ? t('save') : t('add')}
                                 </button>
                                 {editingOosId && (
                                     <button type="button" onClick={handleCancelOOSEdit} style={{ ...styles.cancelBtn, border: '1px solid #e2e8f0', padding: '0 12px' }}>
-                                        Cancelar
+                                        {t('cancel')}
                                     </button>
                                 )}
                             </div>

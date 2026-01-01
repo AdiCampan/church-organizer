@@ -3,9 +3,13 @@ import { db } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../LanguageContext';
+
 
 const Events = () => {
+    const { t, language } = useLanguage();
     const navigate = useNavigate();
+
     const [events, setEvents] = useState([]);
     const [serviceTypes, setServiceTypes] = useState([]);
     const [locations, setLocations] = useState([]);
@@ -76,23 +80,26 @@ const Events = () => {
             fetchEvents();
         } catch (err) {
             console.error("Error adding event:", err);
-            alert("Error al añadir evento");
+            alert(t('errorAddingEvent') === 'errorAddingEvent' ? 'Error al añadir evento' : t('errorAddingEvent'));
         } finally {
+
             setLoading(false);
         }
     };
 
     const handleDeleteEvent = async (e, eventId) => {
         e.stopPropagation(); // Prevent card click
-        if (!window.confirm('¿Estás seguro de que quieres eliminar este evento?')) return;
+        if (!window.confirm(t('confirmDeleteEvent'))) return;
+
 
         try {
             await deleteDoc(doc(db, 'events', eventId));
             fetchEvents();
         } catch (err) {
             console.error("Error removing event:", err);
-            alert("Error al eliminar");
+            alert(t('errorDeleting') === 'errorDeleting' ? 'Error al eliminar' : t('errorDeleting'));
         }
+
     };
 
     const handleEditEvent = (e, event) => {
@@ -136,8 +143,9 @@ const Events = () => {
             fetchEvents();
         } catch (err) {
             console.error("Error updating event:", err);
-            alert("Error al actualizar evento");
+            alert(t('errorUpdatingEvent') === 'errorUpdatingEvent' ? 'Error al actualizar evento' : t('errorUpdatingEvent'));
         } finally {
+
             setLoading(false);
         }
     };
@@ -146,47 +154,50 @@ const Events = () => {
     const formatDate = (timestamp) => {
         if (!timestamp) return '';
         const date = timestamp.toDate();
-        return date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const locale = language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES');
+        return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
     };
 
     const formatTime = (timestamp) => {
         if (!timestamp) return '';
         const date = timestamp.toDate();
-        return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        const locale = language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES');
+        return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
+
 
     return (
         <div className="page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h1>Eventos</h1>
+                <h1>{t('events')}</h1>
                 <button
                     className="btn-primary"
                     onClick={() => setShowAddForm(!showAddForm)}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Plus size={18} />
-                    Nuevo Evento
+                    {t('newEvent')}
                 </button>
             </div>
 
             {showAddForm && (
                 <div className="card" style={{ marginBottom: '24px', maxWidth: '600px' }}>
-                    <h3>Programar Nuevo Evento</h3>
+                    <h3>{t('scheduleNewEvent')}</h3>
                     <form onSubmit={handleAddEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                         <div style={styles.inputGroup}>
-                            <label>Título del Evento</label>
+                            <label>{t('eventTitle')}</label>
                             <input
                                 type="text"
                                 value={newEvent.title}
                                 onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
-                                placeholder="Ej: Servicio de Domingo"
+                                placeholder={t('eventTitlePlaceholder')}
                                 required
                                 style={styles.input}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '16px' }}>
                             <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                <label>Fecha</label>
+                                <label>{t('date')}</label>
                                 <input
                                     type="date"
                                     value={newEvent.date}
@@ -196,7 +207,7 @@ const Events = () => {
                                 />
                             </div>
                             <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                <label>Hora</label>
+                                <label>{t('time')}</label>
                                 <input
                                     type="time"
                                     value={newEvent.time}
@@ -207,13 +218,13 @@ const Events = () => {
                             </div>
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Ubicación</label>
+                            <label>{t('location')}</label>
                             <select
                                 value={newEvent.locationId}
                                 onChange={e => setNewEvent({ ...newEvent, locationId: e.target.value })}
                                 style={styles.input}
                             >
-                                <option value="">(Sin ubicación)</option>
+                                <option value="">{t('noLocation')}</option>
                                 {locations.map(loc => (
                                     <option key={loc.id} value={loc.id}>
                                         {loc.name}
@@ -222,13 +233,13 @@ const Events = () => {
                             </select>
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Tipo de Servicio</label>
+                            <label>{t('serviceType')}</label>
                             <select
                                 value={newEvent.serviceTypeId}
                                 onChange={e => setNewEvent({ ...newEvent, serviceTypeId: e.target.value })}
                                 style={styles.input}
                             >
-                                <option value="">(Sin categoría)</option>
+                                <option value="">{t('noCategory')}</option>
                                 {serviceTypes.map(type => (
                                     <option key={type.id} value={type.id}>
                                         {type.name}
@@ -237,20 +248,20 @@ const Events = () => {
                             </select>
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Descripción</label>
+                            <label>{t('description')}</label>
                             <textarea
                                 value={newEvent.description}
                                 onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
-                                placeholder="Detalles sobre el evento..."
+                                placeholder={t('descriptionPlaceholder')}
                                 style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>
-                                {loading ? 'Guardando...' : 'Programar Evento'}
+                                {loading ? t('saving') : t('saveEvent')}
                             </button>
                             <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>
-                                Cancelar
+                                {t('cancel')}
                             </button>
                         </div>
                     </form>
@@ -258,22 +269,22 @@ const Events = () => {
             )}
             {editingEvent && (
                 <div className="card" style={{ marginBottom: '24px', maxWidth: '600px' }}>
-                    <h3>Editar Evento</h3>
+                    <h3>{t('editEvent')}</h3>
                     <form onSubmit={handleUpdateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                         <div style={styles.inputGroup}>
-                            <label>Título del Evento</label>
+                            <label>{t('eventTitle')}</label>
                             <input
                                 type="text"
                                 value={editingEvent.title}
                                 onChange={e => setEditingEvent({ ...editingEvent, title: e.target.value })}
-                                placeholder="Ej: Servicio de Domingo"
+                                placeholder={t('eventTitlePlaceholder')}
                                 required
                                 style={styles.input}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '16px' }}>
                             <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                <label>Fecha</label>
+                                <label>{t('date')}</label>
                                 <input
                                     type="date"
                                     value={editingEvent.date}
@@ -283,7 +294,7 @@ const Events = () => {
                                 />
                             </div>
                             <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                <label>Hora</label>
+                                <label>{t('time')}</label>
                                 <input
                                     type="time"
                                     value={editingEvent.time}
@@ -294,45 +305,45 @@ const Events = () => {
                             </div>
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Ubicación</label>
+                            <label>{t('location')}</label>
                             <select
                                 value={editingEvent.locationId}
                                 onChange={e => setEditingEvent({ ...editingEvent, locationId: e.target.value })}
                                 style={styles.input}
                             >
-                                <option value="">(Sin ubicación)</option>
+                                <option value="">{t('noLocation')}</option>
                                 {locations.map(loc => (
                                     <option key={loc.id} value={loc.id}>{loc.name}</option>
                                 ))}
                             </select>
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Tipo de Servicio</label>
+                            <label>{t('serviceType')}</label>
                             <select
                                 value={editingEvent.serviceTypeId}
                                 onChange={e => setEditingEvent({ ...editingEvent, serviceTypeId: e.target.value })}
                                 style={styles.input}
                             >
-                                <option value="">(Sin categoría)</option>
+                                <option value="">{t('noCategory')}</option>
                                 {serviceTypes.map(type => (
                                     <option key={type.id} value={type.id}>{type.name}</option>
                                 ))}
                             </select>
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Descripción</label>
+                            <label>{t('description')}</label>
                             <textarea
                                 value={editingEvent.description}
                                 onChange={e => setEditingEvent({ ...editingEvent, description: e.target.value })}
-                                placeholder="Detalles sobre el evento..."
+                                placeholder={t('descriptionPlaceholder')}
                                 style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>
-                                {loading ? 'Actualizando...' : 'Actualizar Evento'}
+                                {loading ? t('updating') : t('updateEvent')}
                             </button>
-                            <button type="button" onClick={() => setEditingEvent(null)} style={styles.btnSecondary}>Cancelar</button>
+                            <button type="button" onClick={() => setEditingEvent(null)} style={styles.btnSecondary}>{t('cancel')}</button>
                         </div>
                     </form>
                 </div>
@@ -342,7 +353,7 @@ const Events = () => {
                 {events.length === 0 ? (
                     <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
                         <CalendarIcon size={48} color="#94a3b8" style={{ marginBottom: '16px' }} />
-                        <p style={{ color: '#64748b' }}>No hay eventos programados.</p>
+                        <p style={{ color: '#64748b' }}>{t('noEventsScheduled')}</p>
                     </div>
                 ) : (
                     events.map(event => (
@@ -354,7 +365,7 @@ const Events = () => {
                         >
                             <div style={styles.eventDateBox}>
                                 <span style={styles.dateDay}>{event.date.toDate().getDate()}</span>
-                                <span style={styles.dateMonth}>{event.date.toDate().toLocaleDateString('es-ES', { month: 'short' }).toUpperCase()}</span>
+                                <span style={styles.dateMonth}>{event.date.toDate().toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { month: 'short' }).toUpperCase()}</span>
                             </div>
                             <div style={styles.eventInfo}>
                                 <h3 style={{ margin: 0, fontSize: '18px' }}>{event.title}</h3>
@@ -365,7 +376,7 @@ const Events = () => {
                                     </div>
                                     <div style={styles.metaItem}>
                                         <MapPin size={14} />
-                                        <span>{event.location || 'Sin ubicación'}</span>
+                                        <span>{event.location || t('noLocation')}</span>
                                     </div>
                                 </div>
                                 <p style={styles.eventDescription}>{event.description}</p>

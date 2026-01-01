@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit2, Trash2, Plus } from 'lucide-react';
+import { useLanguage } from '../../LanguageContext';
+
 
 const RoleSettings = () => {
+    const { t } = useLanguage();
     const [roles, setRoles] = useState([]);
+
     const [showForm, setShowForm] = useState(false);
     const [editingRole, setEditingRole] = useState(null);
     const [newRole, setNewRole] = useState({ name: '', permissions: '' }); // permissions as comma‑separated string
@@ -37,7 +41,8 @@ const RoleSettings = () => {
 
     const handleDeleteRole = async (e, roleId) => {
         e.stopPropagation();
-        if (!window.confirm('¿Estás seguro de que quieres eliminar este rol?')) return;
+        if (!window.confirm(t('confirmDeleteRole'))) return;
+
         try {
             await deleteDoc(doc(db, 'roles', roleId));
             fetchRoles();
@@ -66,7 +71,8 @@ const RoleSettings = () => {
 
     return (
         <div>
-            <h3>Gestión de Roles y Permisos</h3>
+            <h3>{t('rolesAndPermissions')}</h3>
+
 
             {/* Add / Edit Form */}
             {showForm && (
@@ -75,23 +81,27 @@ const RoleSettings = () => {
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <input
                                 type="text"
-                                placeholder="Nombre del rol"
+                                placeholder={t('roleName')}
+
                                 value={newRole.name}
                                 onChange={e => setNewRole({ ...newRole, name: e.target.value })}
                                 required
                                 style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                             />
-                            <button type="submit" className="btn-primary"><Plus size={16} /> Añadir</button>
+                            <button type="submit" className="btn-primary"><Plus size={16} /> {t('add')}</button>
                         </div>
+
                         <textarea
-                            placeholder="Permisos (separados por coma)"
+                            placeholder={`${t('permissions')} (${t('commaSeparated')})`}
+
                             value={newRole.permissions}
                             onChange={e => setNewRole({ ...newRole, permissions: e.target.value })}
                             rows={2}
                             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                         />
-                        <button type="button" onClick={() => setShowForm(false)} style={styles.btnSecondary}>Cancelar</button>
+                        <button type="button" onClick={() => setShowForm(false)} style={styles.btnSecondary}>{t('cancel')}</button>
                     </form>
+
                 </div>
             )}
 
@@ -100,23 +110,26 @@ const RoleSettings = () => {
                     <form onSubmit={handleUpdateRole} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         <input
                             type="text"
-                            placeholder="Nombre del rol"
+                            placeholder={t('roleName')}
+
                             value={editingRole.name}
                             onChange={e => setEditingRole({ ...editingRole, name: e.target.value })}
                             required
                             style={{ padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                         />
                         <textarea
-                            placeholder="Permisos (separados por coma)"
+                            placeholder={`${t('permissions')} (${t('commaSeparated')})`}
+
                             value={editingRole.permissions}
                             onChange={e => setEditingRole({ ...editingRole, permissions: e.target.value })}
                             rows={2}
                             style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}
                         />
                         <div style={{ display: 'flex', gap: '8px' }}>
-                            <button type="submit" className="btn-primary">Actualizar</button>
-                            <button type="button" onClick={() => setEditingRole(null)} style={styles.btnSecondary}>Cancelar</button>
+                            <button type="submit" className="btn-primary">{t('update')}</button>
+                            <button type="button" onClick={() => setEditingRole(null)} style={styles.btnSecondary}>{t('cancel')}</button>
                         </div>
+
                     </form>
                 </div>
             )}
@@ -124,9 +137,10 @@ const RoleSettings = () => {
             {/* Roles List */}
             <div className="card" style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <h4>Roles existentes</h4>
-                    <button type="button" onClick={() => setShowForm(true)} style={styles.btnPrimary}>Nuevo Rol</button>
+                    <h4>{t('existingRoles')}</h4>
+                    <button type="button" onClick={() => setShowForm(true)} style={styles.btnPrimary}>{t('newRole')}</button>
                 </div>
+
                 {roles.map(role => (
                     <div key={role.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
                         <div>

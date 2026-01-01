@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
-import { Megaphone, Plus, Trash2, Edit2, Users, Send, Bell, Clock, Info, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Megaphone, Plus, Trash2, Edit2, Users, Send, Bell, Clock, Info, AlertTriangle, MessageSquare, X } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
+
 
 const Announcements = () => {
+    const { t, language } = useLanguage();
     const [posts, setPosts] = useState([]);
+
     const [teams, setTeams] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -58,8 +62,9 @@ const Announcements = () => {
             closeModal();
         } catch (err) {
             console.error("Error creating/updating post:", err);
-            alert("Error al publicar");
+            alert(t('errorPublishing'));
         }
+
     };
 
     const handleEdit = (post) => {
@@ -81,7 +86,8 @@ const Announcements = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("¿Eliminar este aviso?")) return;
+        if (!window.confirm(t('confirmDeleteAnnouncement'))) return;
+
         try {
             await deleteDoc(doc(db, 'announcements', id));
         } catch (err) {
@@ -98,31 +104,35 @@ const Announcements = () => {
     };
 
     const getTargetLabel = (id) => {
-        if (id === 'all') return 'Todos';
+        if (id === 'all') return t('everyone');
+
         const team = teams.find(t => t.id === id);
-        return team ? team.name : 'Equipo';
+        return team ? team.name : t('team');
     };
+
 
     return (
         <div className="page">
             <div style={styles.header}>
                 <div>
-                    <h1>El Muro</h1>
-                    <p style={{ color: '#64748b' }}>Comunícate con tus equipos y voluntarios.</p>
+                    <h1>{t('wallTitle')}</h1>
+                    <p style={{ color: '#64748b' }}>{t('wallDescription')}</p>
                 </div>
                 <button className="btn-primary" onClick={() => setShowAddModal(true)} style={styles.addBtn}>
-                    <Plus size={18} /> Nuevo Memento
+                    <Plus size={18} /> {t('newAnnouncement')}
                 </button>
             </div>
 
             <div style={styles.feed}>
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '40px' }}>Cargando avisos...</div>
+                    <div style={{ textAlign: 'center', padding: '40px' }}>{t('loadingAnnouncements')}</div>
                 ) : posts.length === 0 ? (
+
                     <div className="card" style={styles.emptyCard}>
                         <Megaphone size={40} color="#e2e8f0" />
-                        <p style={{ color: '#94a3b8', marginTop: '12px' }}>Aún no hay mensajes en el muro.</p>
+                        <p style={{ color: '#94a3b8', marginTop: '12px' }}>{t('noAnnouncementsWall')}</p>
                     </div>
+
                 ) : (
                     posts.map(post => (
                         <div key={post.id} className="card" style={styles.postCard}>
@@ -139,8 +149,9 @@ const Announcements = () => {
                                             </span>
                                             <span style={styles.dot}>•</span>
                                             <span style={styles.date}>
-                                                {post.createdAt?.toDate().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                                                {post.createdAt?.toDate().toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { day: 'numeric', month: 'short' })}
                                             </span>
+
                                         </div>
                                     </div>
                                 </div>
@@ -167,66 +178,72 @@ const Announcements = () => {
                     <div style={styles.modalOverlay}>
                         <div className="card" style={styles.modal}>
                             <div style={styles.modalHeader}>
-                                <h2>{editingId ? 'Editar Memento' : 'Crear Nuevo Memento'}</h2>
+                                <h2>{editingId ? t('editAnnouncement') : t('createAnnouncement')}</h2>
                                 <button onClick={closeModal} style={styles.closeBtn}><X size={24} /></button>
                             </div>
+
                             <form onSubmit={handleSubmit} style={styles.form}>
                                 <div style={styles.inputGroup}>
-                                    <label>Título del mensaje</label>
+                                    <label>{t('messageTitle')}</label>
                                     <input
                                         type="text"
                                         value={formData.title}
                                         onChange={e => setFormData({ ...formData, title: e.target.value })}
-                                        placeholder="Ej: Ensayo de alabanza cancelado"
+                                        placeholder={t('messageTitlePlaceholder')}
                                         required
                                         style={styles.input}
                                     />
                                 </div>
 
+
                                 <div style={styles.formRow}>
                                     <div style={styles.inputGroup}>
-                                        <label>Dirigido a:</label>
+                                        <label>{t('targetAudience')}</label>
                                         <select
                                             value={formData.targetTeamId}
                                             onChange={e => setFormData({ ...formData, targetTeamId: e.target.value })}
                                             style={styles.input}
                                         >
-                                            <option value="all">Todos los equipos</option>
+                                            <option value="all">{t('allTeams')}</option>
+
                                             {teams.map(team => (
                                                 <option key={team.id} value={team.id}>{team.name}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <div style={styles.inputGroup}>
-                                        <label>Tipo de aviso:</label>
+                                        <label>{t('announcementType')}</label>
                                         <select
                                             value={formData.type}
                                             onChange={e => setFormData({ ...formData, type: e.target.value })}
                                             style={styles.input}
                                         >
-                                            <option value="announcement">General</option>
-                                            <option value="important">Importante</option>
-                                            <option value="alert">Urgente</option>
+                                            <option value="announcement">{t('general')}</option>
+                                            <option value="important">{t('important')}</option>
+                                            <option value="alert">{t('urgent')}</option>
                                         </select>
                                     </div>
+
                                 </div>
 
                                 <div style={styles.inputGroup}>
-                                    <label>Mensaje</label>
+                                    <label>{t('message')}</label>
                                     <textarea
                                         value={formData.content}
                                         onChange={e => setFormData({ ...formData, content: e.target.value })}
-                                        placeholder="Escribe aquí los detalles del anuncio..."
+                                        placeholder={t('messagePlaceholder')}
                                         required
                                         style={{ ...styles.input, minHeight: '120px' }}
                                     />
                                 </div>
 
+
                                 <div style={styles.modalFooter}>
                                     <button type="submit" className="btn-primary" style={styles.sendBtn}>
-                                        <Send size={18} /> {editingId ? 'Guardar Cambios' : 'Publicar Mensaje'}
+                                        <Send size={18} /> {editingId ? t('save_changes') : t('publishMessage')}
                                     </button>
                                 </div>
+
                             </form>
                         </div>
                     </div>
@@ -236,10 +253,8 @@ const Announcements = () => {
     );
 };
 
-// Reuse X icon from Songs or People
-const X = ({ size }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-);
+// No custom X component needed as it is already imported from lucide-react
+
 
 const styles = {
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' },

@@ -3,9 +3,13 @@ import { db, storage } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, limit, startAfter } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Music, Plus, Search, FileText, Play, Trash2, X, Upload, Save, MoreVertical, ExternalLink } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
+
 
 const Songs = () => {
+    const { t } = useLanguage();
     const [songs, setSongs] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
@@ -143,14 +147,16 @@ const Songs = () => {
             fetchSongs();
         } catch (err) {
             console.error("Error saving song:", err);
-            alert("Error al guardar la canción (verifica que Storage esté activo y el CORS configurado)");
+            alert(t('errorSavingSong'));
         } finally {
+
             setLoading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("¿Estás seguro de eliminar esta canción?")) return;
+        if (!window.confirm(t('confirmDeleteSong'))) return;
+
         try {
             await deleteDoc(doc(db, 'songs', id));
             fetchSongs();
@@ -163,11 +169,11 @@ const Songs = () => {
         <div className="page">
             <div style={styles.header}>
                 <div>
-                    <h1>Repertorio</h1>
-                    <p style={{ color: '#64748b' }}>Sube acordes, audios y gestiona las letras.</p>
+                    <h1>{t('repertoire')}</h1>
+                    <p style={{ color: '#64748b' }}>{t('songsDescription')}</p>
                 </div>
                 <button className="btn-primary" onClick={() => setShowAddModal(true)} style={styles.addBtn}>
-                    <Plus size={18} /> Nueva Canción
+                    <Plus size={18} /> {t('newSong')}
                 </button>
             </div>
 
@@ -176,7 +182,7 @@ const Songs = () => {
                     <Search size={20} color="#94a3b8" />
                     <input
                         type="text"
-                        placeholder="Buscar por título..."
+                        placeholder={t('searchByTitle')}
                         value={searchTerm}
                         onChange={handleSearch}
                         style={styles.searchInput}
@@ -193,7 +199,7 @@ const Songs = () => {
                             </div>
                             <div style={{ flex: 1 }}>
                                 <h3 style={{ margin: 0, fontSize: '16px' }}>{song.title}</h3>
-                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>{song.artist} • Tono: {song.key}</p>
+                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>{song.artist} • {t('key')}: {song.key}</p>
                             </div>
                             <div style={styles.actions}>
                                 <button style={styles.iconBtn} onClick={() => { setIsEditing(song); setFormData(song); setShowAddModal(true); }}>
@@ -205,12 +211,12 @@ const Songs = () => {
                             <div style={styles.attachments}>
                                 {song.pdfUrl && (
                                     <a href={song.pdfUrl} target="_blank" rel="noreferrer" style={styles.attachmentLink}>
-                                        <FileText size={14} /> Acordes
+                                        <FileText size={14} /> {t('chords')}
                                     </a>
                                 )}
                                 {song.mp3Url && (
                                     <a href={song.mp3Url} target="_blank" rel="noreferrer" style={styles.attachmentLink}>
-                                        <Play size={14} /> Audio
+                                        <Play size={14} /> {t('audio')}
                                     </a>
                                 )}
                             </div>
@@ -225,7 +231,7 @@ const Songs = () => {
             {hasMore && !searchTerm && (
                 <div style={{ textAlign: 'center', marginTop: '32px' }}>
                     <button className="btn-secondary" onClick={() => fetchSongs(true)} disabled={loading}>
-                        {loading ? 'Cargando...' : 'Cargar más canciones'}
+                        {loading ? t('loading') : t('loadMore')}
                     </button>
                 </div>
             )}
@@ -234,15 +240,17 @@ const Songs = () => {
                 <div style={styles.modalOverlay}>
                     <div className="card" style={styles.modal}>
                         <div style={styles.modalHeader}>
-                            <h2>{isEditing ? 'Editar Canción' : 'Nueva Canción'}</h2>
+                            <h2>{isEditing ? t('editSong') : t('newSong')}</h2>
                             <button onClick={() => { setShowAddModal(false); setIsEditing(null); }} style={styles.closeBtn}>
+
                                 <X size={24} />
                             </button>
                         </div>
                         <form onSubmit={handleSubmit} style={styles.form}>
                             <div style={styles.formRow}>
                                 <div style={styles.inputGroup}>
-                                    <label>Título</label>
+                                    <label>{t('title')}</label>
+
                                     <input
                                         type="text"
                                         value={formData.title}
@@ -252,7 +260,8 @@ const Songs = () => {
                                     />
                                 </div>
                                 <div style={styles.inputGroup}>
-                                    <label>Artista</label>
+                                    <label>{t('artist')}</label>
+
                                     <input
                                         type="text"
                                         value={formData.artist}
@@ -264,7 +273,7 @@ const Songs = () => {
 
                             <div style={styles.formRow}>
                                 <div style={styles.inputGroup}>
-                                    <label>Tono (Key)</label>
+                                    <label>{t('key')}</label>
                                     <input type="text" value={formData.key} onChange={e => setFormData({ ...formData, key: e.target.value })} style={styles.input} />
                                 </div>
                                 <div style={styles.inputGroup}>
@@ -274,7 +283,7 @@ const Songs = () => {
                             </div>
 
                             <div style={styles.inputGroup}>
-                                <label>Letra</label>
+                                <label>{t('lyrics')}</label>
                                 <textarea
                                     value={formData.lyrics}
                                     onChange={e => setFormData({ ...formData, lyrics: e.target.value })}
@@ -283,14 +292,15 @@ const Songs = () => {
                             </div>
 
                             <div style={{ ...styles.sectionDivider, margin: '20px 0' }}>
-                                <span style={styles.dividerText}>Archivos</span>
+                                <span style={styles.dividerText}>{t('files')}</span>
                             </div>
 
                             <div style={styles.uploadGrid}>
                                 <div style={styles.fileBox}>
                                     <label style={styles.fileLabel}>
                                         <FileText size={20} />
-                                        <span>PDF de Acordes</span>
+                                        <span>{t('pdfChords')}</span>
+
                                         <input type="file" accept=".pdf" onChange={e => setFiles({ ...files, pdf: e.target.files[0] })} style={{ display: 'none' }} />
                                     </label>
                                     {files.pdf && <span style={styles.fileName}>{files.pdf.name}</span>}
@@ -299,7 +309,8 @@ const Songs = () => {
                                 <div style={styles.fileBox}>
                                     <label style={styles.fileLabel}>
                                         <Play size={20} />
-                                        <span>Audio MP3</span>
+                                        <span>{t('audioMp3')}</span>
+
                                         <input type="file" accept="audio/*" onChange={e => setFiles({ ...files, mp3: e.target.files[0] })} style={{ display: 'none' }} />
                                     </label>
                                     {files.mp3 && <span style={styles.fileName}>{files.mp3.name}</span>}
@@ -308,7 +319,7 @@ const Songs = () => {
                             </div>
 
                             <div style={styles.inputGroup}>
-                                <label>O pegar URL externa (Drive/Dropbox)</label>
+                                <label>{t('externalUrl')}</label>
                                 <div style={styles.formRow}>
                                     <input type="text" placeholder="PDF URL" value={formData.pdfUrl} onChange={e => setFormData({ ...formData, pdfUrl: e.target.value })} style={styles.input} />
                                     <input type="text" placeholder="MP3 URL" value={formData.mp3Url} onChange={e => setFormData({ ...formData, mp3Url: e.target.value })} style={styles.input} />
@@ -317,7 +328,7 @@ const Songs = () => {
 
                             <div style={styles.modalFooter}>
                                 <button type="submit" className="btn-primary" disabled={loading}>
-                                    {loading ? 'Subiendo...' : 'Guardar Canción'}
+                                    {loading ? t('uploading') : t('saveSong')}
                                 </button>
                             </div>
                         </form>

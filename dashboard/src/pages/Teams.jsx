@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Users, Plus, Search, Info, X, Check, UserPlus, Pencil } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
+
 
 const Teams = () => {
+    const { t } = useLanguage();
     const [teams, setTeams] = useState([]);
+
     const [people, setPeople] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
 
@@ -60,8 +64,9 @@ const Teams = () => {
             fetchTeams();
         } catch (err) {
             console.error("Error adding team:", err);
-            alert("Error al añadir equipo");
+            alert(t('errorAddingTeam') === 'errorAddingTeam' ? 'Error al añadir equipo' : t('errorAddingTeam'));
         } finally {
+
             setLoading(false);
         }
     };
@@ -85,8 +90,9 @@ const Teams = () => {
             fetchTeams();
         } catch (err) {
             console.error("Error updating team:", err);
-            alert("Error al actualizar equipo");
+            alert(t('errorUpdatingTeam') === 'errorUpdatingTeam' ? 'Error al actualizar equipo' : t('errorUpdatingTeam'));
         } finally {
+
             setLoading(false);
         }
     };
@@ -127,37 +133,37 @@ const Teams = () => {
     return (
         <div className="page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h1>Equipos</h1>
+                <h1>{t('teamsTitle')}</h1>
                 <button
                     className="btn-primary"
                     onClick={() => setShowAddForm(!showAddForm)}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Plus size={18} />
-                    Nuevo Equipo
+                    {t('newTeam')}
                 </button>
             </div>
 
             {showAddForm && (
                 <div className="card" style={{ marginBottom: '24px', maxWidth: '600px' }}>
-                    <h3>Crear Nuevo Equipo</h3>
+                    <h3>{t('createTeamTitle')}</h3>
                     <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '20px' }}>
-                        Los equipos agrupan a las personas por su área de servicio.
+                        {t('teamsDescription')}
                     </p>
                     <form onSubmit={handleAddTeam} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={styles.inputGroup}>
-                            <label>Nombre del Equipo</label>
+                            <label>{t('teamName')}</label>
                             <input
                                 type="text"
                                 value={newTeam.name}
                                 onChange={e => setNewTeam({ ...newTeam, name: e.target.value })}
-                                placeholder="Ej: Alabanza"
+                                placeholder={t('teamNamePlaceholder')}
                                 required
                                 style={styles.input}
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Descripción</label>
+                            <label>{t('description')}</label>
                             <textarea
                                 value={newTeam.description}
                                 onChange={e => setNewTeam({ ...newTeam, description: e.target.value })}
@@ -165,18 +171,18 @@ const Teams = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Posiciones (separadas por comas)</label>
+                            <label>{t('positions')}</label>
                             <input
                                 type="text"
                                 value={newTeam.positions}
                                 onChange={e => setNewTeam({ ...newTeam, positions: e.target.value })}
-                                placeholder="Ej: Voz, Instrumento, Dirección"
+                                placeholder={t('positionsPlaceholder')}
                                 style={styles.input}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
-                            <button type="submit" className="btn-primary" disabled={loading}>Crear</button>
-                            <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>Cancelar</button>
+                            <button type="submit" className="btn-primary" disabled={loading}>{t('create')}</button>
+                            <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>{t('cancel')}</button>
                         </div>
                     </form>
                 </div>
@@ -184,10 +190,10 @@ const Teams = () => {
 
             {editingTeamData && (
                 <div className="card" style={{ marginBottom: '24px', maxWidth: '600px', border: '1px solid #3b82f6' }}>
-                    <h3>Editar Equipo</h3>
+                    <h3>{t('editTeam')}</h3>
                     <form onSubmit={handleUpdateTeam} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={styles.inputGroup}>
-                            <label>Nombre del Equipo</label>
+                            <label>{t('teamName')}</label>
                             <input
                                 type="text"
                                 value={editingTeamData.name}
@@ -197,7 +203,7 @@ const Teams = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Descripción</label>
+                            <label>{t('description')}</label>
                             <textarea
                                 value={editingTeamData.description}
                                 onChange={e => setEditingTeamData({ ...editingTeamData, description: e.target.value })}
@@ -205,7 +211,7 @@ const Teams = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Posiciones (separadas por comas)</label>
+                            <label>{t('positions')}</label>
                             <input
                                 type="text"
                                 value={editingTeamData.positions}
@@ -214,8 +220,8 @@ const Teams = () => {
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
-                            <button type="submit" className="btn-primary" disabled={loading}>Guardar Cambios</button>
-                            <button type="button" onClick={() => setEditingTeamData(null)} style={styles.btnSecondary}>Cancelar</button>
+                            <button type="submit" className="btn-primary" disabled={loading}>{t('save_changes')}</button>
+                            <button type="button" onClick={() => setEditingTeamData(null)} style={styles.btnSecondary}>{t('cancel')}</button>
                         </div>
                     </form>
                 </div>
@@ -255,7 +261,7 @@ const Teams = () => {
                                 style={styles.btnAction}
                             >
                                 <UserPlus size={16} />
-                                {editingTeam === team.id ? 'Cerrar' : 'Gestionar Miembros'}
+                                {editingTeam === team.id ? t('close') : t('manageMembers')}
                             </button>
                         </div>
 
@@ -265,7 +271,7 @@ const Teams = () => {
                                     <Search size={14} color="#64748b" />
                                     <input
                                         type="text"
-                                        placeholder="Buscar persona..."
+                                        placeholder={t('searchPerson')}
                                         value={searchQuery}
                                         onChange={e => setSearchQuery(e.target.value)}
                                         style={styles.searchInput}
