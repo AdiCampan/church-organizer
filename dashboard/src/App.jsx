@@ -15,10 +15,12 @@ import EventDetails from './pages/EventDetails';
 import Songs from './pages/Songs';
 import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
+import { useLanguage } from './LanguageContext';
 
 const APP_VERSION = "1.0.5 ";
 
 function App() {
+  const { language, setLanguage, t } = useLanguage();
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -106,21 +108,21 @@ function App() {
           marginBottom: '20px'
         }}></div>
         <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: '#64748b', fontWeight: '500' }}>Cargando ChurchTeams...</p>
-        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>Versión {APP_VERSION}</p>
+        <p style={{ color: '#64748b', fontWeight: '500' }}>{t('loading')}</p>
+        <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>{t('version')} {APP_VERSION}</p>
 
         <div style={{ marginTop: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
           <button
             onClick={() => setLoading(false)}
             style={{ fontSize: '13px', background: 'none', border: '1px solid #e2e8f0', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', color: '#475569' }}
           >
-            Entrar de todos modos
+            {t('enterAnyway')}
           </button>
           <button
             onClick={handleManualReset}
             style={{ fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '4px' }}
           >
-            <RefreshCw size={14} /> Limpiar sesión y reiniciar
+            <RefreshCw size={14} /> {t('clearSession')}
           </button>
         </div>
       </div>
@@ -145,34 +147,34 @@ function App() {
           <div className="nav-links">
             <NavLink to="/events" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Calendar size={20} />
-              Eventos
+              {t('events')}
             </NavLink>
             <NavLink to="/teams" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Users size={20} />
-              Equipos
+              {t('teams')}
             </NavLink>
             <NavLink to="/songs" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Music size={20} />
-              Canciones
+              {t('songs')}
             </NavLink>
             <NavLink to="/announcements" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Megaphone size={20} />
-              El Muro
+              {t('wall')}
             </NavLink>
             <NavLink to="/people" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Users size={20} />
-              Personas
+              {t('people')}
             </NavLink>
             <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <SettingsIcon size={20} />
-              Configuración
+              {t('settings')}
             </NavLink>
           </div>
 
           <div style={{ marginTop: 'auto' }}>
             <button onClick={handleLogout} className="nav-item" style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer' }}>
               <LogOut size={20} />
-              Cerrar Sesión
+              {t('logout')}
             </button>
           </div>
         </nav>
@@ -182,11 +184,33 @@ function App() {
           <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h2 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>
-                Hola, {userProfile?.name || user.email?.split('@')[0]}
+                {t('hello')}, {userProfile?.name || user.email?.split('@')[0]}
               </h2>
-              <span style={{ fontSize: '13px', color: '#64748b' }}>Administrador</span>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>{t('admin')}</span>
             </div>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div className="language-switcher" style={{ display: 'flex', gap: '4px', backgroundColor: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
+                {['es', 'ro', 'en'].map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    style={{
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textTransform: 'uppercase',
+                      backgroundColor: language === lang ? 'white' : 'transparent',
+                      color: language === lang ? '#007bff' : '#64748b',
+                      boxShadow: language === lang ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
               <AlertsMenu />
             </div>
           </header>
@@ -206,7 +230,7 @@ function App() {
           </div>
 
           <footer className="footer">
-            <p>© {new Date().getFullYear()} ChurchTeams. Versión {APP_VERSION}- Media EbenEzer Castellon</p>
+            <p>© {new Date().getFullYear()} ChurchTeams. {t('version')} {APP_VERSION}- {t('footerText')}</p>
           </footer>
         </main>
       </div>

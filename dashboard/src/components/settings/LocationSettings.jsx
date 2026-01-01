@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { useLanguage } from '../../LanguageContext';
+
 
 const LocationSettings = () => {
+    const { t } = useLanguage();
     const [locations, setLocations] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [newLocation, setNewLocation] = useState({ name: '', address: '' });
@@ -49,7 +53,8 @@ const LocationSettings = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('¿Seguro que quieres eliminar este lugar?')) return;
+        if (!window.confirm(t('confirmDeleteLocation'))) return;
+
         try {
             await deleteDoc(doc(db, 'locations', id));
             fetchLocations();
@@ -66,11 +71,12 @@ const LocationSettings = () => {
     return (
         <div style={styles.container}>
             <div style={styles.header}>
-                <h3 style={{ margin: 0 }}>Lugares</h3>
+                <h3 style={{ margin: 0 }}>{t('locationsTitle')}</h3>
                 <button onClick={() => setIsAdding(true)} style={styles.addBtn} disabled={isAdding}>
-                    <Plus size={16} /> Nuevo
+                    <Plus size={16} /> {t('new')}
                 </button>
             </div>
+
 
             <div style={styles.list}>
                 {/* Add Form */}
@@ -79,13 +85,13 @@ const LocationSettings = () => {
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <input
                                 autoFocus
-                                placeholder="Nombre (ej: Templo Principal)"
+                                placeholder={t('namePlaceholder')}
                                 value={newLocation.name}
                                 onChange={e => setNewLocation({ ...newLocation, name: e.target.value })}
                                 style={styles.input}
                             />
                             <input
-                                placeholder="Dirección (opcional)"
+                                placeholder={t('addressOptional')}
                                 value={newLocation.address}
                                 onChange={e => setNewLocation({ ...newLocation, address: e.target.value })}
                                 style={styles.input}
@@ -112,7 +118,7 @@ const LocationSettings = () => {
                                     <input
                                         value={editData.address}
                                         onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                                        placeholder="Dirección"
+                                        placeholder={t('address')}
                                         style={styles.input}
                                     />
                                 </div>
@@ -140,7 +146,7 @@ const LocationSettings = () => {
 
                 {!loading && locations.length === 0 && !isAdding && (
                     <p style={{ color: '#94a3b8', fontStyle: 'italic', padding: '20px', textAlign: 'center' }}>
-                        No has creado lugares.
+                        {t('noLocations')}
                     </p>
                 )}
             </div>

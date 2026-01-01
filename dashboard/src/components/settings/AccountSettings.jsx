@@ -3,9 +3,13 @@ import { auth, db } from '../../firebase';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { User, Phone, Lock, Save, AlertCircle, CheckCircle } from 'lucide-react';
+import { useLanguage } from '../../LanguageContext';
+
 
 const AccountSettings = () => {
+    const { t } = useLanguage();
     const [profile, setProfile] = useState({ name: '', phone: '' });
+
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
     const [loading, setLoading] = useState(false);
     const [passLoading, setPassLoading] = useState(false);
@@ -40,11 +44,12 @@ const AccountSettings = () => {
                 name: profile.name,
                 phone: profile.phone
             }, { merge: true });
-            setSuccess('Perfil actualizado correctamente.');
+            setSuccess(t('profileUpdated'));
         } catch (err) {
             console.error("Error updating profile:", err);
-            setError('Error al actualizar el perfil.');
+            setError(t('errorUpdatingProfile'));
         } finally {
+
             setLoading(false);
         }
     };
@@ -55,12 +60,12 @@ const AccountSettings = () => {
         setSuccess('');
 
         if (passwords.new !== passwords.confirm) {
-            setError('Las contraseñas nuevas no coinciden.');
+            setError(t('passwordsMismatch'));
             return;
         }
 
         if (passwords.new.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres.');
+            setError(t('passwordTooShort'));
             return;
         }
 
@@ -74,16 +79,16 @@ const AccountSettings = () => {
             await reauthenticateWithCredential(user, credential);
 
             await updatePassword(user, passwords.new);
-            setSuccess('Contraseña actualizada correctamente.');
+            setSuccess(t('passwordChangedSuccess'));
             setPasswords({ current: '', new: '', confirm: '' });
         } catch (err) {
             console.error("Error changing password:", err);
             if (err.code === 'auth/wrong-password') {
-                setError('La contraseña actual es incorrecta.');
+                setError(t('wrongPassword'));
             } else if (err.code === 'auth/requires-recent-login') {
-                setError('Por seguridad, debes cerrar sesión y volver a entrar para cambiar la contraseña.');
+                setError(t('requiresRecentLogin'));
             } else {
-                setError('Error al cambiar la contraseña: ' + err.message);
+                setError(t('errorChangingPassword') + ': ' + err.message);
             }
         } finally {
             setPassLoading(false);
@@ -92,7 +97,8 @@ const AccountSettings = () => {
 
     return (
         <div style={{ maxWidth: '600px' }}>
-            <h3 style={{ marginBottom: '24px' }}>Mi Cuenta</h3>
+            <h3 style={{ marginBottom: '24px' }}>{t('myAccount')}</h3>
+
 
             {error && (
                 <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#b91c1c', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
@@ -109,11 +115,11 @@ const AccountSettings = () => {
             {/* Profile Info */}
             <div className="card" style={{ marginBottom: '24px' }}>
                 <h4 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <User size={18} color="#3b82f6" /> Información Personal
+                    <User size={18} color="#3b82f6" /> {t('personalInfo')}
                 </h4>
                 <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Nombre Completo</label>
+                        <label style={styles.label}>{t('fullName')}</label>
                         <input
                             type="text"
                             value={profile.name}
@@ -123,7 +129,7 @@ const AccountSettings = () => {
                         />
                     </div>
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Teléfono</label>
+                        <label style={styles.label}>{t('phone')}</label>
                         <div style={{ position: 'relative' }}>
                             <Phone size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                             <input
@@ -137,7 +143,7 @@ const AccountSettings = () => {
                     </div>
                     <button type="submit" className="btn-primary" disabled={loading} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Save size={18} />
-                        {loading ? 'Guardando...' : 'Guardar Cambios'}
+                        {loading ? `${t('updating')}...` : t('save_changes')}
                     </button>
                 </form>
             </div>
@@ -145,14 +151,14 @@ const AccountSettings = () => {
             {/* Password Change */}
             <div className="card">
                 <h4 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Lock size={18} color="#ef4444" /> Cambiar Contraseña
+                    <Lock size={18} color="#ef4444" /> {t('changePassword')}
                 </h4>
                 <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '16px' }}>
-                    Por seguridad, se te pedirá tu contraseña actual antes de establecer una nueva.
+                    {t('securityPasswordNotice')}
                 </p>
                 <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Contraseña Actual</label>
+                        <label style={styles.label}>{t('currentPassword')}</label>
                         <input
                             type="password"
                             value={passwords.current}
@@ -162,7 +168,7 @@ const AccountSettings = () => {
                         />
                     </div>
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Nueva Contraseña</label>
+                        <label style={styles.label}>{t('newPassword')}</label>
                         <input
                             type="password"
                             value={passwords.new}
@@ -172,7 +178,7 @@ const AccountSettings = () => {
                         />
                     </div>
                     <div style={styles.inputGroup}>
-                        <label style={styles.label}>Confirmar Nueva Contraseña</label>
+                        <label style={styles.label}>{t('confirmNewPassword')}</label>
                         <input
                             type="password"
                             value={passwords.confirm}
@@ -182,7 +188,7 @@ const AccountSettings = () => {
                         />
                     </div>
                     <button type="submit" className="btn-primary" disabled={passLoading} style={{ alignSelf: 'flex-start', backgroundColor: '#ef4444' }}>
-                        {passLoading ? 'Actualizando...' : 'Actualizar Contraseña'}
+                        {passLoading ? `${t('updating')}...` : t('changePassword')}
                     </button>
                 </form>
             </div>

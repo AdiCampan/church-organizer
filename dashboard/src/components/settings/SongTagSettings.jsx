@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit2, Trash2, Plus, Tag } from 'lucide-react';
+import { useLanguage } from '../../LanguageContext';
+
 
 const SongTagSettings = () => {
+    const { t } = useLanguage();
     const [tags, setTags] = useState([]);
+
     const [showForm, setShowForm] = useState(false);
     const [editingTag, setEditingTag] = useState(null);
     const [newTag, setNewTag] = useState({ name: '', color: '#3b82f6' });
@@ -41,7 +45,8 @@ const SongTagSettings = () => {
 
     const handleDeleteTag = async (e, tagId) => {
         e.stopPropagation();
-        if (!window.confirm('¿Estás seguro de que quieres eliminar esta etiqueta?')) return;
+        if (!window.confirm(t('confirmDeleteTag'))) return;
+
         try {
             await deleteDoc(doc(db, 'song_tags', tagId));
             fetchTags();
@@ -74,37 +79,43 @@ const SongTagSettings = () => {
         <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <div>
-                    <h2 style={{ fontSize: '18px', margin: 0 }}>Etiquetas de Canciones</h2>
-                    <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>Gestiona las categorías o etiquetas para organizar tu repertorio.</p>
+                    <h2 style={{ fontSize: '18px', margin: 0 }}>{t('songTagsTitle')}</h2>
+                    <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>{t('songTagDescription')}</p>
                 </div>
+
                 {!showForm && !editingTag && (
                     <button onClick={() => setShowForm(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Plus size={16} />
-                        Nueva Etiqueta
+                        {t('newTag')}
                     </button>
                 )}
+
             </div>
 
             {/* Add / Edit Form */}
             {(showForm || editingTag) && (
                 <div className="card" style={{ marginBottom: '24px', maxWidth: '500px' }}>
                     <h3 style={{ fontSize: '16px', marginBottom: '16px' }}>
-                        {editingTag ? 'Editar Etiqueta' : 'Nueva Etiqueta'}
+                        {editingTag ? t('editTag') : t('newTag')}
                     </h3>
+
                     <form onSubmit={editingTag ? handleUpdateTag : handleAddTag} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={styles.inputGroup}>
-                            <label>Nombre</label>
+                            <label>{t('name')}</label>
+
                             <input
                                 type="text"
                                 value={editingTag ? editingTag.name : newTag.name}
                                 onChange={e => editingTag ? setEditingTag({ ...editingTag, name: e.target.value }) : setNewTag({ ...newTag, name: e.target.value })}
-                                placeholder="Ej: Adoración, Rápida, Himno..."
+                                placeholder={t('tagPlaceholder')}
+
                                 required
                                 style={styles.input}
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Color</label>
+                            <label>{t('color')}</label>
+
                             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 {colors.map(color => (
                                     <div
@@ -124,11 +135,12 @@ const SongTagSettings = () => {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button type="button" onClick={() => { setShowForm(false); setEditingTag(null); }} style={styles.btnSecondary}>Cancelar</button>
+                            <button type="button" onClick={() => { setShowForm(false); setEditingTag(null); }} style={styles.btnSecondary}>{t('cancel')}</button>
                             <button type="submit" className="btn-primary">
-                                {editingTag ? 'Actualizar' : 'Guardar'}
+                                {editingTag ? t('update') : t('save')}
                             </button>
                         </div>
+
                     </form>
                 </div>
             )}
@@ -164,7 +176,7 @@ const SongTagSettings = () => {
                 ))}
                 {tags.length === 0 && !showForm && (
                     <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8', fontStyle: 'italic' }}>
-                        No hay etiquetas configuradas.
+                        {t('noTags')}
                     </div>
                 )}
             </div>

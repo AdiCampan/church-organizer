@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { useLanguage } from '../../LanguageContext';
+
 
 const ServiceTypeSettings = () => {
+    const { t } = useLanguage();
     const [types, setTypes] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const [newType, setNewType] = useState({ name: '', color: '#3b82f6' });
@@ -58,7 +62,8 @@ const ServiceTypeSettings = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('¿Seguro que quieres eliminar este tipo de servicio?')) return;
+        if (!window.confirm(t('confirmDeleteServiceType'))) return;
+
         try {
             await deleteDoc(doc(db, 'service_types', id));
             fetchTypes();
@@ -70,11 +75,12 @@ const ServiceTypeSettings = () => {
     return (
         <div style={styles.container}>
             <div style={styles.header}>
-                <h3 style={{ margin: 0 }}>Tipos de Servicio</h3>
+                <h3 style={{ margin: 0 }}>{t('serviceTypes')}</h3>
                 <button onClick={() => setIsAdding(true)} style={styles.addBtn} disabled={isAdding}>
-                    <Plus size={16} /> Nuevo
+                    <Plus size={16} /> {t('new')}
                 </button>
             </div>
+
 
             <div style={styles.list}>
                 {/* Add Form */}
@@ -95,11 +101,12 @@ const ServiceTypeSettings = () => {
                         </div>
                         <input
                             autoFocus
-                            placeholder="Nombre (ej: Reunión General)"
+                            placeholder={t('serviceTypeNamePlaceholder')}
                             value={newType.name}
                             onChange={e => setNewType({ ...newType, name: e.target.value })}
                             style={styles.input}
                         />
+
                         <div style={styles.actions}>
                             <button onClick={handleAdd} style={{ ...styles.actionBtn, color: '#166534' }}><Check size={18} /></button>
                             <button onClick={() => setIsAdding(false)} style={{ ...styles.actionBtn, color: '#ef4444' }}><X size={18} /></button>
@@ -151,9 +158,10 @@ const ServiceTypeSettings = () => {
 
                 {!loading && types.length === 0 && !isAdding && (
                     <p style={{ color: '#94a3b8', fontStyle: 'italic', padding: '20px', textAlign: 'center' }}>
-                        No has creado tipos de servicio.
+                        {t('noServiceTypes')}
                     </p>
                 )}
+
             </div>
         </div>
     );

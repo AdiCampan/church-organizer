@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../LanguageContext';
+
 import { LayoutList, MapPin, Users, Hash } from 'lucide-react';
 import ServiceTypeSettings from '../components/settings/ServiceTypeSettings';
 import LocationSettings from '../components/settings/LocationSettings';
@@ -7,15 +9,17 @@ import SongTagSettings from '../components/settings/SongTagSettings';
 import AccountSettings from '../components/settings/AccountSettings';
 
 const Settings = () => {
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState('account');
 
     const tabs = [
-        { id: 'account', label: 'Mi Cuenta', icon: <Users size={18} /> },
-        { id: 'service_types', label: 'Tipos de Servicio', icon: <LayoutList size={18} /> },
-        { id: 'locations', label: 'Lugares', icon: <MapPin size={18} /> },
-        { id: 'roles', label: 'Roles y Permisos', icon: <Users size={18} /> },
-        { id: 'tags', label: 'Etiquetas', icon: <Hash size={18} /> },
+        { id: 'account', label: t('myAccount'), icon: <Users size={18} /> },
+        { id: 'service_types', label: t('serviceTypes'), icon: <LayoutList size={18} /> },
+        { id: 'locations', label: t('locationsTitle'), icon: <MapPin size={18} /> },
+        { id: 'roles', label: t('rolesAndPermissions'), icon: <Users size={18} /> },
+        { id: 'tags', label: t('tags'), icon: <Hash size={18} /> },
     ];
+
 
     const renderContent = () => {
         switch (activeTab) {
@@ -38,7 +42,8 @@ const Settings = () => {
         <div className="page" style={{ display: 'flex', gap: '32px', alignItems: 'flex-start' }}>
             {/* Sidebar Navigation */}
             <div style={styles.sidebar}>
-                <h2 style={{ fontSize: '20px', marginBottom: '24px', paddingLeft: '12px' }}>Configuración</h2>
+                <h2 style={{ fontSize: '20px', marginBottom: '24px', paddingLeft: '12px' }}>{t('configTitle')}</h2>
+
                 <div style={styles.nav}>
                     {tabs.map(tab => (
                         <button
