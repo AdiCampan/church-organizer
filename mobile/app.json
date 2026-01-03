@@ -40,6 +40,9 @@
         "projectId": "4e97cd73-f633-4e29-9d97-a2972277401c"
       }
     },
-    "owner": "adi_es"
+    "owner": "adi_es",
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }

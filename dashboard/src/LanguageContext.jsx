@@ -150,7 +150,7 @@ const translations = {
         type: 'Tipo',
         content: 'Contenido',
         // Event Details
-        backToEvents: 'Volver a eventos',
+
         published: 'Publicado',
         draft: 'Borrador',
         teamsAndPeople: 'Equipos y Personas',
@@ -167,7 +167,7 @@ const translations = {
         momentPlaceholder: 'Momento (ej: Bienvenida)',
         noSong: '(Sin canción)',
         errorAssigning: 'Error al asignar',
-        saving: 'Guardando',
+
         // Settings
         configTitle: 'Configuración',
         myAccount: 'Mi Cuenta',
@@ -179,7 +179,7 @@ const translations = {
         address: 'Dirección',
         addressOptional: 'Dirección (opcional)',
         namePlaceholder: 'Nombre (ej: Templo Principal)',
-        save: 'Guardar',
+
         confirmDeleteLocation: '¿Seguro que quieres eliminar este lugar?',
         noLocations: 'No has creado lugares.',
         serviceTypeName: 'Nombre del Servicio',
@@ -211,8 +211,8 @@ const translations = {
         editTag: 'Editar Etiqueta',
         tagPlaceholder: 'Ej: Adoración, Rápida, Himno...',
         personalInfo: 'Información Personal',
-        fullName: 'Nombre Completo',
-        phone: 'Teléfono',
+
+
         securityPasswordNotice: 'Por seguridad, se te pedirá tu contraseña actual antes de establecer una nueva.',
         passwordsMismatch: 'Las contraseñas nuevas no coinciden.',
         passwordTooShort: 'La contraseña debe tener al menos 6 caracteres.',
@@ -220,7 +220,18 @@ const translations = {
         requiresRecentLogin: 'Por seguridad, debes cerrar sesión y volver a entrar para cambiar la contraseña.',
         profileUpdated: 'Perfil actualizado correctamente.',
         errorUpdatingProfile: 'Error al actualizar el perfil.',
-        updating: 'Actualizando'
+        // Alerts
+        assignmentDeclined: 'Asignación Rechazada',
+        datesBlocked: 'Fechas Bloqueadas',
+        notification: 'Notificación',
+        declinedToServe: 'rechazó servir en',
+        unavailable: 'no estará disponible',
+        newSystemAlert: 'Nueva alerta del sistema.',
+        notifications: 'Notificaciones',
+        clearAll: 'Limpiar todo',
+        noNewNotifications: 'No tienes notificaciones nuevas',
+        today: 'Hoy'
+
     },
 
 
@@ -229,7 +240,7 @@ const translations = {
         events: 'Evenimente',
         teams: 'Echipe',
         songs: 'Cântări',
-        wall: 'Zidul',
+        wall: 'Anunțuri',
         people: 'Persoane',
         settings: 'Setări',
         logout: 'Deconectare',
@@ -345,7 +356,7 @@ const translations = {
         errorSavingSong: 'Eroare la salvarea cântării (verifică Storage și CORS)',
         noSongs: 'Nu sunt cântări înregistrate.',
         // Announcements
-        wallTitle: 'Zidul',
+        wallTitle: 'Anunțuri',
         wallDescription: 'Comunică cu echipele și voluntarii tăi.',
         newAnnouncement: 'Anunț Nou',
         loadingAnnouncements: 'Se încarcă anunțurile...',
@@ -372,7 +383,7 @@ const translations = {
         type: 'Tip',
         content: 'Conținut',
         // Event Details
-        backToEvents: 'Înapoi la evenimente',
+
         published: 'Publicat',
         draft: 'Ciornă',
         teamsAndPeople: 'Echipe și Persoane',
@@ -389,7 +400,7 @@ const translations = {
         momentPlaceholder: 'Moment (ex: Bun venit)',
         noSong: '(Fără cântare)',
         errorAssigning: 'Eroare la asignare',
-        saving: 'Se salvează',
+
         // Settings
         configTitle: 'Configurare',
         myAccount: 'Contul Meu',
@@ -401,7 +412,7 @@ const translations = {
         address: 'Adresă',
         addressOptional: 'Adresă (opțional)',
         namePlaceholder: 'Nume (ex: Templul Principal)',
-        save: 'Salvează',
+
         confirmDeleteLocation: 'Sigur vrei să ștergi această locație?',
         noLocations: 'Nu ai creat locații.',
         serviceTypeName: 'Numele Serviciului',
@@ -433,8 +444,8 @@ const translations = {
         editTag: 'Editează Eticheta',
         tagPlaceholder: 'Ex: Închinare, Rapidă, Imn...',
         personalInfo: 'Informații Personale',
-        fullName: 'Nume Complet',
-        phone: 'Telefon',
+
+
         securityPasswordNotice: 'Din motive de securitate, ți se va cere parola actuală înainte de a seta una nouă.',
         passwordsMismatch: 'Parolele noi nu coincid.',
         passwordTooShort: 'Parola trebuie să aibă cel puțin 6 caractere.',
@@ -442,7 +453,18 @@ const translations = {
         requiresRecentLogin: 'Din motive de securitate, trebuie să te reconectezi pentru a schimba parola.',
         profileUpdated: 'Profil actualizat cu succes.',
         errorUpdatingProfile: 'Eroare la actualizarea profilului.',
-        updating: 'Se actualizează'
+        // Alerts
+        assignmentDeclined: 'Asignare Refuzată',
+        datesBlocked: 'Date Blocate',
+        notification: 'Notificare',
+        declinedToServe: 'a refuzat să slujească la',
+        unavailable: 'nu va fi disponibil',
+        newSystemAlert: 'Alertă nouă de sistem.',
+        notifications: 'Notificări',
+        clearAll: 'Șterge tot',
+        noNewNotifications: 'Nu ai notificări noi',
+        today: 'Astăzi'
+
     },
 
 
@@ -594,7 +616,7 @@ const translations = {
         type: 'Type',
         content: 'Content',
         // Event Details
-        backToEvents: 'Back to events',
+
         published: 'Published',
         draft: 'Draft',
         teamsAndPeople: 'Teams & People',
@@ -611,7 +633,7 @@ const translations = {
         momentPlaceholder: 'Moment (e.g. Welcome)',
         noSong: '(No song)',
         errorAssigning: 'Error assigning',
-        saving: 'Saving',
+
         // Settings
         configTitle: 'Settings',
         myAccount: 'My Account',
@@ -623,7 +645,7 @@ const translations = {
         address: 'Address',
         addressOptional: 'Address (optional)',
         namePlaceholder: 'Name (e.g. Main Temple)',
-        save: 'Save',
+
         confirmDeleteLocation: 'Are you sure you want to delete this location?',
         noLocations: 'No locations created.',
         serviceTypeName: 'Service Name',
@@ -655,8 +677,8 @@ const translations = {
         editTag: 'Edit Tag',
         tagPlaceholder: 'e.g. Worship, Fast, Hymn...',
         personalInfo: 'Personal Information',
-        fullName: 'Full Name',
-        phone: 'Phone',
+
+
         securityPasswordNotice: 'For security, you will be asked for your current password before setting a new one.',
         passwordsMismatch: 'The new passwords do not match.',
         passwordTooShort: 'The password must be at least 6 characters long.',
@@ -664,7 +686,18 @@ const translations = {
         requiresRecentLogin: 'For security, you must log out and log back in to change your password.',
         profileUpdated: 'Profile updated successfully.',
         errorUpdatingProfile: 'Error updating profile.',
-        updating: 'Updating'
+        // Alerts
+        assignmentDeclined: 'Assignment Declined',
+        datesBlocked: 'Dates Blocked',
+        notification: 'Notification',
+        declinedToServe: 'declined to serve in',
+        unavailable: 'will not be available',
+        newSystemAlert: 'New system alert.',
+        notifications: 'Notifications',
+        clearAll: 'Clear all',
+        noNewNotifications: 'No new notifications',
+        today: 'Today'
+
     }
 
 

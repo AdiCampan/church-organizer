@@ -67,24 +67,45 @@ const Songs = () => {
         }
     };
 
+    const normalizeText = (text) => {
+        return text
+            ? text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+            : "";
+    };
+
     const handleSearch = async (e) => {
         const term = e.target.value;
         setSearchTerm(term);
+
         if (term.length === 0) {
             fetchSongs();
             return;
         }
-        if (term.length < 2) return;
+        if (term.length < 2) return; // Prevent searching for single chars to save reads
 
+        // Retrieve more songs to filter client-side for better ux (case/accent insensitive)
+        // Note: For very large databases, we should store a normalized "searchKey" field instead.
         const q = query(
             collection(db, 'songs'),
-            where('title', '>=', term),
-            where('title', '<=', term + '\uf8ff'),
-            limit(50)
+            orderBy('title', 'asc'),
+            limit(100) // Limit to 100 for safety, or increase if catalog is larger
         );
-        const snapshot = await getDocs(q);
-        setSongs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        setHasMore(false);
+
+        try {
+            const snapshot = await getDocs(q);
+            const allFetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            const normalizedTerm = normalizeText(term);
+            const filtered = allFetched.filter(song =>
+                normalizeText(song.title).includes(normalizedTerm) ||
+                normalizeText(song.artist).includes(normalizedTerm)
+            );
+
+            setSongs(filtered);
+            setHasMore(false);
+        } catch (error) {
+            console.error("Search error:", error);
+        }
     };
 
     const uploadFile = async (file, path) => {

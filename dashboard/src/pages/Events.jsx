@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, limit } from 'firebase/firestore';
 import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
@@ -26,10 +26,47 @@ const Events = () => {
 
     const fetchEvents = async () => {
         try {
-            const q = query(collection(db, 'events'), orderBy('date', 'desc'));
-            const querySnapshot = await getDocs(q);
-            const eventsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setEvents(eventsData);
+            const now = new Date();
+            // Start of today (00:00:00) so "today's" events count as future/present
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            // 1. Future events (including today)
+            const futureQuery = query(
+                collection(db, 'events'),
+                where('date', '>=', Timestamp.fromDate(today)),
+                orderBy('date', 'asc')
+            );
+
+            // 2. Past events (only last 10)
+            const pastQuery = query(
+                collection(db, 'events'),
+                where('date', '<', Timestamp.fromDate(today)),
+                orderBy('date', 'desc'),
+                limit(10)
+            );
+
+            // Execute in parallel
+            const [futureSnap, pastSnap] = await Promise.all([
+                getDocs(futureQuery),
+                getDocs(pastQuery)
+            ]);
+
+            const futureEvents = futureSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const pastEvents = pastSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Combine: [Future (ascending) ... ] + [Past (descending) ... ]
+            // Wait - user wants a single list? Usually for a feed you want them sorted by date.
+            // If we want the standard view: Oldest -> Newest? Or Newest -> Oldest?
+            // "Events" usually implies a schedule.
+            // Let's combine and sort globally by date DESCENDING so the newest (future) are at top
+            // and the "limit 10" past ones are at the bottom.
+
+            const allEvents = [...futureEvents, ...pastEvents];
+
+            // Sort Descending (Newest date first)
+            allEvents.sort((a, b) => b.date.toMillis() - a.date.toMillis());
+
+            setEvents(allEvents);
         } catch (err) {
             console.error("Error fetching events:", err);
         }
@@ -464,8 +501,6 @@ const styles = {
         fontSize: '13px',
         fontWeight: '600',
         color: '#1e293b',
-        cursor: 'pointer',
-        transition: 'background 0.2s',
         cursor: 'pointer',
         transition: 'background 0.2s',
     },

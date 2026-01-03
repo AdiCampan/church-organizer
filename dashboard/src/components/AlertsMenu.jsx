@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, orderBy, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Bell, X, Calendar, UserX, Info } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
 
 const AlertsMenu = () => {
+    const { t } = useLanguage();
     const [notifications, setNotifications] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
@@ -70,9 +72,9 @@ const AlertsMenu = () => {
     };
 
     const getTitle = (n) => {
-        if (n.type === 'assignment_declined') return 'Asignación Rechazada';
-        if (n.type === 'blockout_created') return 'Fechas Bloqueadas';
-        return 'Notificación';
+        if (n.type === 'assignment_declined') return t('assignmentDeclined');
+        if (n.type === 'blockout_created') return t('datesBlocked');
+        return t('notification');
     };
 
     const renderContent = (n) => {
@@ -80,7 +82,7 @@ const AlertsMenu = () => {
             return (
                 <div style={styles.notifContent}>
                     <p style={styles.notifText}>
-                        <strong>{n.userName}</strong> rechazó servir en <strong>{n.eventTitle}</strong>.
+                        <strong>{n.userName}</strong> {t('declinedToServe')} <strong>{n.eventTitle}</strong>.
                     </p>
                 </div>
             );
@@ -89,13 +91,13 @@ const AlertsMenu = () => {
             return (
                 <div style={styles.notifContent}>
                     <p style={styles.notifText}>
-                        <strong>{n.userName}</strong> no estará disponible: {n.dates}.
+                        <strong>{n.userName}</strong> {t('unavailable')}: {n.dates}.
                     </p>
                     {n.reason && <p style={styles.notifSubtext}>"{n.reason}"</p>}
                 </div>
             );
         }
-        return <p style={styles.notifText}>Nueva alerta del sistema.</p>;
+        return <p style={styles.notifText}>{t('newSystemAlert')}</p>;
     };
 
     return (
@@ -128,10 +130,10 @@ const AlertsMenu = () => {
             {showDropdown && (
                 <div style={styles.dropdown}>
                     <div style={styles.header}>
-                        <h4 style={{ margin: 0, fontSize: '14px', color: '#1e293b' }}>Notificaciones</h4>
+                        <h4 style={{ margin: 0, fontSize: '14px', color: '#1e293b' }}>{t('notifications')}</h4>
                         {notifications.length > 0 && (
                             <button onClick={handleDismissAll} style={styles.clearBtn}>
-                                Limpiar todo
+                                {t('clearAll')}
                             </button>
                         )}
                     </div>
@@ -140,7 +142,7 @@ const AlertsMenu = () => {
                         {notifications.length === 0 ? (
                             <div style={styles.empty}>
                                 <Bell size={24} color="#cbd5e1" />
-                                <p>No tienes notificaciones nuevas</p>
+                                <p>{t('noNewNotifications')}</p>
                             </div>
                         ) : (
                             notifications.map(n => (
@@ -149,7 +151,7 @@ const AlertsMenu = () => {
                                     <div style={{ flex: 1 }}>
                                         <div style={styles.itemHeader}>
                                             <span style={styles.itemTitle}>{getTitle(n)}</span>
-                                            <span style={styles.time}>Hoy</span> {/* Simplify time for now */}
+                                            <span style={styles.time}>{t('today')}</span> {/* Simplify time for now */}
                                         </div>
                                         {renderContent(n)}
                                     </div>

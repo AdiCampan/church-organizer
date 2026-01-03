@@ -319,7 +319,6 @@ const styles = {
         padding: '4px 8px',
         borderRadius: '6px',
         textTransform: 'capitalize',
-        textTransform: 'capitalize',
     },
     statusBadge: {
         display: 'inline-flex',

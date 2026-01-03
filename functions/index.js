@@ -102,6 +102,8 @@ exports.onAnnouncementCreated = functions.firestore
         try {
             let targetUserIds = [];
 
+            let titlePrefix = '';
+
             // Determine target audience
             if (announcement.targetTeamId === 'all') {
                 console.log('[AUDIENCE] Targeting ALL users');
@@ -118,7 +120,10 @@ exports.onAnnouncementCreated = functions.firestore
                     .get();
 
                 if (teamDoc.exists) {
-                    targetUserIds = teamDoc.data().members || [];
+                    const teamData = teamDoc.data();
+                    targetUserIds = teamData.members || [];
+                    // Add Team Name to prefix
+                    titlePrefix = `[${teamData.name}] `;
                 }
             }
 
@@ -145,11 +150,12 @@ exports.onAnnouncementCreated = functions.firestore
                         messages.push({
                             to: pushToken,
                             sound: 'default',
-                            title: `📢 ${announcement.title}`,
+                            title: `📢 ${titlePrefix}${announcement.title}`,
                             body: announcement.content.substring(0, 100) + (announcement.content.length > 100 ? '...' : ''),
                             data: {
                                 type: 'announcement',
-                                announcementId: announcementId
+                                announcementId: announcementId,
+                                targetTeamId: announcement.targetTeamId // Useful for client-side filtering if needed
                             },
                             priority: 'high',
                             channelId: 'default',
