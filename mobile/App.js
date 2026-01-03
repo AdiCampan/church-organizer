@@ -45,7 +45,11 @@ const translations = {
     noOrder: 'No hay orden de servicio detallada aún',
     members: 'integrantes',
     description: 'Descripción',
-    language: 'Idioma'
+    language: 'Idioma',
+    showOtherTeams: 'Ver otros equipos',
+    hideOtherTeams: 'Ocultar otros equipos',
+    noOneElseInYourTeam: 'Nadie más de tu equipo en este evento.',
+    noOneElseAssigned: 'Solo tú estás asignado por ahora.'
   },
   ro: {
     loginTitle: 'ChurchOrg Mobile',
@@ -78,7 +82,11 @@ const translations = {
     noOrder: 'Nu există o ordine de serviciu detaliată încă',
     members: 'membri',
     description: 'Descriere',
-    language: 'Limbă'
+    language: 'Limbă',
+    showOtherTeams: 'Vezi alte echipe',
+    hideOtherTeams: 'Ascunde alte echipe',
+    noOneElseInYourTeam: 'Nimeni altcineva din echipa ta la acest eveniment.',
+    noOneElseAssigned: 'Doar tu ești alocat deocamdată.'
   },
   en: {
     loginTitle: 'ChurchOrg Mobile',
@@ -111,7 +119,11 @@ const translations = {
     noOrder: 'No detailed order of service yet',
     members: 'members',
     description: 'Description',
-    language: 'Language'
+    language: 'Language',
+    showOtherTeams: 'Show other teams',
+    hideOtherTeams: 'Hide other teams',
+    noOneElseInYourTeam: 'No one else from your team on this event.',
+    noOneElseAssigned: 'Only you are assigned for now.'
   }
 };
 
