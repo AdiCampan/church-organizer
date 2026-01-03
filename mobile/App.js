@@ -1104,55 +1104,48 @@ export default function App() {
                   <Text style={styles.emptyStateText}>{t('noAnnouncements')}</Text>
                 </View>
               ) : (
-                {
-                  announcements.length === 0 ? (
-                    <View style={styles.emptyState}>
-                      <Megaphone size={48} color="#94a3b8" />
-                      <Text style={styles.emptyStateText}>{t('noAnnouncements')}</Text>
-                    </View>
-                  ) : (
-                    announcements
-                      .filter(post => {
-                        // Filter: Show if 'all' OR if user is a member of the target team
-                        if (!post.targetTeamId || post.targetTeamId === 'all') return true;
-                        // Find the team
-                        const targetTeam = teams.find(t => t.id === post.targetTeamId);
-                        return targetTeam?.members?.includes(user?.uid);
-                      })
-                      .map(post => {
-                        // Resolve Team Name
-                        let teamName = null;
-                        if (post.targetTeamId && post.targetTeamId !== 'all') {
-                          const targetTeam = teams.find(t => t.id === post.targetTeamId);
-                          if (targetTeam) teamName = targetTeam.name;
-                        }
+                announcements
+                  .filter(post => {
+                    // Filter: Show if 'all' OR if user is a member of the target team
+                    if (!post.targetTeamId || post.targetTeamId === 'all') return true;
+                    // Find the team
+                    const targetTeam = teams.find(t => t.id === post.targetTeamId);
+                    return targetTeam?.members?.includes(user?.uid);
+                  })
+                  .map(post => {
+                    // Resolve Team Name
+                    let teamName = null;
+                    if (post.targetTeamId && post.targetTeamId !== 'all') {
+                      const targetTeam = teams.find(t => t.id === post.targetTeamId);
+                      if (targetTeam) teamName = targetTeam.name;
+                    }
 
-                        return (
-                          <View key={post.id} style={styles.postCard}>
-                            <View style={styles.postHeader}>
-                              <View style={[styles.typeIcon, { backgroundColor: post.type === 'alert' ? '#fef2f2' : post.type === 'important' ? '#fffbeb' : '#f0f9ff' }]}>
-                                {post.type === 'alert' ? <AlertTriangle size={18} color="#ef4444" /> :
-                                  post.type === 'important' ? <Bell size={18} color="#f59e0b" /> :
-                                    <Info size={18} color="#3b82f6" />}
-                              </View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.postTitle}>{post.title}</Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                  {teamName && (
-                                    <View style={{ backgroundColor: '#eff6ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                      <Text style={{ fontSize: 10, color: '#007bff', fontWeight: '700', textTransform: 'uppercase' }}>{teamName}</Text>
-                                    </View>
-                                  )}
-                                  <Text style={styles.postMeta}>{post.authorName} • {post.createdAt?.toDate().toLocaleDateString('es-ES')}</Text>
-                                </View>
-                              </View>
-                            </View>
-                            <Text style={styles.postContent}>{post.content}</Text>
+                    return (
+                      <View key={post.id} style={styles.postCard}>
+                        <View style={styles.postHeader}>
+                          <View style={[styles.typeIcon, { backgroundColor: post.type === 'alert' ? '#fef2f2' : post.type === 'important' ? '#fffbeb' : '#f0f9ff' }]}>
+                            {post.type === 'alert' ? <AlertTriangle size={18} color="#ef4444" /> :
+                              post.type === 'important' ? <Bell size={18} color="#f59e0b" /> :
+                                <Info size={18} color="#3b82f6" />}
                           </View>
-                        );
-                      })
-                  )
-                }
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.postTitle}>{post.title}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                              {teamName && (
+                                <View style={{ backgroundColor: '#eff6ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                  <Text style={{ fontSize: 10, color: '#007bff', fontWeight: '700', textTransform: 'uppercase' }}>{teamName}</Text>
+                                </View>
+                              )}
+                              <Text style={styles.postMeta}>{post.authorName} • {post.createdAt?.toDate().toLocaleDateString('es-ES')}</Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Text style={styles.postContent}>{post.content}</Text>
+                      </View>
+                    );
+                  })
+              )
+              }
             </>
           ) : (
             <>
