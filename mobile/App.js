@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView, TouchableWithoutFeedback, Keyboard, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc } from 'firebase/firestore';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const translations = {
   es: {
@@ -56,7 +57,7 @@ const translations = {
     loading: 'Se încarcă...',
     agenda: 'Agendă',
     teams: 'Echipe',
-    wall: 'Zidul',
+    wall: 'Anunțuri',
     myAssignments: 'Alocările mele',
     noAssignments: 'Nu ai servicii alocate încă',
     noAnnouncements: 'Nu sunt anunțuri recente',
@@ -278,112 +279,152 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
-
-  if (!visible) return null;
+  const [pickerMode, setPickerMode] = useState(null); // 'start', 'end' or null
 
   const handleAdd = () => {
-    if (!startDate || !endDate) return Alert.alert('Error', 'Debes seleccionar fechas');
+    if (!startDate || !endDate) return Alert.alert("Error", "Fechas requeridas");
     onAddBlockout(startDate, endDate, reason);
     setStartDate('');
     setEndDate('');
     setReason('');
   };
 
+  const onDateChange = (event, selectedDate) => {
+    const currentMode = pickerMode;
+    setPickerMode(null); // Close picker on selection (Android behavior mostly)
+
+    if (event.type === 'dismissed') return;
+
+    if (selectedDate) {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      if (currentMode === 'start') {
+        setStartDate(dateStr);
+        // Auto-set end date to start date if empty
+        if (!endDate) setEndDate(dateStr);
+      } else if (currentMode === 'end') {
+        setEndDate(dateStr);
+      }
+    }
+  };
+
   return (
-    <View style={styles.modalOverlay}>
-      <View style={styles.modalContent}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{t('settingsTitle')}</Text>
-          <TouchableOpacity onPress={onClose}>
-            <X size={24} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView>
-          <Text style={styles.sectionHeader}>{t('language')}</Text>
-          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, marginTop: 12 }}>
-            {['es', 'ro', 'en'].map((lang) => (
-              <TouchableOpacity
-                key={lang}
-                onPress={() => setLanguage(lang)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  alignItems: 'center',
-                  backgroundColor: language === lang ? '#eff6ff' : '#f8fafc',
-                  borderWidth: 1,
-                  borderColor: language === lang ? '#007bff' : '#e2e8f0'
-                }}
-              >
-                <Text style={{
-                  fontSize: 14,
-                  fontWeight: '700',
-                  color: language === lang ? '#007bff' : '#64748b',
-                  textTransform: 'uppercase'
-                }}>
-                  {lang}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.sectionHeader}>{t('blockedDates')}</Text>
-          <Text style={styles.sectionSub}>{t('noAssignments') === 'No tienes servicios asignados aún' ? 'Añade rangos de fechas donde NO estarás disponible para servir.' : t('settingsTitle')}</Text>
-          {/* Note: In a real i18n implementation, I'd have a specific key for the description. For now, I'll use a simple conditional or just leave it for the user to refine */}
-
-          <View style={styles.addBlockoutForm}>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.labelSmall}>{t('from')} (AAAA-MM-DD)</Text>
-                <TextInput
-                  style={styles.inputSmall}
-                  placeholder="2024-01-10"
-                  value={startDate}
-                  onChangeText={setStartDate}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.labelSmall}>{t('until')} (AAAA-MM-DD)</Text>
-                <TextInput
-                  style={styles.inputSmall}
-                  placeholder="2024-01-20"
-                  value={endDate}
-                  onChangeText={setEndDate}
-                />
-              </View>
-            </View>
-            <Text style={styles.labelSmall}>{t('reason')}</Text>
-            <TextInput
-              style={styles.inputSmall}
-              placeholder="..."
-              value={reason}
-              onChangeText={setReason}
-            />
-            <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-              <Text style={styles.addButtonText}>{t('addBlockout')}</Text>
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={onClose}><View style={{ flex: 1 }} /></TouchableWithoutFeedback>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{t('settingsTitle')}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={24} color="#64748b" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.blockoutList}>
-            {blockoutDates.map((block, index) => (
-              <View key={index} style={styles.blockoutItem}>
-                <View>
-                  <Text style={styles.blockoutDates}>{block.start} - {block.end}</Text>
-                  {block.reason ? <Text style={styles.blockoutReason}>{block.reason}</Text> : null}
-                </View>
-                <TouchableOpacity onPress={() => onRemoveBlockout(block)}>
-                  <MinusCircle size={20} color="#ef4444" />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={styles.sectionHeader}>{t('language')}</Text>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, marginTop: 12 }}>
+              {['es', 'ro', 'en'].map((lang) => (
+                <TouchableOpacity
+                  key={lang}
+                  onPress={() => setLanguage(lang)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    backgroundColor: language === lang ? '#eff6ff' : '#f8fafc',
+                    borderWidth: 1,
+                    borderColor: language === lang ? '#007bff' : '#e2e8f0'
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '700',
+                    color: language === lang ? '#007bff' : '#64748b',
+                    textTransform: 'uppercase'
+                  }}>
+                    {lang}
+                  </Text>
                 </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.sectionHeader}>{t('blockedDates')}</Text>
+            <Text style={styles.sectionSub}>{t('noAssignments') === 'No tienes servicios asignados aún' ? 'Añade rangos de fechas donde NO estarás disponible para servir.' : t('settingsTitle')}</Text>
+
+            <View style={styles.addBlockoutForm}>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+
+                {/* Start Date Picker */}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.labelSmall}>{t('from')}</Text>
+                  <TouchableOpacity
+                    style={styles.inputSmall}
+                    onPress={() => setPickerMode('start')}
+                  >
+                    <Text style={{ color: startDate ? '#1e293b' : '#94a3b8' }}>
+                      {startDate || 'YYYY-MM-DD'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* End Date Picker */}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.labelSmall}>{t('until')}</Text>
+                  <TouchableOpacity
+                    style={styles.inputSmall}
+                    onPress={() => setPickerMode('end')}
+                  >
+                    <Text style={{ color: endDate ? '#1e293b' : '#94a3b8' }}>
+                      {endDate || 'YYYY-MM-DD'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
               </View>
-            ))}
-            {blockoutDates.length === 0 && (
-              <Text style={styles.emptyText}>No tienes fechas bloqueadas.</Text>
-            )}
-          </View>
-        </ScrollView>
+
+              {/* The DateTimePicker Component */}
+              {pickerMode && (
+                <DateTimePicker
+                  value={new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onDateChange}
+                  minimumDate={new Date()}
+                />
+              )}
+
+              <Text style={styles.labelSmall}>{t('reason')}</Text>
+              <TextInput
+                style={styles.inputSmall}
+                placeholder="..."
+                value={reason}
+                onChangeText={setReason}
+              />
+              <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
+                <Text style={styles.addButtonText}>{t('addBlockout')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.blockoutList}>
+              {blockoutDates.map((block, index) => (
+                <View key={index} style={styles.blockoutItem}>
+                  <View>
+                    <Text style={styles.blockoutDates}>{block.start} - {block.end}</Text>
+                    {block.reason ? <Text style={styles.blockoutReason}>{block.reason}</Text> : null}
+                  </View>
+                  <TouchableOpacity onPress={() => onRemoveBlockout(block)}>
+                    <MinusCircle size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {blockoutDates.length === 0 && (
+                <Text style={styles.emptyText}>No tienes fechas bloqueadas.</Text>
+              )}
+            </View>
+          </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 };
 
@@ -444,8 +485,9 @@ const TeamCard = ({ team, usersMap, t }) => {
 };
 
 // --- Assignment Card ---
-const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, t }) => {
+const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, t, teams, user }) => {
   const [expanded, setExpanded] = useState(false);
+  const [expandedOthers, setExpandedOthers] = useState(false);
   if (!event) return null;
 
   const formattedDate = event.date ? event.date.toDate().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
@@ -510,8 +552,31 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
         <View style={styles.oosSection}>
           <View style={{ marginBottom: 20 }}>
             <Text style={styles.oosHeader}>{t('myTeam')}</Text>
-            {teammates && teammates.length > 0 ? (
-              teammates.map(tm => (
+            {(() => {
+              // 1. Filter teammates into "My Team" vs "Others"
+              const myTeamIds = new Set();
+              if (user && teams) {
+                teams.forEach(team => {
+                  if (team.members && team.members.includes(user.uid)) {
+                    team.members.forEach(m => myTeamIds.add(m));
+                  }
+                });
+              }
+
+              const myTeam = [];
+              const others = [];
+
+              if (teammates) {
+                teammates.forEach(tm => {
+                  if (myTeamIds.has(tm.userId)) {
+                    myTeam.push(tm);
+                  } else {
+                    others.push(tm);
+                  }
+                });
+              }
+
+              const renderTeammate = (tm) => (
                 <View key={tm.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tm.status === 'confirmed' ? '#22c55e' : '#cbd5e1' }} />
@@ -519,10 +584,43 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
                   </View>
                   <Text style={{ fontSize: 12, color: '#64748b', backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>{tm.position}</Text>
                 </View>
-              ))
-            ) : (
-              <Text style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic' }}>Solo tú estás asignado por ahora.</Text>
-            )}
+              );
+
+              return (
+                <>
+                  {/* My Team List */}
+                  {myTeam.length > 0 ? (
+                    myTeam.map(renderTeammate)
+                  ) : (
+                    <Text style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', marginBottom: 8 }}>
+                      {others.length > 0 ? t('noOneElseInYourTeam') || 'Nadie más de tu equipo en este evento.' : t('noOneElseAssigned') || 'Solo tú estás asignado por ahora.'}
+                    </Text>
+                  )}
+
+                  {/* Others Toggle */}
+                  {others.length > 0 && (
+                    <View style={{ marginTop: 12 }}>
+                      <TouchableOpacity
+                        onPress={() => setExpandedOthers(!expandedOthers)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}
+                      >
+                        <Users size={14} color="#64748b" />
+                        <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '600' }}>
+                          {expandedOthers ? (t('hideOtherTeams') || 'Ocultar otros equipos') : (t('showOtherTeams') || 'Ver otros equipos')}
+                        </Text>
+                        {expandedOthers ? <ChevronUp size={14} color="#64748b" /> : <ChevronDown size={14} color="#64748b" />}
+                      </TouchableOpacity>
+
+                      {expandedOthers && (
+                        <View style={{ paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#f1f5f9' }}>
+                          {others.map(renderTeammate)}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              );
+            })()}
           </View>
 
           <Text style={styles.oosHeader}>{t('orderOfService')}</Text>
@@ -908,6 +1006,10 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      if (user) {
+        // Remove token from Firestore to stop receiving notifications
+        await deleteDoc(doc(db, 'fcmTokens', user.uid));
+      }
       await signOut(auth);
     } catch (error) {
       console.error("Logout error:", error);
@@ -981,12 +1083,14 @@ export default function App() {
                   <AssignmentCard
                     key={item.id}
                     assignment={item}
-                    event={eventsMap[item.eventId]}
+                    eventsMap={eventsMap}
                     onAccept={handleAccept}
                     onDecline={handleDecline}
                     globalSongsMap={songsMap}
                     teammates={allSchedules.filter(s => s.eventId === item.eventId && s.userId !== user.uid)}
                     t={t}
+                    teams={teams}
+                    user={user}
                   />
                 ))
               )}
@@ -1118,7 +1222,8 @@ const styles = StyleSheet.create({
 
   // Settings Modal Styles
   modalOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end', zIndex: 1000 },
-  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, height: '80%' },
+  modalContent: { backgroundColor: '#f1f5f9', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, height: '80%' },
+  settingsBox: { backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 16, elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: '#1e293b' },
   sectionHeader: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginBottom: 4 },
