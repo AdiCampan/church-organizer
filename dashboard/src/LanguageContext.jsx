@@ -230,8 +230,11 @@ const translations = {
         notifications: 'Notificaciones',
         clearAll: 'Limpiar todo',
         noNewNotifications: 'No tienes notificaciones nuevas',
-        today: 'Hoy'
-
+        today: 'Hoy',
+        techSupport: 'Soporte Técnico',
+        supportDescription: 'Para ayuda técnica o reportar errores, contacta con el desarrollador:',
+        contactPhone: 'Teléfono',
+        contactEmail: 'Email'
     },
 
 
@@ -463,8 +466,11 @@ const translations = {
         notifications: 'Notificări',
         clearAll: 'Șterge tot',
         noNewNotifications: 'Nu ai notificări noi',
-        today: 'Astăzi'
-
+        today: 'Astăzi',
+        techSupport: 'Suport Tehnic',
+        supportDescription: 'Pentru asistență tehnică sau raportarea erorilor, contactați dezvoltatorul:',
+        contactPhone: 'Telefon',
+        contactEmail: 'Email'
     },
 
 
@@ -696,8 +702,11 @@ const translations = {
         notifications: 'Notifications',
         clearAll: 'Clear all',
         noNewNotifications: 'No new notifications',
-        today: 'Today'
-
+        today: 'Today',
+        techSupport: 'Technical Support',
+        supportDescription: 'For technical help or to report bugs, contact the developer:',
+        contactPhone: 'Phone',
+        contactEmail: 'Email'
     }
 
 

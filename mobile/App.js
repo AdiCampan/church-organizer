@@ -166,7 +166,7 @@ async function registerForPushNotificationsAsync() {
         return;
       }
 
-      const EXPO_PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId ?? '4e97cd73-f633-4e29-9d97-a2972277401c';
+      const EXPO_PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId || Constants.expoConfig?.extra?.eas?.projectId;
 
       const expoTokenResponse = await Notifications.getExpoPushTokenAsync({
         projectId: EXPO_PROJECT_ID,
@@ -757,6 +757,9 @@ export default function App() {
             const userData = docSnap.data();
             setBlockoutDates(userData.blockoutDates || []);
             setUserName(userData.name || '');
+          } else {
+            console.warn("User profile not found. Logging out...");
+            signOut(auth);
           }
         });
         // Note: We can't easily return unsubUser from here to cleanup inside this callback,

@@ -10,14 +10,15 @@ import AccountSettings from '../components/settings/AccountSettings';
 
 const Settings = () => {
     const { t } = useLanguage();
-    const [activeTab, setActiveTab] = useState('account');
+    const [activeTab, setActiveTab] = useState('service_types');
 
     const tabs = [
-        { id: 'account', label: t('myAccount'), icon: <Users size={18} /> },
         { id: 'service_types', label: t('serviceTypes'), icon: <LayoutList size={18} /> },
         { id: 'locations', label: t('locationsTitle'), icon: <MapPin size={18} /> },
         { id: 'roles', label: t('rolesAndPermissions'), icon: <Users size={18} /> },
         { id: 'tags', label: t('tags'), icon: <Hash size={18} /> },
+        { id: 'account', label: t('myAccount'), icon: <Users size={18} /> },
+        { id: 'support', label: t('techSupport'), icon: <Hash size={18} /> },
     ];
 
 
@@ -33,6 +34,25 @@ const Settings = () => {
                 return <RoleSettings />;
             case 'tags':
                 return <SongTagSettings />;
+            case 'support':
+                return (
+                    <div style={styles.supportContainer}>
+                        <h3 style={{ marginBottom: '16px' }}>{t('techSupport')}</h3>
+                        <p style={{ color: '#64748b', marginBottom: '24px' }}>{t('supportDescription')}</p>
+
+                        <div style={styles.supportInfo}>
+                            <div style={styles.supportItem}>
+                                <strong>{t('version')}:</strong> <span>1.0.5</span>
+                            </div>
+                            <div style={styles.supportItem}>
+                                <strong>{t('contactEmail')}:</strong> <a href="mailto:adicampan1974@gmail.com" style={{ color: '#3b82f6' }}>adicampan1974@gmail.com</a>
+                            </div>
+                            <div style={styles.supportItem}>
+                                <strong>{t('contactPhone')}:</strong> <a href="tel:+34 637951683" style={{ color: '#3b82f6' }}>+34637951683</a>
+                            </div>
+                        </div>
+                    </div>
+                );
             default:
                 return null;
         }
@@ -75,7 +95,10 @@ const styles = {
     nav: { display: 'flex', flexDirection: 'column', gap: '4px' },
     navItem: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '500', textAlign: 'left', transition: 'all 0.2s' },
     content: { flex: 1, backgroundColor: '#f8fafc', padding: '32px', borderRadius: '16px', minHeight: '80vh' },
-    placeholder: { color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', marginTop: '40px' }
+    placeholder: { color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', marginTop: '40px' },
+    supportContainer: { backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' },
+    supportInfo: { display: 'flex', flexDirection: 'column', gap: '12px' },
+    supportItem: { display: 'flex', gap: '8px', fontSize: '15px', color: '#1e293b' }
 };
 
 export default Settings;

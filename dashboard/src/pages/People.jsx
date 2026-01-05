@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, setDoc, doc, getDocs, query, orderBy } from 'firebase/firestore';
-import { UserPlus, Search, Mail, Calendar, CalendarX } from 'lucide-react';
+import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { UserPlus, Search, Mail, Calendar, CalendarX, Trash2 } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -52,7 +52,7 @@ const People = () => {
             const secondaryAuth = getAuth(secondaryApp);
 
             // 2. Create the user in Firebase Auth with a default password
-            const tempPassword = "Mediaebenezer";
+            const tempPassword = "churchteams2025";
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newPerson.email, tempPassword);
             const uid = userCredential.user.uid;
 
@@ -82,6 +82,18 @@ const People = () => {
                 await deleteApp(secondaryApp);
             }
             setLoading(false);
+        }
+    };
+
+    const handleDeletePerson = async (id, name) => {
+        if (!window.confirm(t('confirmDeletePerson')?.replace('{name}', name) || `${t('delete')} ${name}?`)) return;
+
+        try {
+            await deleteDoc(doc(db, 'users', id));
+            fetchPeople();
+        } catch (err) {
+            console.error("Error deleting person:", err);
+            alert(t('error') + ": " + err.message);
         }
     };
 
@@ -181,6 +193,7 @@ const People = () => {
                             <th style={styles.th}>{t('email')}</th>
                             <th style={styles.th}>{t('role')}</th>
                             <th style={styles.th}>{t('availability')}</th>
+                            <th style={styles.th}>{t('actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -248,6 +261,15 @@ const People = () => {
                                             }
                                             return null;
                                         })()}
+                                    </td>
+                                    <td style={styles.td}>
+                                        <button
+                                            onClick={() => handleDeletePerson(person.id, person.name)}
+                                            style={styles.btnDelete}
+                                            title={t('delete')}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
                                     </td>
                                 </tr>
                             ))
@@ -321,13 +343,24 @@ const styles = {
         textTransform: 'capitalize',
     },
     statusBadge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '4px 8px',
         borderRadius: '100px',
         fontSize: '11px',
         fontWeight: '600',
+    },
+    btnDelete: {
+        background: 'none',
+        border: 'none',
+        color: '#ef4444',
+        cursor: 'pointer',
+        padding: '8px',
+        borderRadius: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'background-color 0.2s',
+        ':hover': {
+            backgroundColor: '#fee2e2'
+        }
     }
 };
 

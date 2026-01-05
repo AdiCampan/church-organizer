@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "teams-betel-dej",
     "public": "dashboard/dist",
     "ignore": [
       "firebase.json",

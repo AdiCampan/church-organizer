@@ -60,6 +60,9 @@ function App() {
           if (docSnap.exists()) {
             console.log("Profile found:", docSnap.data().name);
             setUserProfile(docSnap.data());
+          } else {
+            console.warn("User profile not found in Firestore. Forced logout...");
+            handleManualReset();
           }
           setLoading(false);
           clearTimeout(timer);
@@ -140,8 +143,7 @@ function App() {
         <nav className="sidebar">
           <div className="logo">
             <Calendar size={28} />
-            <span> EbenEzer</span>
-            <span>Castellón</span>
+            <span> CHURCH-TEAMS</span>
           </div>
 
           <div className="nav-links">
