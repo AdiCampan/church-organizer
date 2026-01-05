@@ -48,4 +48,4 @@ The mobile app uses EAS profiles to manage different identities (different packa
 - **Roles & Permissions**: Fine-grained access control for teams.
 
 ---
-Developed by Nicolas.
+Developed by Adrian Campan  adicampan1974@gmail.com
