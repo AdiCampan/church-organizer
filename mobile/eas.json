@@ -16,6 +16,22 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "ebenezer": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_NAME": "Church Teams",
+        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.adi_es.mobile",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
+      }
+    },
+    "beteldej": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_NAME": "Betel Dej Teams",
+        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.beteldej.teams",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
+      }
     }
   },
   "submit": {
