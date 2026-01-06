@@ -4,9 +4,9 @@ export default {
         "slug": "mobile",
         "version": "1.0.0",
         "orientation": "portrait",
-        "icon": "./assets/icon.png",
+        "icon": "./assets/adaptive-icon.png",
         "userInterfaceStyle": "light",
-        "newArchEnabled": true,
+        "newArchEnabled": false,
         "splash": {
             "image": "./assets/splash-icon.png",
             "resizeMode": "contain",

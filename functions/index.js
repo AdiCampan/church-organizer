@@ -32,7 +32,16 @@ exports.onScheduleCreated = functions.firestore
             }
 
             const pushToken = tokenDoc.data().token;
-            console.log(`[TOKEN] Found token: ${pushToken.substring(0, 20)}...`);
+            const userLang = tokenDoc.data().language || 'es';
+            console.log(`[TOKEN] Found token: ${pushToken.substring(0, 20)}... Language: ${userLang}`);
+
+            // Localized messages
+            const localizedMsg = {
+                es: { title: '🔔 Nueva Asignación', position: 'Posición' },
+                ro: { title: '🔔 Alocare Nouă', position: 'Poziție' },
+                en: { title: '🔔 New Assignment', position: 'Position' }
+            };
+            const strings = localizedMsg[userLang] || localizedMsg.es;
 
             // Validate Expo push token
             if (!Expo.isExpoPushToken(pushToken)) {
@@ -54,7 +63,9 @@ exports.onScheduleCreated = functions.firestore
 
             const event = eventDoc.data();
             const eventDate = event.date.toDate();
-            const formattedDate = eventDate.toLocaleDateString('es-ES', {
+
+            const dateLocale = userLang === 'ro' ? 'ro-RO' : (userLang === 'en' ? 'en-US' : 'es-ES');
+            const formattedDate = eventDate.toLocaleDateString(dateLocale, {
                 weekday: 'short',
                 day: 'numeric',
                 month: 'short'
@@ -65,8 +76,8 @@ exports.onScheduleCreated = functions.firestore
             const message = {
                 to: pushToken,
                 sound: 'default',
-                title: '🔔 Nueva Asignación',
-                body: `${event.title} - ${formattedDate}\nPosición: ${schedule.position}`,
+                title: strings.title,
+                body: `${event.title} - ${formattedDate}\n${strings.position}: ${schedule.position}`,
                 data: {
                     type: 'assignment',
                     eventId: schedule.eventId,

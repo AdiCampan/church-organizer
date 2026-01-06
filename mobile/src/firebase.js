@@ -15,6 +15,9 @@ import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 
 // Initialize Firebase
+if (!firebaseConfig.apiKey) {
+    console.error("CRITICAL ERROR: Firebase Config is missing or empty!");
+}
 const app = initializeApp(firebaseConfig);
 
 // Initialize Services

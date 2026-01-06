@@ -183,15 +183,16 @@ async function registerForPushNotificationsAsync() {
 }
 
 // Save push token to Firestore
-async function savePushToken(userId, token) {
+async function savePushToken(userId, token, language) {
   try {
     await setDoc(doc(db, 'fcmTokens', userId), {
       userId: userId,
       token: token,
       platform: Platform.OS,
+      language: language || 'es',
       updatedAt: new Date()
     });
-    console.log('Token saved to Firestore');
+    console.log('Token saved to Firestore with language:', language);
   } catch (error) {
     console.error('Firestore save error:', error);
   }
@@ -725,7 +726,11 @@ export default function App() {
   // Save language preference
   useEffect(() => {
     AsyncStorage.setItem('appLanguage', language);
-  }, [language]);
+    // Also sync to Firestore if user is logged in and we have a token
+    if (user && expoPushToken) {
+      savePushToken(user.uid, expoPushToken, language);
+    }
+  }, [language, user, expoPushToken]);
 
   // Keep track of event listeners to clean them up
   const eventListeners = useRef({});
@@ -779,7 +784,7 @@ export default function App() {
       if (token) {
         setExpoPushToken(token);
         // Save token to Firestore
-        savePushToken(user.uid, token);
+        savePushToken(user.uid, token, language);
       }
     });
 
