@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music } from 'lucide-react';
+import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music, Eye } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import SongPreviewModal from '../components/SongPreviewModal';
 
 
 const EventDetails = () => {
@@ -25,6 +26,7 @@ const EventDetails = () => {
     const [oos, setOos] = useState([]);
     const [newItem, setNewItem] = useState({ title: '', duration: '', songId: '', details: '' });
     const [editingOosId, setEditingOosId] = useState(null); // ID of item being edited
+    const [previewSong, setPreviewSong] = useState(null);
 
     useEffect(() => {
         fetchTeams();
@@ -329,7 +331,17 @@ const EventDetails = () => {
                                             <div style={styles.oosDurationText}>
                                                 {item.duration} {t('min')}
 
-                                                {item.songId && ` • ${allSongs.find(s => s.id === item.songId)?.title}`}
+                                                {item.songId && (
+                                                    <>
+                                                        {' • '}
+                                                        <span
+                                                            onClick={() => setPreviewSong(allSongs.find(s => s.id === item.songId))}
+                                                            style={{ color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
+                                                        >
+                                                            {allSongs.find(s => s.id === item.songId)?.title}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </div>
                                             {item.details && (
                                                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', fontStyle: 'italic' }}>
@@ -399,6 +411,12 @@ const EventDetails = () => {
                     </div>
                 </div>
             </div>
+            {previewSong && (
+                <SongPreviewModal
+                    song={previewSong}
+                    onClose={() => setPreviewSong(null)}
+                />
+            )}
         </div>
     );
 };

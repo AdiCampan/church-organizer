@@ -49,7 +49,11 @@ const translations = {
     showOtherTeams: 'Ver otros equipos',
     hideOtherTeams: 'Ocultar otros equipos',
     noOneElseInYourTeam: 'Nadie más de tu equipo en este evento.',
-    noOneElseAssigned: 'Solo tú estás asignado por ahora.'
+    noOneElseAssigned: 'Solo tú estás asignado por ahora.',
+    chords: 'Acordes',
+    lyrics: 'Letras',
+    audio: 'Audio',
+    noLyrics: 'No hay letras disponibles'
   },
   ro: {
     loginTitle: 'ChurchOrg Mobile',
@@ -86,7 +90,11 @@ const translations = {
     showOtherTeams: 'Vezi alte echipe',
     hideOtherTeams: 'Ascunde alte echipe',
     noOneElseInYourTeam: 'Nimeni altcineva din echipa ta la acest eveniment.',
-    noOneElseAssigned: 'Doar tu ești alocat deocamdată.'
+    noOneElseAssigned: 'Doar tu ești alocat deocamdată.',
+    chords: 'Acorduri',
+    lyrics: 'Versuri',
+    audio: 'Audio',
+    noLyrics: 'Nu sunt versuri disponibile'
   },
   en: {
     loginTitle: 'ChurchOrg Mobile',
@@ -123,7 +131,11 @@ const translations = {
     showOtherTeams: 'Show other teams',
     hideOtherTeams: 'Hide other teams',
     noOneElseInYourTeam: 'No one else from your team on this event.',
-    noOneElseAssigned: 'Only you are assigned for now.'
+    noOneElseAssigned: 'Only you are assigned for now.',
+    chords: 'Chords',
+    lyrics: 'Lyrics',
+    audio: 'Audio',
+    noLyrics: 'No lyrics available'
   }
 };
 
@@ -496,11 +508,41 @@ const TeamCard = ({ team, usersMap, t }) => {
     </View>
   );
 };
+// --- Lyrics Modal ---
+const LyricsModal = ({ visible, onClose, song, t }) => {
+  if (!song) return null;
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={onClose}><View style={{ flex: 1, width: '100%' }} /></TouchableWithoutFeedback>
+        <View style={[styles.modalContent, { maxHeight: '80%', paddingBottom: 32 }]}>
+          <View style={styles.modalHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.modalTitle}>{song.title}</Text>
+              <Text style={{ fontSize: 14, color: '#64748b' }}>{song.artist}</Text>
+            </View>
+            <TouchableOpacity onPress={onClose}>
+              <X size={24} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={true}>
+            <Text style={{ fontSize: 16, lineHeight: 24, color: '#1e293b', paddingVertical: 10 }}>
+              {song.lyrics || t('noLyrics')}
+            </Text>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 // --- Assignment Card ---
 const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, t, teams, user }) => {
   const [expanded, setExpanded] = useState(false);
   const [expandedOthers, setExpandedOthers] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [selectedSongForLyrics, setSelectedSongForLyrics] = useState(null);
+
   if (!event) return null;
 
   const formattedDate = event.date ? event.date.toDate().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
@@ -639,7 +681,10 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
           <Text style={styles.oosHeader}>{t('orderOfService')}</Text>
           {event.orderOfService && event.orderOfService.length > 0 ? (
             event.orderOfService.map((item, index) => {
-              const song = item.songId ? globalSongsMap[item.songId] : null;
+              // Try multiple possible ways to find the song
+              const sid = item.songId || item.song;
+              const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(s => s.id === sid)) : null;
+
               return (
                 <View key={item.id || index} style={styles.oosItemContainer}>
                   <View style={styles.oosItem}>
@@ -663,13 +708,19 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
                       {song.pdfUrl && (
                         <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.pdfUrl)}>
                           <FileText size={14} color="#007bff" />
-                          <Text style={styles.attachmentText}>Acordes</Text>
+                          <Text style={styles.attachmentText}>{t('chords')}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {song.lyrics && (
+                        <TouchableOpacity style={styles.attachmentBtn} onPress={() => { setSelectedSongForLyrics(song); setShowLyrics(true); }}>
+                          <Music size={14} color="#007bff" />
+                          <Text style={styles.attachmentText}>{t('lyrics')}</Text>
                         </TouchableOpacity>
                       )}
                       {song.mp3Url && (
                         <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.mp3Url)}>
                           <Play size={14} color="#007bff" />
-                          <Text style={styles.attachmentText}>Audio</Text>
+                          <Text style={styles.attachmentText}>{t('audio')}</Text>
                         </TouchableOpacity>
                       )}
                       {song.youtubeUrl && (
@@ -686,6 +737,13 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
           ) : (
             <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
           )}
+
+          <LyricsModal
+            visible={showLyrics}
+            onClose={() => setShowLyrics(false)}
+            song={selectedSongForLyrics}
+            t={t}
+          />
         </View>
       )}
     </View>
@@ -822,7 +880,7 @@ export default function App() {
     const unsubSongs = onSnapshot(collection(db, 'songs'), (snapshot) => {
       const songsData = {};
       snapshot.forEach(doc => {
-        songsData[doc.id] = doc.data();
+        songsData[doc.id] = { id: doc.id, ...doc.data() };
       });
       setSongsMap(songsData);
     });

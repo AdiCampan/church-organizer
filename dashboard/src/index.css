@@ -159,3 +159,7 @@ h1 {
   color: var(--text-muted);
   margin: 0;
 }
+/* Specific fix for DatePicker icon pointer */
+.date-filter-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}

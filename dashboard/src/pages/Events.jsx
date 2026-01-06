@@ -16,16 +16,34 @@ const Events = () => {
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
     const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', description: '', locationId: '', serviceTypeId: '' });
+    const [filterDate, setFilterDate] = useState('');
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         fetchEvents();
         fetchServiceTypes();
         fetchLocations();
-    }, []);
+    }, [filterDate]);
 
     const fetchEvents = async () => {
         try {
+            if (filterDate) {
+                // Query events for a specific day
+                const startOfDay = new Date(filterDate + 'T00:00:00');
+                const endOfDay = new Date(filterDate + 'T23:59:59');
+
+                const q = query(
+                    collection(db, 'events'),
+                    where('date', '>=', Timestamp.fromDate(startOfDay)),
+                    where('date', '<=', Timestamp.fromDate(endOfDay)),
+                    orderBy('date', 'asc')
+                );
+
+                const snapshot = await getDocs(q);
+                setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                return;
+            }
+
             const now = new Date();
             // Start of today (00:00:00) so "today's" events count as future/present
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -37,12 +55,12 @@ const Events = () => {
                 orderBy('date', 'asc')
             );
 
-            // 2. Past events (only last 10)
+            // 2. Past events (only last 20)
             const pastQuery = query(
                 collection(db, 'events'),
                 where('date', '<', Timestamp.fromDate(today)),
                 orderBy('date', 'desc'),
-                limit(10)
+                limit(20)
             );
 
             // Execute in parallel
@@ -51,21 +69,12 @@ const Events = () => {
                 getDocs(pastQuery)
             ]);
 
-            const futureEvents = futureSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const pastEvents = pastSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Note: pastSnap from Promise.all might be problematic if not careful with indexes
+            const fDocs = futureSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const pDocs = pastSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Combine: [Future (ascending) ... ] + [Past (descending) ... ]
-            // Wait - user wants a single list? Usually for a feed you want them sorted by date.
-            // If we want the standard view: Oldest -> Newest? Or Newest -> Oldest?
-            // "Events" usually implies a schedule.
-            // Let's combine and sort globally by date DESCENDING so the newest (future) are at top
-            // and the "limit 10" past ones are at the bottom.
-
-            const allEvents = [...futureEvents, ...pastEvents];
-
-            // Sort Descending (Newest date first)
+            const allEvents = [...fDocs, ...pDocs];
             allEvents.sort((a, b) => b.date.toMillis() - a.date.toMillis());
-
             setEvents(allEvents);
         } catch (err) {
             console.error("Error fetching events:", err);
@@ -206,10 +215,30 @@ const Events = () => {
     return (
         <div className="page">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h1>{t('events')}</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <h1>{t('events')}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '6px 12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '600' }}>{t('filterByDate')}:</span>
+                        <input
+                            type="date"
+                            value={filterDate}
+                            onChange={(e) => setFilterDate(e.target.value)}
+                            className="date-filter-input"
+                            style={{ border: 'none', outline: 'none', fontSize: '14px', color: '#1e293b' }}
+                        />
+                        {filterDate && (
+                            <button
+                                onClick={() => setFilterDate('')}
+                                style={{ background: '#f1f5f9', border: 'none', borderRadius: '6px', padding: '2px 8px', fontSize: '12px', cursor: 'pointer', color: '#475569' }}
+                            >
+                                {t('showAll')}
+                            </button>
+                        )}
+                    </div>
+                </div>
                 <button
                     className="btn-primary"
-                    onClick={() => setShowAddForm(!showAddForm)}
+                    onClick={() => { setEditingEvent(null); setShowAddForm(!showAddForm); }}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Plus size={18} />

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { db, storage } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, limit, startAfter } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Music, Plus, Search, FileText, Play, Trash2, X, Upload, Save, MoreVertical, ExternalLink } from 'lucide-react';
+import { Music, Plus, Search, FileText, Play, Trash2, X, Upload, Save, MoreVertical, ExternalLink, Eye } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
+import SongPreviewModal from '../components/SongPreviewModal';
 
 
 const Songs = () => {
@@ -13,6 +14,7 @@ const Songs = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
+    const [previewSong, setPreviewSong] = useState(null);
     const [isEditing, setIsEditing] = useState(null);
     const [formData, setFormData] = useState({
         title: '',
@@ -50,7 +52,11 @@ const Songs = () => {
             }
 
             const snapshot = await getDocs(q);
-            const songsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const songsData = snapshot.docs.map(doc => {
+                const data = doc.data();
+                // Ensure the document ID is the primary ID, even if a legacy "id" field exists in data
+                return { ...data, id: doc.id };
+            });
 
             if (isLoadMore) {
                 setSongs(prev => [...prev, ...songsData]);
@@ -152,10 +158,14 @@ const Songs = () => {
             };
 
             if (isEditing) {
-                await updateDoc(doc(db, 'songs', isEditing.id), songData);
+                // Remove the 'id' field from data before updating to avoid pollution
+                const { id, ...saveData } = songData;
+                await updateDoc(doc(db, 'songs', isEditing.id), saveData);
             } else {
+                // Ensure we don't accidentally include an 'id' from a previous edit
+                const { id, ...saveData } = songData;
                 await addDoc(collection(db, 'songs'), {
-                    ...songData,
+                    ...saveData,
                     createdAt: new Date()
                 });
             }
@@ -223,6 +233,9 @@ const Songs = () => {
                                 <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>{song.artist} • {t('key')}: {song.key}</p>
                             </div>
                             <div style={styles.actions}>
+                                <button style={styles.iconBtn} onClick={() => setPreviewSong(song)} title={t('viewSong')}>
+                                    <Eye size={18} />
+                                </button>
                                 <button style={styles.iconBtn} onClick={() => { setIsEditing(song); setFormData(song); setShowAddModal(true); }}>
                                     <MoreVertical size={18} />
                                 </button>
@@ -262,7 +275,12 @@ const Songs = () => {
                     <div className="card" style={styles.modal}>
                         <div style={styles.modalHeader}>
                             <h2>{isEditing ? t('editSong') : t('newSong')}</h2>
-                            <button onClick={() => { setShowAddModal(false); setIsEditing(null); }} style={styles.closeBtn}>
+                            <button onClick={() => {
+                                setShowAddModal(false);
+                                setIsEditing(null);
+                                setFormData({ title: '', artist: '', key: '', lyrics: '', youtubeUrl: '', spotifyUrl: '', pdfUrl: '', mp3Url: '' });
+                                setFiles({ pdf: null, mp3: null });
+                            }} style={styles.closeBtn}>
 
                                 <X size={24} />
                             </button>
@@ -355,6 +373,13 @@ const Songs = () => {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {previewSong && (
+                <SongPreviewModal
+                    song={previewSong}
+                    onClose={() => setPreviewSong(null)}
+                />
             )}
         </div>
     );

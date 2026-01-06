@@ -56,6 +56,8 @@ const translations = {
         updateEvent: 'Actualizar Evento',
         noEventsScheduled: 'No hay eventos programados.',
         confirmDeleteEvent: '¿Estás seguro de que quieres eliminar este evento?',
+        filterByDate: 'Filtrar por fecha',
+        showAll: 'Ver todos',
         eventDetails: 'Detalles del Evento',
         backToEvents: 'Volver a Eventos',
         // People
@@ -122,6 +124,7 @@ const translations = {
         confirmDeleteSong: '¿Estás seguro de eliminar esta canción?',
         errorSavingSong: 'Error al guardar la canción (verifica que Storage esté activo y el CORS configurado)',
         noSongs: 'No hay canciones registradas.',
+        viewSong: 'Ver Canción',
         // Announcements
         wallTitle: 'El Muro',
         wallDescription: 'Comunícate con tus equipos y voluntarios.',
@@ -292,6 +295,8 @@ const translations = {
         updateEvent: 'Actualizează Eveniment',
         noEventsScheduled: 'Nu sunt evenimente programate.',
         confirmDeleteEvent: 'Ești sigur că vrei să ștergi acest eveniment?',
+        filterByDate: 'Filtrează după dată',
+        showAll: 'Vezi toate',
         eventDetails: 'Detalii Eveniment',
         backToEvents: 'Înapoi la Evenimente',
         // People
@@ -358,6 +363,7 @@ const translations = {
         confirmDeleteSong: 'Ești sigur că vrei să ștergi această cântare?',
         errorSavingSong: 'Eroare la salvarea cântării (verifică Storage și CORS)',
         noSongs: 'Nu sunt cântări înregistrate.',
+        viewSong: 'Vezi Cântarea',
         // Announcements
         wallTitle: 'Anunțuri',
         wallDescription: 'Comunică cu echipele și voluntarii tăi.',
@@ -528,6 +534,8 @@ const translations = {
         updateEvent: 'Update Event',
         noEventsScheduled: 'No events scheduled.',
         confirmDeleteEvent: 'Are you sure you want to delete this event?',
+        filterByDate: 'Filter by date',
+        showAll: 'Show all',
         eventDetails: 'Event Details',
         backToEvents: 'Back to Events',
         // People
@@ -594,6 +602,7 @@ const translations = {
         confirmDeleteSong: 'Are you sure you want to delete this song?',
         errorSavingSong: 'Error saving song (verify Storage and CORS)',
         noSongs: 'No songs registered.',
+        viewSong: 'View Song',
         // Announcements
         wallTitle: 'The Wall',
         wallDescription: 'Communicate with your teams and volunteers.',

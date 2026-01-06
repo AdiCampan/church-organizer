@@ -255,6 +255,19 @@ const Teams = () => {
                             </div>
                         </div>
 
+                        {team.members?.length > 0 && (
+                            <div style={styles.membersGrid}>
+                                {team.members.map(memberId => {
+                                    const person = people.find(p => p.id === memberId);
+                                    return person ? (
+                                        <div key={memberId} style={styles.memberListItem}>
+                                            • {person.name}
+                                        </div>
+                                    ) : null;
+                                })}
+                            </div>
+                        )}
+
                         <div style={styles.cardFooter}>
                             <button
                                 onClick={() => setEditingTeam(editingTeam === team.id ? null : team.id)}
@@ -325,7 +338,23 @@ const styles = {
     peopleList: { overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' },
     personRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderRadius: '8px', cursor: 'pointer', transition: 'background 0.2s' },
     miniAvatar: { width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700' },
-    checkbox: { width: '18px', height: '18px', borderRadius: '4px', border: '2px solid', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    checkbox: { width: '18px', height: '18px', borderRadius: '4px', border: '2px solid', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+
+    membersGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '4px',
+        marginTop: '12px',
+        paddingTop: '12px',
+        borderTop: '1px solid #f1f5f9'
+    },
+    memberListItem: {
+        fontSize: '11px',
+        color: '#64748b',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+    }
 };
 
 export default Teams;
