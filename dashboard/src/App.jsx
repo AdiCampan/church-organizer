@@ -17,7 +17,7 @@ import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
 import { useLanguage } from './LanguageContext';
 
-const APP_VERSION = "1.0.5 ";
+const APP_VERSION = "1.0.6";
 
 function App() {
   const { language, setLanguage, t } = useLanguage();
@@ -133,7 +133,26 @@ function App() {
   }
 
   if (!user) {
-    return <Login />;
+    return (
+      <>
+        <div style={styles.debugOverlay}>
+          <p style={{ margin: 0 }}>DEBUG: {import.meta.env.VITE_FIREBASE_PROJECT_ID} (v{APP_VERSION})</p>
+          <button
+            onClick={() => {
+              auth.signOut().then(() => {
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.reload();
+              });
+            }}
+            style={styles.debugButton}
+          >
+            FORCE RESET
+          </button>
+        </div>
+        <Login />
+      </>
+    );
   }
 
   return (
@@ -239,5 +258,35 @@ function App() {
     </Router>
   );
 }
+
+const styles = {
+  debugOverlay: {
+    position: 'fixed',
+    top: '10px',
+    right: '10px',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    color: 'white',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    fontSize: '11px',
+    zIndex: 9999,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+    fontFamily: 'monospace'
+  },
+  debugButton: {
+    backgroundColor: '#ef4444',
+    border: 'none',
+    color: 'white',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '10px',
+    textTransform: 'uppercase'
+  }
+};
 
 export default App;

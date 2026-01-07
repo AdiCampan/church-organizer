@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "church-teams"
-  }
+  },
+  "targets": {
+    "church-teams-8ea48": {
+      "hosting": {
+        "webapp": [
+          "teams-betel-dej"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
