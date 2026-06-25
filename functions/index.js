@@ -203,3 +203,93 @@ exports.onAnnouncementCreated = functions.firestore
             return null;
         }
     });
+
+/**
+ * Trigger: When a schedule is updated (e.g. status changes to declined)
+ * Action: Send push notification to team leaders (or all admins if no leaders)
+ */
+exports.onScheduleUpdated = functions.firestore
+    .document('schedules/{scheduleId}')
+    .onUpdate(async (change, context) => {
+        const before = change.before.data();
+        const after = change.after.data();
+
+        // Check if status changed to 'declined'
+        if (before.status !== 'declined' && after.status === 'declined') {
+            console.log(`[TRIGGER] Assignment declined. scheduleId: ${context.params.scheduleId}, userId: ${after.userId}`);
+
+            try {
+                // Get team details to find leaders
+                const teamDoc = await admin.firestore().collection('teams').doc(after.teamId).get();
+                let leaderIds = [];
+
+                if (teamDoc.exists) {
+                    const teamData = teamDoc.data();
+                    leaderIds = teamData.leaders || [];
+                }
+
+                // If no leaders, fallback to all admins
+                if (leaderIds.length === 0) {
+                    console.log(`[INFO] No leaders assigned to team ${after.teamId}. Falling back to all admins.`);
+                    const adminsSnap = await admin.firestore().collection('users').where('role', '==', 'admin').get();
+                    leaderIds = adminsSnap.docs.map(doc => doc.id);
+                }
+
+                if (leaderIds.length === 0) {
+                    console.warn(`[WARN] No leaders or admins found to notify for decline.`);
+                    return null;
+                }
+
+                // Get event details
+                const eventDoc = await admin.firestore().collection('events').doc(after.eventId).get();
+                const eventTitle = eventDoc.exists ? eventDoc.data().title : 'Evento Desconocido';
+
+                // Get tokens for leaders
+                const messages = [];
+                for (const leaderId of leaderIds) {
+                    // Don't notify the user who declined if they happen to be a leader
+                    if (leaderId === after.userId) continue;
+
+                    const tokenDoc = await admin.firestore().collection('fcmTokens').doc(leaderId).get();
+                    if (tokenDoc.exists) {
+                        const pushToken = tokenDoc.data().token;
+                        if (Expo.isExpoPushToken(pushToken)) {
+                            messages.push({
+                                to: pushToken,
+                                sound: 'default',
+                                title: '⚠️ Asignación Rechazada',
+                                body: `${after.userName || 'Un voluntario'} ha rechazado servir en "${eventTitle}".\nMotivo: ${after.declineReason || 'Sin motivo especificado.'}`,
+                                data: {
+                                    type: 'assignment_declined',
+                                    eventId: after.eventId,
+                                    scheduleId: context.params.scheduleId
+                                },
+                                priority: 'high',
+                                channelId: 'default'
+                            });
+                        }
+                    }
+                }
+
+                if (messages.length === 0) {
+                    console.log(`[INFO] No valid push tokens found for leaders/admins.`);
+                    return null;
+                }
+
+                console.log(`[EXPO] Sending ${messages.length} decline notifications...`);
+                const chunks = expo.chunkPushNotifications(messages);
+                const tickets = [];
+                for (const chunk of chunks) {
+                    const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+                    tickets.push(...ticketChunk);
+                }
+
+                console.log(`[RESULT] Decline notifications sent. Tickets:`, JSON.stringify(tickets));
+                return tickets;
+            } catch (error) {
+                console.error('[ERROR] Failure in onScheduleUpdated:', error);
+                return null;
+            }
+        }
+        return null;
+    });

@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, limit } from 'firebase/firestore';
-import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2 } from 'lucide-react';
+import { collection, addDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2, Users, Music, ChevronDown, ChevronUp, CheckCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
-
 
 const Events = () => {
     const { t, language } = useLanguage();
     const navigate = useNavigate();
+    const formRef = useRef(null);
 
     const [events, setEvents] = useState([]);
     const [serviceTypes, setServiceTypes] = useState([]);
     const [locations, setLocations] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [editingEvent, setEditingEvent] = useState(null);
-    const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', description: '', locationId: '', serviceTypeId: '' });
+    const [newEvent, setNewEvent] = useState({ title: '', date: '', time: '', description: '', locationId: '', serviceTypeId: '', repeatCount: 1 });
     const [filterDate, setFilterDate] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,6 @@ const Events = () => {
     const fetchEvents = async () => {
         try {
             if (filterDate) {
-                // Query events for a specific day
                 const startOfDay = new Date(filterDate + 'T00:00:00');
                 const endOfDay = new Date(filterDate + 'T23:59:59');
 
@@ -45,37 +44,16 @@ const Events = () => {
             }
 
             const now = new Date();
-            // Start of today (00:00:00) so "today's" events count as future/present
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-            // 1. Future events (including today)
-            const futureQuery = query(
+            
+            const q = query(
                 collection(db, 'events'),
                 where('date', '>=', Timestamp.fromDate(today)),
                 orderBy('date', 'asc')
             );
 
-            // 2. Past events (only last 20)
-            const pastQuery = query(
-                collection(db, 'events'),
-                where('date', '<', Timestamp.fromDate(today)),
-                orderBy('date', 'desc'),
-                limit(20)
-            );
-
-            // Execute in parallel
-            const [futureSnap, pastSnap] = await Promise.all([
-                getDocs(futureQuery),
-                getDocs(pastQuery)
-            ]);
-
-            // Note: pastSnap from Promise.all might be problematic if not careful with indexes
-            const fDocs = futureSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const pDocs = pastSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const allEvents = [...fDocs, ...pDocs];
-            allEvents.sort((a, b) => b.date.toMillis() - a.date.toMillis());
-            setEvents(allEvents);
+            const snapshot = await getDocs(q);
+            setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (err) {
             console.error("Error fetching events:", err);
         }
@@ -99,71 +77,65 @@ const Events = () => {
         }
     };
 
+    const getWeekRanges = () => {
+        const ranges = [];
+        const now = new Date();
+        const startOfCurrentWeek = new Date(now);
+        const day = now.getDay();
+        const diff = (day === 0 ? -6 : 1) - day;
+        startOfCurrentWeek.setDate(now.getDate() + diff);
+        startOfCurrentWeek.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < 4; i++) {
+            const start = new Date(startOfCurrentWeek);
+            start.setDate(startOfCurrentWeek.getDate() + (i * 7));
+            const end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            end.setHours(23, 59, 59, 999);
+            ranges.push({ start, end });
+        }
+        return ranges;
+    };
+
+    const weekRanges = getWeekRanges();
+
     const handleAddEvent = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const eventDate = new Date(`${newEvent.date}T${newEvent.time}`);
-
             const selectedType = serviceTypes.find(t => t.id === newEvent.serviceTypeId);
             const selectedLocation = locations.find(l => l.id === newEvent.locationId);
+            
+            const iterations = parseInt(newEvent.repeatCount) || 1;
+            const currentBaseDate = new Date(`${newEvent.date}T${newEvent.time}`);
 
-            await addDoc(collection(db, 'events'), {
-                title: newEvent.title,
-                date: Timestamp.fromDate(eventDate),
-                description: newEvent.description,
-                locationId: newEvent.locationId || null,
-                location: selectedLocation?.name || '',
-                serviceTypeId: newEvent.serviceTypeId || null,
-                serviceTypeName: selectedType?.name || null,
-                color: selectedType?.color || '#3b82f6',
-                status: 'draft',
-                createdAt: new Date(),
-            });
+            for (let i = 0; i < iterations; i++) {
+                const eventDate = new Date(currentBaseDate);
+                eventDate.setDate(currentBaseDate.getDate() + (i * 7));
 
-            setNewEvent({ title: '', date: '', time: '', description: '', locationId: '', serviceTypeId: '' });
+                await addDoc(collection(db, 'events'), {
+                    title: newEvent.title,
+                    date: Timestamp.fromDate(eventDate),
+                    description: newEvent.description,
+                    locationId: newEvent.locationId || null,
+                    location: selectedLocation?.name || '',
+                    serviceTypeId: newEvent.serviceTypeId || null,
+                    serviceTypeName: selectedType?.name || null,
+                    requiredTeams: selectedType?.requiredTeams || [],
+                    color: selectedType?.color || '#3b82f6',
+                    status: 'draft',
+                    createdAt: serverTimestamp(),
+                });
+            }
+
+            setNewEvent({ title: '', date: '', time: '', description: '', locationId: '', serviceTypeId: '', repeatCount: 1 });
             setShowAddForm(false);
             fetchEvents();
         } catch (err) {
             console.error("Error adding event:", err);
-            alert(t('errorAddingEvent') === 'errorAddingEvent' ? 'Error al añadir evento' : t('errorAddingEvent'));
         } finally {
-
             setLoading(false);
         }
-    };
-
-    const handleDeleteEvent = async (e, eventId) => {
-        e.stopPropagation(); // Prevent card click
-        if (!window.confirm(t('confirmDeleteEvent'))) return;
-
-
-        try {
-            await deleteDoc(doc(db, 'events', eventId));
-            fetchEvents();
-        } catch (err) {
-            console.error("Error removing event:", err);
-            alert(t('errorDeleting') === 'errorDeleting' ? 'Error al eliminar' : t('errorDeleting'));
-        }
-
-    };
-
-    const handleEditEvent = (e, event) => {
-        e.stopPropagation();
-        const eventDate = event.date.toDate();
-        const dateStr = eventDate.toISOString().split('T')[0];
-        const timeStr = eventDate.toTimeString().slice(0, 5);
-
-        setEditingEvent({
-            id: event.id,
-            title: event.title,
-            date: dateStr,
-            time: timeStr,
-            description: event.description || '',
-            locationId: event.locationId || '',
-            serviceTypeId: event.serviceTypeId || ''
-        });
-        setShowAddForm(false);
     };
 
     const handleUpdateEvent = async (e) => {
@@ -182,6 +154,7 @@ const Events = () => {
                 location: selectedLocation?.name || '',
                 serviceTypeId: editingEvent.serviceTypeId || null,
                 serviceTypeName: selectedType?.name || null,
+                requiredTeams: selectedType?.requiredTeams || [],
                 color: selectedType?.color || '#3b82f6',
             });
 
@@ -189,28 +162,39 @@ const Events = () => {
             fetchEvents();
         } catch (err) {
             console.error("Error updating event:", err);
-            alert(t('errorUpdatingEvent') === 'errorUpdatingEvent' ? 'Error al actualizar evento' : t('errorUpdatingEvent'));
         } finally {
-
             setLoading(false);
         }
     };
 
+    const handleQuickAdd = (type) => {
+        const now = new Date();
+        let targetDate = new Date();
+        
+        if (type.dayOfWeek !== undefined && type.dayOfWeek !== '') {
+            const targetDayNum = parseInt(type.dayOfWeek);
+            const currentDayNum = now.getDay();
+            let diff = targetDayNum - currentDayNum;
+            if (diff < 0) diff += 7;
+            targetDate.setDate(now.getDate() + diff);
+        }
 
-    const formatDate = (timestamp) => {
-        if (!timestamp) return '';
-        const date = timestamp.toDate();
-        const locale = language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES');
-        return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
+        const dateStr = targetDate.toISOString().split('T')[0];
+        setNewEvent({
+            title: type.name,
+            date: dateStr,
+            time: type.defaultStartTime || '',
+            description: '',
+            locationId: type.locationId || '',
+            serviceTypeId: type.id,
+            repeatCount: 1
+        });
+        setEditingEvent(null);
+        setShowAddForm(true);
+        setTimeout(() => {
+            formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     };
-
-    const formatTime = (timestamp) => {
-        if (!timestamp) return '';
-        const date = timestamp.toDate();
-        const locale = language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES');
-        return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-    };
-
 
     return (
         <div className="page">
@@ -238,7 +222,13 @@ const Events = () => {
                 </div>
                 <button
                     className="btn-primary"
-                    onClick={() => { setEditingEvent(null); setShowAddForm(!showAddForm); }}
+                    onClick={() => { 
+                        setEditingEvent(null); 
+                        setShowAddForm(!showAddForm); 
+                        if (!showAddForm) {
+                            setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+                        }
+                    }}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Plus size={18} />
@@ -246,16 +236,17 @@ const Events = () => {
                 </button>
             </div>
 
-            {showAddForm && (
-                <div className="card" style={{ marginBottom: '24px', maxWidth: '600px' }}>
-                    <h3>{t('scheduleNewEvent')}</h3>
-                    <form onSubmit={handleAddEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+            {/* Forms */}
+            {(showAddForm || editingEvent) && (
+                <div ref={formRef} className="card" style={{ marginBottom: '24px', maxWidth: '600px' }}>
+                    <h3>{editingEvent ? t('editEvent') : t('scheduleNewEvent')}</h3>
+                    <form onSubmit={editingEvent ? handleUpdateEvent : handleAddEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                         <div style={styles.inputGroup}>
                             <label>{t('eventTitle')}</label>
                             <input
                                 type="text"
-                                value={newEvent.title}
-                                onChange={e => setNewEvent({ ...newEvent, title: e.target.value })}
+                                value={editingEvent ? editingEvent.title : newEvent.title}
+                                onChange={e => editingEvent ? setEditingEvent({ ...editingEvent, title: e.target.value }) : setNewEvent({ ...newEvent, title: e.target.value })}
                                 placeholder={t('eventTitlePlaceholder')}
                                 required
                                 style={styles.input}
@@ -266,8 +257,8 @@ const Events = () => {
                                 <label>{t('date')}</label>
                                 <input
                                     type="date"
-                                    value={newEvent.date}
-                                    onChange={e => setNewEvent({ ...newEvent, date: e.target.value })}
+                                    value={editingEvent ? editingEvent.date : newEvent.date}
+                                    onChange={e => editingEvent ? setEditingEvent({ ...editingEvent, date: e.target.value }) : setNewEvent({ ...newEvent, date: e.target.value })}
                                     required
                                     style={styles.input}
                                 />
@@ -276,303 +267,179 @@ const Events = () => {
                                 <label>{t('time')}</label>
                                 <input
                                     type="time"
-                                    value={newEvent.time}
-                                    onChange={e => setNewEvent({ ...newEvent, time: e.target.value })}
+                                    value={editingEvent ? editingEvent.time : newEvent.time}
+                                    onChange={e => editingEvent ? setEditingEvent({ ...editingEvent, time: e.target.value }) : setNewEvent({ ...newEvent, time: e.target.value })}
                                     required
                                     style={styles.input}
                                 />
                             </div>
                         </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('location')}</label>
-                            <select
-                                value={newEvent.locationId}
-                                onChange={e => setNewEvent({ ...newEvent, locationId: e.target.value })}
-                                style={styles.input}
-                            >
-                                <option value="">{t('noLocation')}</option>
-                                {locations.map(loc => (
-                                    <option key={loc.id} value={loc.id}>
-                                        {loc.name}
-                                    </option>
-                                ))}
-                            </select>
+                        
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                            <div style={{ ...styles.inputGroup, flex: 1 }}>
+                                <label>{t('serviceType')}</label>
+                                <select
+                                    value={editingEvent ? editingEvent.serviceTypeId : newEvent.serviceTypeId}
+                                    onChange={e => {
+                                        const stId = e.target.value;
+                                        const typeObj = serviceTypes.find(t => t.id === stId);
+                                        const locId = typeObj?.locationId || '';
+                                        if (editingEvent) {
+                                            setEditingEvent({ ...editingEvent, serviceTypeId: stId, locationId: locId });
+                                        } else {
+                                            setNewEvent({ ...newEvent, serviceTypeId: stId, locationId: locId });
+                                        }
+                                    }}
+                                    style={styles.input}
+                                >
+                                    <option value="">{t('noCategory')}</option>
+                                    {serviceTypes.map(type => (
+                                        <option key={type.id} value={type.id}>{type.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ ...styles.inputGroup, flex: 1 }}>
+                                <label>{t('location')}</label>
+                                <select
+                                    value={editingEvent ? (editingEvent.locationId || '') : (newEvent.locationId || '')}
+                                    onChange={e => editingEvent ? setEditingEvent({ ...editingEvent, locationId: e.target.value }) : setNewEvent({ ...newEvent, locationId: e.target.value })}
+                                    style={styles.input}
+                                >
+                                    <option value="">{t('noLocation')}</option>
+                                    {locations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {!editingEvent && (
+                                <div style={{ ...styles.inputGroup, flex: 1 }}>
+                                    <label>{t('repeat')}</label>
+                                    <select
+                                        value={newEvent.repeatCount}
+                                        onChange={e => setNewEvent({ ...newEvent, repeatCount: e.target.value })}
+                                        style={styles.input}
+                                    >
+                                        <option value="1">1 {t('weeks')}</option>
+                                        <option value="2">2 {t('weeks')}</option>
+                                        <option value="3">3 {t('weeks')}</option>
+                                        <option value="4">4 {t('weeks')}</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('serviceType')}</label>
-                            <select
-                                value={newEvent.serviceTypeId}
-                                onChange={e => setNewEvent({ ...newEvent, serviceTypeId: e.target.value })}
-                                style={styles.input}
-                            >
-                                <option value="">{t('noCategory')}</option>
-                                {serviceTypes.map(type => (
-                                    <option key={type.id} value={type.id}>
-                                        {type.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('description')}</label>
-                            <textarea
-                                value={newEvent.description}
-                                onChange={e => setNewEvent({ ...newEvent, description: e.target.value })}
-                                placeholder={t('descriptionPlaceholder')}
-                                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
-                            />
-                        </div>
+
                         <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>
-                                {loading ? t('saving') : t('saveEvent')}
+                                {loading ? t('saving') : (editingEvent ? t('save') : t('saveEvent'))}
                             </button>
-                            <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>
+                            <button type="button" onClick={() => { setShowAddForm(false); setEditingEvent(null); }} style={styles.btnSecondary}>
                                 {t('cancel')}
                             </button>
                         </div>
                     </form>
                 </div>
             )}
-            {editingEvent && (
-                <div className="card" style={{ marginBottom: '24px', maxWidth: '600px' }}>
-                    <h3>{t('editEvent')}</h3>
-                    <form onSubmit={handleUpdateEvent} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                        <div style={styles.inputGroup}>
-                            <label>{t('eventTitle')}</label>
-                            <input
-                                type="text"
-                                value={editingEvent.title}
-                                onChange={e => setEditingEvent({ ...editingEvent, title: e.target.value })}
-                                placeholder={t('eventTitlePlaceholder')}
-                                required
-                                style={styles.input}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', gap: '16px' }}>
-                            <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                <label>{t('date')}</label>
-                                <input
-                                    type="date"
-                                    value={editingEvent.date}
-                                    onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })}
-                                    required
-                                    style={styles.input}
-                                />
-                            </div>
-                            <div style={{ ...styles.inputGroup, flex: 1 }}>
-                                <label>{t('time')}</label>
-                                <input
-                                    type="time"
-                                    value={editingEvent.time}
-                                    onChange={e => setEditingEvent({ ...editingEvent, time: e.target.value })}
-                                    required
-                                    style={styles.input}
-                                />
-                            </div>
-                        </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('location')}</label>
-                            <select
-                                value={editingEvent.locationId}
-                                onChange={e => setEditingEvent({ ...editingEvent, locationId: e.target.value })}
-                                style={styles.input}
-                            >
-                                <option value="">{t('noLocation')}</option>
-                                {locations.map(loc => (
-                                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('serviceType')}</label>
-                            <select
-                                value={editingEvent.serviceTypeId}
-                                onChange={e => setEditingEvent({ ...editingEvent, serviceTypeId: e.target.value })}
-                                style={styles.input}
-                            >
-                                <option value="">{t('noCategory')}</option>
-                                {serviceTypes.map(type => (
-                                    <option key={type.id} value={type.id}>{type.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('description')}</label>
-                            <textarea
-                                value={editingEvent.description}
-                                onChange={e => setEditingEvent({ ...editingEvent, description: e.target.value })}
-                                placeholder={t('descriptionPlaceholder')}
-                                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
-                            />
-                        </div>
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                            <button type="submit" className="btn-primary" disabled={loading}>
-                                {loading ? t('updating') : t('updateEvent')}
-                            </button>
-                            <button type="button" onClick={() => setEditingEvent(null)} style={styles.btnSecondary}>{t('cancel')}</button>
-                        </div>
-                    </form>
-                </div>
-            )}
 
-            <div style={styles.list}>
-                {events.length === 0 ? (
-                    <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
-                        <CalendarIcon size={48} color="#94a3b8" style={{ marginBottom: '16px' }} />
-                        <p style={{ color: '#64748b' }}>{t('noEventsScheduled')}</p>
-                    </div>
-                ) : (
-                    events.map(event => (
-                        <div
-                            key={event.id}
-                            className="card"
-                            style={{ ...styles.eventCard, cursor: 'pointer' }}
-                            onClick={() => navigate(`/events/${event.id}`)}
-                        >
-                            <div style={styles.eventDateBox}>
-                                <span style={styles.dateDay}>{event.date.toDate().getDate()}</span>
-                                <span style={styles.dateMonth}>{event.date.toDate().toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { month: 'short' }).toUpperCase()}</span>
+            {/* Quick Add */}
+            <div style={styles.quickAddContainer}>
+                {serviceTypes.map(type => (
+                    <button key={type.id} onClick={() => handleQuickAdd(type)} style={{ ...styles.quickAddBtn, borderLeft: `4px solid ${type.color}` }}>
+                        <Plus size={14} /> {type.name}
+                    </button>
+                ))}
+            </div>
+
+            {/* 4-Week Grid */}
+            <div className="events-grid" style={{ 
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                transition: 'grid-template-columns 0.3s ease'
+            }}>
+                {weekRanges.map((range, weekIndex) => {
+                    const weekEvents = events.filter(e => {
+                        const d = e.date.toDate();
+                        return d >= range.start && d <= range.end;
+                    });
+
+                    return (
+                        <div key={weekIndex} className="week-column">
+                            <div className="week-header">
+                                {range.start.toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { day: 'numeric', month: 'short' })} - 
+                                {range.end.toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { day: 'numeric', month: 'short' })}
                             </div>
-                            <div style={styles.eventInfo}>
-                                <h3 style={{ margin: 0, fontSize: '18px' }}>{event.title}</h3>
-                                <div style={styles.eventMeta}>
-                                    <div style={styles.metaItem}>
-                                        <Clock size={14} />
-                                        <span>{formatTime(event.date)}</span>
-                                    </div>
-                                    <div style={styles.metaItem}>
-                                        <MapPin size={14} />
-                                        <span>{event.location || t('noLocation')}</span>
-                                    </div>
-                                </div>
-                                <p style={styles.eventDescription}>{event.description}</p>
-                            </div>
-                            <div style={styles.eventActions}>
-                                <button type="button" onClick={e => handleEditEvent(e, event)} style={styles.deleteBtn}><Edit2 size={18} /></button>
-                                <button style={styles.deleteBtn} onClick={e => handleDeleteEvent(e, event.id)}><Trash2 size={18} /></button>
-                            </div>
+                            {weekEvents.length === 0 ? (
+                                <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '10px' }}>{t('noEventsScheduled')}</p>
+                            ) : (
+                                weekEvents.map(event => (
+                                    <React.Fragment key={event.id}>
+                                        <div 
+                                            className="event-card-compact"
+                                            onClick={() => navigate(`/events/${event.id}`)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <div className="event-color-strip" style={{ backgroundColor: event.color || '#3b82f6' }}></div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div className="event-time-compact">
+                                                    <span className="event-day-badge">{event.date.toDate().toLocaleDateString(language === 'ro' ? 'ro-RO' : 'es-ES', { weekday: 'short' }).toUpperCase()}</span>
+                                                    {event.date.toDate().toLocaleTimeString(language === 'ro' ? 'ro-RO' : 'es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </div>
+                                            <div className="event-title-compact" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                                                <span style={{ flex: 1, paddingRight: '12px' }}>{event.title}</span>
+                                                <div style={{ display: 'flex', gap: '8px', zIndex: 2 }}>
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            setEditingEvent({ 
+                                                                ...event, 
+                                                                date: event.date.toDate().toISOString().split('T')[0], 
+                                                                time: event.date.toDate().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) 
+                                                            }); 
+                                                            setTimeout(() => {
+                                                                formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                            }, 100);
+                                                        }} 
+                                                        style={{ ...styles.btnActionIcon, color: '#64748b' }} 
+                                                        title={t('edit')}
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={async (e) => { 
+                                                            e.stopPropagation(); 
+                                                            if(window.confirm(t('confirmDeleteEvent'))) { 
+                                                                await deleteDoc(doc(db, 'events', event.id)); 
+                                                                fetchEvents(); 
+                                                            } 
+                                                        }} 
+                                                        style={{ ...styles.btnActionIcon, color: '#ef4444' }} 
+                                                        title={t('delete')}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                                                <MapPin size={10} /> {event.location || t('noLocation')}
+                                            </div>
+                                        </div>
+                                    </React.Fragment>
+                                ))
+                            )}
                         </div>
-                    ))
-                )}
+                    );
+                })}
             </div>
         </div>
     );
 };
 
 const styles = {
-    list: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-    },
-    eventCard: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '24px',
-        padding: '20px',
-    },
-    eventDateBox: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '64px',
-        height: '64px',
-        backgroundColor: '#eff6ff',
-        borderRadius: '12px',
-        color: '#007bff',
-    },
-    dateDay: {
-        fontSize: '20px',
-        fontWeight: '700',
-    },
-    dateMonth: {
-        fontSize: '12px',
-        fontWeight: '600',
-    },
-    eventInfo: {
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-    },
-    eventMeta: {
-        display: 'flex',
-        gap: '16px',
-        color: '#64748b',
-        fontSize: '14px',
-    },
-    metaItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-    },
-    eventDescription: {
-        fontSize: '14px',
-        color: '#475569',
-        margin: 0,
-        lineHeight: '1.5',
-    },
-    eventActions: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: '12px',
-    },
-    btnAction: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        backgroundColor: 'white',
-        border: '1px solid #e2e8f0',
-        padding: '8px 12px',
-        borderRadius: '8px',
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#1e293b',
-        cursor: 'pointer',
-        transition: 'background 0.2s',
-    },
-    deleteBtn: {
-        background: 'none',
-        border: 'none',
-        color: '#cbd5e1',
-        cursor: 'pointer',
-        padding: '8px',
-        borderRadius: '8px',
-        transition: 'all 0.2s',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    statusBadge: {
-        fontSize: '11px',
-        fontWeight: '600',
-        padding: '4px 8px',
-        borderRadius: '6px',
-    },
-    inputGroup: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-    },
-    input: {
-        padding: '10px',
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0',
-        fontSize: '14px',
-        outline: 'none',
-        fontFamily: 'inherit',
-    },
-    btnSecondary: {
-        padding: '10px 20px',
-        borderRadius: '8px',
-        border: '1px solid #e2e8f0',
-        backgroundColor: 'white',
-        color: '#475569',
-        fontWeight: '600',
-        cursor: 'pointer',
-    }
+    inputGroup: { display: 'flex', flexDirection: 'column', gap: '6px' },
+    input: { padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none' },
+    btnSecondary: { padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: 'white', color: '#475569', fontWeight: '600', cursor: 'pointer' },
+    quickAddContainer: { display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' },
+    quickAddBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '12px', fontWeight: '700', color: '#1e293b', cursor: 'pointer', transition: 'all 0.2s' },
+    btnActionIcon: { background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '4px', transition: 'background-color 0.2s' }
 };
 
 export default Events;

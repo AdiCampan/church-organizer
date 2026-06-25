@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { Users, Plus, Search, Info, X, Check, UserPlus, Pencil } from 'lucide-react';
+import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
+import { Users, Plus, Search, Info, X, Check, UserPlus, Pencil, Trash2 } from 'lucide-react';
 import { useLanguage } from '../LanguageContext';
 
 
 const Teams = () => {
     const { t } = useLanguage();
+    const editFormRef = useRef(null);
     const [teams, setTeams] = useState([]);
 
     const [people, setPeople] = useState([]);
@@ -14,7 +15,7 @@ const Teams = () => {
 
     const [editingTeam, setEditingTeam] = useState(null); // stores team ID for member management
     const [editingTeamData, setEditingTeamData] = useState(null); // stores team object for metadata editing
-    const [newTeam, setNewTeam] = useState({ name: '', description: '', positions: '' });
+    const [newTeam, setNewTeam] = useState({ name: '', description: '', positions: '', leaders: [] });
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -56,10 +57,11 @@ const Teams = () => {
                 description: newTeam.description,
                 positions: positionsArray,
                 members: [],
+                leaders: newTeam.leaders || [],
                 createdAt: new Date(),
             });
 
-            setNewTeam({ name: '', description: '', positions: '' });
+            setNewTeam({ name: '', description: '', positions: '', leaders: [] });
             setShowAddForm(false);
             fetchTeams();
         } catch (err) {
@@ -84,6 +86,7 @@ const Teams = () => {
                 name: editingTeamData.name,
                 description: editingTeamData.description,
                 positions: positionsArray,
+                leaders: editingTeamData.leaders || [],
             });
 
             setEditingTeamData(null);
@@ -100,8 +103,24 @@ const Teams = () => {
     const openEditModal = (team) => {
         setEditingTeamData({
             ...team,
-            positions: team.positions ? team.positions.join(', ') : ''
+            positions: team.positions ? team.positions.join(', ') : '',
+            leaders: team.leaders || []
         });
+        setTimeout(() => {
+            editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    };
+
+    const handleDeleteTeam = async (id, name) => {
+        if (!window.confirm(t('confirmDeleteTeam')?.replace('{name}', name) || `${t('delete')} ${name}?`)) return;
+
+        try {
+            await deleteDoc(doc(db, 'teams', id));
+            fetchTeams();
+        } catch (err) {
+            console.error("Error deleting team:", err);
+            alert(t('error') + ": " + err.message);
+        }
     };
 
     const toggleMember = async (teamId, userId) => {
@@ -129,6 +148,8 @@ const Teams = () => {
         person.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         person.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const admins = people.filter(p => p.role === 'admin');
 
     return (
         <div className="page">
@@ -180,6 +201,36 @@ const Teams = () => {
                                 style={styles.input}
                             />
                         </div>
+                        <div style={styles.inputGroup}>
+                            <label>Líderes (Administradores)</label>
+                            {admins.length === 0 ? (
+                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>No hay administradores disponibles.</p>
+                            ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {admins.map(admin => {
+                                        const isSelected = newTeam.leaders?.includes(admin.id);
+                                        return (
+                                            <div 
+                                                key={admin.id}
+                                                onClick={() => {
+                                                    const currentLeaders = newTeam.leaders || [];
+                                                    const newLeaders = isSelected 
+                                                        ? currentLeaders.filter(id => id !== admin.id)
+                                                        : [...currentLeaders, admin.id];
+                                                    setNewTeam({ ...newTeam, leaders: newLeaders });
+                                                }}
+                                                style={{ 
+                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600',
+                                                    backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
+                                                    color: isSelected ? 'white' : '#475569'
+                                                }}>
+                                                {admin.name}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>{t('create')}</button>
                             <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>{t('cancel')}</button>
@@ -189,7 +240,7 @@ const Teams = () => {
             )}
 
             {editingTeamData && (
-                <div className="card" style={{ marginBottom: '24px', maxWidth: '600px', border: '1px solid #3b82f6' }}>
+                <div ref={editFormRef} className="card" style={{ marginBottom: '24px', maxWidth: '600px', border: '1px solid #3b82f6' }}>
                     <h3>{t('editTeam')}</h3>
                     <form onSubmit={handleUpdateTeam} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={styles.inputGroup}>
@@ -219,6 +270,36 @@ const Teams = () => {
                                 style={styles.input}
                             />
                         </div>
+                        <div style={styles.inputGroup}>
+                            <label>Líderes (Administradores)</label>
+                            {admins.length === 0 ? (
+                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>No hay administradores disponibles.</p>
+                            ) : (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {admins.map(admin => {
+                                        const isSelected = editingTeamData.leaders?.includes(admin.id);
+                                        return (
+                                            <div 
+                                                key={admin.id}
+                                                onClick={() => {
+                                                    const currentLeaders = editingTeamData.leaders || [];
+                                                    const newLeaders = isSelected 
+                                                        ? currentLeaders.filter(id => id !== admin.id)
+                                                        : [...currentLeaders, admin.id];
+                                                    setEditingTeamData({ ...editingTeamData, leaders: newLeaders });
+                                                }}
+                                                style={{ 
+                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600',
+                                                    backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
+                                                    color: isSelected ? 'white' : '#475569'
+                                                }}>
+                                                {admin.name}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>{t('save_changes')}</button>
                             <button type="button" onClick={() => setEditingTeamData(null)} style={styles.btnSecondary}>{t('cancel')}</button>
@@ -235,17 +316,20 @@ const Teams = () => {
                                 <h3 style={{ margin: 0 }}>{team.name}</h3>
                                 <p style={styles.teamDescription}>{team.description}</p>
                             </div>
-                            <div style={styles.memberCount}>
-                                <Users size={14} />
-                                <span>{team.members?.length || 0}</span>
+                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-5px', gap: '8px' }}>
+                                <button onClick={() => openEditModal(team)} style={{ ...styles.btnAction, color: '#94a3b8' }} title={t('edit')}>
+                                    <Pencil size={16} />
+                                </button>
+                                <button onClick={() => handleDeleteTeam(team.id, team.name)} style={{ ...styles.btnAction, color: '#ef4444' }} title={t('delete')}>
+                                    <Trash2 size={16} />
+                                </button>
+                                    <div style={styles.memberCount}>
+                                    <Users size={14} />
+                                    <span>{team.members?.length || 0}</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-24px' }}>
-                            <button onClick={() => openEditModal(team)} style={{ ...styles.btnAction, color: '#94a3b8' }}>
-                                <Pencil size={16} />
-                            </button>
-                        </div>
 
                         <div style={{ marginTop: '16px' }}>
                             <div style={styles.positionsList}>
