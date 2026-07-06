@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+import { useLanguage } from '../../useLanguage';
 
 
 const LocationSettings = () => {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
 import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music, Eye } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
 
 
@@ -28,10 +28,31 @@ const EventDetails = () => {
     const [editingOosId, setEditingOosId] = useState(null); // ID of item being edited
     const [previewSong, setPreviewSong] = useState(null);
 
+    const formatLocalDateKey = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     useEffect(() => {
-        fetchTeams();
-        fetchPeople();
-        fetchSongs();
+        let isMounted = true;
+
+        const loadInitialData = async () => {
+            const [teamsSnapshot, peopleSnapshot, songsSnapshot] = await Promise.all([
+                getDocs(collection(db, 'teams')),
+                getDocs(collection(db, 'users')),
+                getDocs(collection(db, 'songs'))
+            ]);
+
+            if (!isMounted) return;
+
+            setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setAvailablePeople(peopleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setAllSongs(songsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        };
+
+        loadInitialData();
 
         // Subscribe to assignments for this event
         const qSchedules = query(collection(db, 'schedules'), where('eventId', '==', eventId));
@@ -52,26 +73,11 @@ const EventDetails = () => {
         });
 
         return () => {
+            isMounted = false;
             unsubSchedules();
             unsubEvent();
         };
-    }, [eventId]);
-
-    const fetchTeams = async () => {
-        const querySnapshot = await getDocs(collection(db, 'teams'));
-        setTeams(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    };
-
-    const fetchPeople = async () => {
-        const querySnapshot = await getDocs(collection(db, 'users'));
-        // Include blockoutDates in the state
-        setAvailablePeople(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    };
-
-    const fetchSongs = async () => {
-        const querySnapshot = await getDocs(collection(db, 'songs'));
-        setAllSongs(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    };
+    }, [eventId, navigate]);
 
     const handleAssign = async (teamId) => {
         if (!selectedUser || !selectedPosition) return;
@@ -165,22 +171,22 @@ const EventDetails = () => {
     const handleCallToRehearsal = async (teamId) => {
         try {
             // 1. Get current team members assigned to this event
-            const currentAssignments = assignments.filter(a => a.teamId === teamId);
+            const currentAssignments = assignments.filter(a => a.teamId === teamId && a.status !== 'declined');
             if (currentAssignments.length === 0) return;
 
-            // 2. Find "Repetitii" Service Type
+            // 2. Find the configured rehearsal service type
             const serviceTypesSnap = await getDocs(collection(db, 'service_types'));
             const repetitiiType = serviceTypesSnap.docs
                 .map(doc => ({ id: doc.id, ...doc.data() }))
-                .find(t => t.name.toLowerCase().includes('repetitii'));
+                .find(type => type.isRehearsal === true);
 
             if (!repetitiiType) {
-                alert("No se encontró un tipo de servicio llamado 'Repetitii'. Por favor, créalo en Configuración.");
+                alert(t('rehearsalServiceTypeRequired'));
                 return;
             }
 
             if (!repetitiiType.dayOfWeek) {
-                alert("El tipo de servicio 'Repetitii' no tiene configurado un día de la semana.");
+                alert(t('rehearsalDayRequired'));
                 return;
             }
 
@@ -219,17 +225,25 @@ const EventDetails = () => {
 
             let rehearsalEventId;
             if (!existingRehearsal) {
-                const newEventRef = await addDoc(collection(db, 'events'), {
-                    title: `${repetitiiType.name} - ${event.title}`,
-                    date: rehearsalDate,
-                    serviceTypeId: repetitiiType.id,
-                    serviceTypeName: repetitiiType.name,
-                    color: repetitiiType.color || '#64748b',
-                    status: 'draft',
-                    createdAt: serverTimestamp(),
-                    requiredTeams: repetitiiType.requiredTeams || []
-                });
-                rehearsalEventId = newEventRef.id;
+                const rehearsalKey = `rehearsal_${repetitiiType.id}_${formatLocalDateKey(rehearsalDate)}`;
+                const rehearsalRef = doc(db, 'events', rehearsalKey);
+                const rehearsalSnap = await getDoc(rehearsalRef);
+
+                if (rehearsalSnap.exists()) {
+                    rehearsalEventId = rehearsalRef.id;
+                } else {
+                    await setDoc(rehearsalRef, {
+                        title: `${repetitiiType.name} - ${event.title}`,
+                        date: rehearsalDate,
+                        serviceTypeId: repetitiiType.id,
+                        serviceTypeName: repetitiiType.name,
+                        color: repetitiiType.color || '#64748b',
+                        status: 'draft',
+                        createdAt: serverTimestamp(),
+                        requiredTeams: repetitiiType.requiredTeams || []
+                    });
+                    rehearsalEventId = rehearsalRef.id;
+                }
             } else {
                 rehearsalEventId = existingRehearsal.id;
             }
@@ -514,19 +528,22 @@ const EventDetails = () => {
                                 ))}
                             </select>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '4px', marginTop: '4px' }}>
-                                <div 
+                                <button
+                                    type="button"
                                     onClick={() => setNewItem({ ...newItem, targetTeams: ['all'] })}
+                                    aria-pressed={newItem.targetTeams.includes('all')}
                                     style={{ 
-                                        padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', fontWeight: '600',
+                                        padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', fontWeight: '600', border: 'none',
                                         backgroundColor: newItem.targetTeams.includes('all') ? '#007bff' : '#e2e8f0',
                                         color: newItem.targetTeams.includes('all') ? 'white' : '#475569'
                                     }}>
                                     {t('all')}
-                                </div>
+                                </button>
                                 {teams.map(team => {
                                     const isSelected = newItem.targetTeams.includes(team.id);
                                     return (
-                                        <div 
+                                        <button
+                                            type="button"
                                             key={team.id}
                                             onClick={() => {
                                                 let newTargets = newItem.targetTeams.filter(t => t !== 'all');
@@ -538,13 +555,14 @@ const EventDetails = () => {
                                                 }
                                                 setNewItem({ ...newItem, targetTeams: newTargets });
                                             }}
+                                            aria-pressed={isSelected}
                                             style={{ 
-                                                padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', fontWeight: '600',
+                                                padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', fontWeight: '600', border: 'none',
                                                 backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
                                                 color: isSelected ? 'white' : '#475569'
                                             }}>
                                             {team.name}
-                                        </div>
+                                        </button>
                                     )
                                 })}
                             </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X, MapPin } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+import { useLanguage } from '../../useLanguage';
 
 
 const ServiceTypeSettings = () => {
@@ -11,7 +11,7 @@ const ServiceTypeSettings = () => {
 
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
-    const [newType, setNewType] = useState({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', requiredTeams: [] });
+    const [newType, setNewType] = useState({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', isRehearsal: false, requiredTeams: [] });
     const [editingId, setEditingId] = useState(null);
     const [editType, setEditType] = useState(null);
     const [teams, setTeams] = useState([]);
@@ -79,7 +79,7 @@ const ServiceTypeSettings = () => {
                 ...newType,
                 createdAt: new Date()
             });
-            setNewType({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', requiredTeams: [] });
+            setNewType({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', isRehearsal: false, requiredTeams: [] });
             setIsAdding(false);
             fetchTypes();
         } catch (error) {
@@ -197,6 +197,27 @@ const ServiceTypeSettings = () => {
                                     ))}
                                 </select>
                             </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={newType.isRehearsal}
+                                    onChange={e => setNewType({ ...newType, isRehearsal: e.target.checked })}
+                                />
+                                {t('rehearsalServiceType')}
+                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <label style={{ fontSize: '12px', color: '#64748b' }}>{t('location')}:</label>
+                                <select
+                                    value={newType.locationId || ''}
+                                    onChange={e => setNewType({ ...newType, locationId: e.target.value })}
+                                    style={{ ...styles.input, flex: 'none', width: '150px' }}
+                                >
+                                    <option value="">{t('noLocation')}</option>
+                                    {locations.map(loc => (
+                                        <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
 
                             <div style={styles.actions}>
                                 <button onClick={handleAdd} style={{ ...styles.actionBtn, color: '#166534' }}><Check size={18} /></button>
@@ -289,6 +310,14 @@ const ServiceTypeSettings = () => {
                                             ))}
                                         </select>
                                     </div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#64748b' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(editType.isRehearsal)}
+                                            onChange={e => setEditType({ ...editType, isRehearsal: e.target.checked })}
+                                        />
+                                        {t('rehearsalServiceType')}
+                                    </label>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <label style={{ fontSize: '12px', color: '#64748b' }}>{t('location')}:</label>
                                 <select
@@ -364,6 +393,11 @@ const ServiceTypeSettings = () => {
                                             {locations.find(l => l.id === type.locationId)?.name || ''}
                                         </div>
                                     )}
+                                    {type.isRehearsal && (
+                                        <div style={{ fontSize: '12px', color: '#007bff', paddingLeft: '28px', marginTop: '-4px', fontWeight: '600' }}>
+                                            {t('rehearsalServiceType')}
+                                        </div>
+                                    )}
                                     {type.requiredTeams?.length > 0 && (
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingLeft: '28px' }}>
                                             {type.requiredTeams.map(rt => (
@@ -375,7 +409,7 @@ const ServiceTypeSettings = () => {
                                     )}
                                 </div>
                                 <div style={styles.actions}>
-                                    <button onClick={() => { setEditingId(type.id); setEditType({ ...type, requiredTeams: type.requiredTeams || [] }); }} style={styles.actionBtn}><Edit2 size={16} /></button>
+                                    <button onClick={() => { setEditingId(type.id); setEditType({ ...type, isRehearsal: Boolean(type.isRehearsal), requiredTeams: type.requiredTeams || [] }); }} style={styles.actionBtn}><Edit2 size={16} /></button>
                                     <button onClick={() => handleDelete(type.id)} style={{ ...styles.actionBtn, color: '#ef4444' }}><Trash2 size={16} /></button>
                                 </div>
                             </>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Megaphone, Plus, Trash2, Edit2, Users, Send, Bell, Clock, Info, AlertTriangle, MessageSquare, X, RotateCcw } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 
 
 const Announcements = () => {

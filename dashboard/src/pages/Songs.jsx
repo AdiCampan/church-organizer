@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db, storage } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, limit, startAfter } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, limit, startAfter } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Music, Plus, Search, FileText, Play, Trash2, X, Upload, Save, Pencil, ExternalLink, Youtube } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
 
 
 const Songs = () => {
     const { t } = useLanguage();
-    const [songs, setSongs] = useState([]);
-
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [previewSong, setPreviewSong] = useState(null);
-    const [isEditing, setIsEditing] = useState(null);
-    const [availableTags, setAvailableTags] = useState([]);
-    const [selectedTagFilters, setSelectedTagFilters] = useState([]);
-    const [formData, setFormData] = useState({
+    const defaultSongFormData = {
         title: '',
         artist: '',
         key: '',
@@ -30,7 +21,17 @@ const Songs = () => {
         bpm: '',
         meter: '',
         tags: []
-    });
+    };
+    const [songs, setSongs] = useState([]);
+
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [previewSong, setPreviewSong] = useState(null);
+    const [isEditing, setIsEditing] = useState(null);
+    const [availableTags, setAvailableTags] = useState([]);
+    const [selectedTagFilters, setSelectedTagFilters] = useState([]);
+    const [formData, setFormData] = useState(defaultSongFormData);
     const [files, setFiles] = useState({
         pdf: null,
         mp3: null
@@ -43,24 +44,48 @@ const Songs = () => {
     const [hasMore, setHasMore] = useState(true);
 
     useEffect(() => {
-        fetchSongs();
-        fetchTags();
+        let isMounted = true;
+
+        const loadInitialData = async () => {
+            try {
+                const [songsSnapshot, tagsSnapshot] = await Promise.all([
+                    getDocs(query(collection(db, 'songs'), orderBy('title', 'asc'), limit(20))),
+                    getDocs(collection(db, 'song_tags'))
+                ]);
+
+                if (!isMounted) return;
+
+                const songsData = songsSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return { ...data, id: doc.id };
+                });
+
+                setSongs(songsData);
+                setLastDoc(songsSnapshot.docs[songsSnapshot.docs.length - 1]);
+                setHasMore(songsSnapshot.docs.length === 20);
+                setAvailableTags(tagsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error("Error fetching songs page data:", err);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadInitialData();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
-    const fetchTags = async () => {
-        try {
-            const snapshot = await getDocs(collection(db, 'song_tags'));
-            setAvailableTags(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        } catch (err) {
-            console.error("Error fetching tags:", err);
-        }
-    };
-
-    const fetchSongs = async (isLoadMore = false) => {
+    const fetchSongs = async (isLoadMore = false, loadAll = false) => {
         setLoading(true);
         try {
             let q;
-            if (isLoadMore && lastDoc) {
+            if (loadAll) {
+                q = query(collection(db, 'songs'), orderBy('title', 'asc'));
+            } else if (isLoadMore && lastDoc) {
                 q = query(collection(db, 'songs'), orderBy('title', 'asc'), startAfter(lastDoc), limit(20));
             } else {
                 q = query(collection(db, 'songs'), orderBy('title', 'asc'), limit(20));
@@ -80,7 +105,7 @@ const Songs = () => {
             }
 
             setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
-            setHasMore(snapshot.docs.length === 20);
+            setHasMore(!loadAll && snapshot.docs.length === 20);
         } catch (err) {
             console.error("Error fetching songs:", err);
         } finally {
@@ -130,9 +155,12 @@ const Songs = () => {
     };
 
     const toggleTagFilter = (tagId) => {
-        setSelectedTagFilters(prev => 
-            prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
-        );
+        const nextFilters = selectedTagFilters.includes(tagId)
+            ? selectedTagFilters.filter(id => id !== tagId)
+            : [...selectedTagFilters, tagId];
+
+        setSelectedTagFilters(nextFilters);
+        fetchSongs(false, nextFilters.length > 0);
     };
 
     const filteredSongs = songs.filter(song => {
@@ -185,11 +213,11 @@ const Songs = () => {
 
             if (isEditing) {
                 // Remove the 'id' field from data before updating to avoid pollution
-                const { id, ...saveData } = songData;
+                const { id: _id, ...saveData } = songData;
                 await updateDoc(doc(db, 'songs', isEditing.id), saveData);
             } else {
                 // Ensure we don't accidentally include an 'id' from a previous edit
-                const { id, ...saveData } = songData;
+                const { id: _id, ...saveData } = songData;
                 await addDoc(collection(db, 'songs'), {
                     ...saveData,
                     createdAt: new Date()
@@ -198,7 +226,7 @@ const Songs = () => {
 
             setShowAddModal(false);
             setIsEditing(null);
-            setFormData({ title: '', artist: '', key: '', lyrics: '', youtubeUrl: '', spotifyUrl: '', pdfUrl: '', mp3Url: '', bpm: '', meter: '', tags: [] });
+            setFormData(defaultSongFormData);
             setFiles({ pdf: null, mp3: null });
             setUploadProgress({ pdf: 0, mp3: 0 });
             fetchSongs();
@@ -229,7 +257,7 @@ const Songs = () => {
                     <h1>{t('repertoire')}</h1>
                     <p style={{ color: '#64748b' }}>{t('songsDescription')}</p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowAddModal(true)} style={styles.addBtn}>
+                    <button className="btn-primary" onClick={() => { setFormData(defaultSongFormData); setShowAddModal(true); }} style={styles.addBtn}>
                     <Plus size={18} /> {t('newSong')}
                 </button>
             </div>
@@ -262,7 +290,7 @@ const Songs = () => {
                             </button>
                         ))}
                         {selectedTagFilters.length > 0 && (
-                            <button onClick={() => setSelectedTagFilters([])} style={styles.clearFilterBtn}>
+                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(); }} style={styles.clearFilterBtn}>
                                 {t('showAll')}
                             </button>
                         )}
@@ -276,7 +304,7 @@ const Songs = () => {
                         key={song.id} 
                         className="card" 
                         style={styles.songCard}
-                        onClick={() => { setIsEditing(song); setFormData(song); setShowAddModal(true); }}
+                        onClick={() => { setIsEditing(song); setFormData({ ...defaultSongFormData, ...song, tags: song.tags || [] }); setShowAddModal(true); }}
                     >
                         <div style={styles.songMain}>
                             <div style={styles.musicIcon}>
@@ -335,7 +363,7 @@ const Songs = () => {
                 ))}
             </div>
 
-            {hasMore && !searchTerm && (
+            {hasMore && !searchTerm && selectedTagFilters.length === 0 && (
                 <div style={{ textAlign: 'center', marginTop: '32px' }}>
                     <button className="btn-secondary" onClick={() => fetchSongs(true)} disabled={loading}>
                         {loading ? t('loading') : t('loadMore')}
@@ -351,7 +379,7 @@ const Songs = () => {
                             <button onClick={() => {
                                 setShowAddModal(false);
                                 setIsEditing(null);
-                                setFormData({ title: '', artist: '', key: '', lyrics: '', youtubeUrl: '', spotifyUrl: '', pdfUrl: '', mp3Url: '', bpm: '', meter: '', tags: [] });
+                                setFormData(defaultSongFormData);
                                 setFiles({ pdf: null, mp3: null });
                             }} style={styles.closeBtn}>
 
@@ -418,7 +446,8 @@ const Songs = () => {
                                 <label>{t('tags')}</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                     {availableTags.map(tag => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={tag.id}
                                             onClick={() => {
                                                 const currentTags = formData.tags || [];
@@ -435,7 +464,7 @@ const Songs = () => {
                                             }}
                                         >
                                             {tag.name}
-                                        </div>
+                                        </button>
                                     ))}
                                     {availableTags.length === 0 && (
                                         <p style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>{t('noTags')}</p>

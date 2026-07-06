@@ -13,7 +13,7 @@ export default {
             "backgroundColor": "#ffffff"
         },
         "ios": {
-            "bundleIdentifier": process.env.EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER || "com.adi_es.mobile",
+            "bundleIdentifier": process.env.EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER || "com.adi.es.mobile",
             "supportsTablet": true,
             "infoPlist": {
                 "UIBackgroundModes": [

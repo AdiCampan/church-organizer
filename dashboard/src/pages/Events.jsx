@@ -1,9 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, limit, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2, Users, Music, ChevronDown, ChevronUp, CheckCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
+
+const getWeekRanges = () => {
+    const ranges = [];
+    const now = new Date();
+    const startOfCurrentWeek = new Date(now);
+    const day = now.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    startOfCurrentWeek.setDate(now.getDate() + diff);
+    startOfCurrentWeek.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 4; i++) {
+        const start = new Date(startOfCurrentWeek);
+        start.setDate(startOfCurrentWeek.getDate() + (i * 7));
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        ranges.push({ start, end });
+    }
+    return ranges;
+};
 
 const Events = () => {
     const { t, language } = useLanguage();
@@ -19,11 +39,18 @@ const Events = () => {
     const [filterDate, setFilterDate] = useState('');
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        fetchEvents();
-        fetchServiceTypes();
-        fetchLocations();
-    }, [filterDate]);
+    const getLocale = () => {
+        if (language === 'ro') return 'ro-RO';
+        if (language === 'en') return 'en-US';
+        return 'es-ES';
+    };
+
+    const formatLocalDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
     const fetchEvents = async () => {
         try {
@@ -43,12 +70,14 @@ const Events = () => {
                 return;
             }
 
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const ranges = getWeekRanges();
+            const visibleStart = ranges[0].start;
+            const visibleEnd = ranges[ranges.length - 1].end;
             
             const q = query(
                 collection(db, 'events'),
-                where('date', '>=', Timestamp.fromDate(today)),
+                where('date', '>=', Timestamp.fromDate(visibleStart)),
+                where('date', '<=', Timestamp.fromDate(visibleEnd)),
                 orderBy('date', 'asc')
             );
 
@@ -59,43 +88,56 @@ const Events = () => {
         }
     };
 
-    const fetchServiceTypes = async () => {
-        try {
-            const querySnapshot = await getDocs(collection(db, 'service_types'));
-            setServiceTypes(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        } catch (err) {
-            console.error("Error fetching service types:", err);
-        }
-    };
+    useEffect(() => {
+        let isMounted = true;
 
-    const fetchLocations = async () => {
-        try {
-            const querySnapshot = await getDocs(collection(db, 'locations'));
-            setLocations(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        } catch (err) {
-            console.error("Error fetching locations:", err);
-        }
-    };
+        const loadPageData = async () => {
+            try {
+                let eventsQuery;
+                if (filterDate) {
+                    const startOfDay = new Date(filterDate + 'T00:00:00');
+                    const endOfDay = new Date(filterDate + 'T23:59:59');
 
-    const getWeekRanges = () => {
-        const ranges = [];
-        const now = new Date();
-        const startOfCurrentWeek = new Date(now);
-        const day = now.getDay();
-        const diff = (day === 0 ? -6 : 1) - day;
-        startOfCurrentWeek.setDate(now.getDate() + diff);
-        startOfCurrentWeek.setHours(0, 0, 0, 0);
+                    eventsQuery = query(
+                        collection(db, 'events'),
+                        where('date', '>=', Timestamp.fromDate(startOfDay)),
+                        where('date', '<=', Timestamp.fromDate(endOfDay)),
+                        orderBy('date', 'asc')
+                    );
+                } else {
+                    const ranges = getWeekRanges();
+                    const visibleStart = ranges[0].start;
+                    const visibleEnd = ranges[ranges.length - 1].end;
 
-        for (let i = 0; i < 4; i++) {
-            const start = new Date(startOfCurrentWeek);
-            start.setDate(startOfCurrentWeek.getDate() + (i * 7));
-            const end = new Date(start);
-            end.setDate(start.getDate() + 6);
-            end.setHours(23, 59, 59, 999);
-            ranges.push({ start, end });
-        }
-        return ranges;
-    };
+                    eventsQuery = query(
+                        collection(db, 'events'),
+                        where('date', '>=', Timestamp.fromDate(visibleStart)),
+                        where('date', '<=', Timestamp.fromDate(visibleEnd)),
+                        orderBy('date', 'asc')
+                    );
+                }
+
+                const [eventsSnapshot, serviceTypesSnapshot, locationsSnapshot] = await Promise.all([
+                    getDocs(eventsQuery),
+                    getDocs(collection(db, 'service_types')),
+                    getDocs(collection(db, 'locations'))
+                ]);
+
+                if (!isMounted) return;
+
+                setEvents(eventsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setServiceTypes(serviceTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setLocations(locationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error("Error fetching events page data:", err);
+            }
+        };
+
+        loadPageData();
+        return () => {
+            isMounted = false;
+        };
+    }, [filterDate]);
 
     const weekRanges = getWeekRanges();
 
@@ -109,11 +151,13 @@ const Events = () => {
             const iterations = parseInt(newEvent.repeatCount) || 1;
             const currentBaseDate = new Date(`${newEvent.date}T${newEvent.time}`);
 
+            const batch = writeBatch(db);
             for (let i = 0; i < iterations; i++) {
                 const eventDate = new Date(currentBaseDate);
                 eventDate.setDate(currentBaseDate.getDate() + (i * 7));
 
-                await addDoc(collection(db, 'events'), {
+                const eventRef = doc(collection(db, 'events'));
+                batch.set(eventRef, {
                     title: newEvent.title,
                     date: Timestamp.fromDate(eventDate),
                     description: newEvent.description,
@@ -127,6 +171,7 @@ const Events = () => {
                     createdAt: serverTimestamp(),
                 });
             }
+            await batch.commit();
 
             setNewEvent({ title: '', date: '', time: '', description: '', locationId: '', serviceTypeId: '', repeatCount: 1 });
             setShowAddForm(false);
@@ -179,7 +224,7 @@ const Events = () => {
             targetDate.setDate(now.getDate() + diff);
         }
 
-        const dateStr = targetDate.toISOString().split('T')[0];
+        const dateStr = formatLocalDate(targetDate);
         setNewEvent({
             title: type.name,
             date: dateStr,
@@ -363,8 +408,8 @@ const Events = () => {
                     return (
                         <div key={weekIndex} className="week-column">
                             <div className="week-header">
-                                {range.start.toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { day: 'numeric', month: 'short' })} - 
-                                {range.end.toLocaleDateString(language === 'ro' ? 'ro-RO' : (language === 'en' ? 'en-US' : 'es-ES'), { day: 'numeric', month: 'short' })}
+                                {range.start.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' })} -
+                                {range.end.toLocaleDateString(getLocale(), { day: 'numeric', month: 'short' })}
                             </div>
                             {weekEvents.length === 0 ? (
                                 <p style={{ fontSize: '12px', color: '#94a3b8', textAlign: 'center', marginTop: '10px' }}>{t('noEventsScheduled')}</p>
@@ -379,8 +424,8 @@ const Events = () => {
                                             <div className="event-color-strip" style={{ backgroundColor: event.color || '#3b82f6' }}></div>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                 <div className="event-time-compact">
-                                                    <span className="event-day-badge">{event.date.toDate().toLocaleDateString(language === 'ro' ? 'ro-RO' : 'es-ES', { weekday: 'short' }).toUpperCase()}</span>
-                                                    {event.date.toDate().toLocaleTimeString(language === 'ro' ? 'ro-RO' : 'es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                    <span className="event-day-badge">{event.date.toDate().toLocaleDateString(getLocale(), { weekday: 'short' }).toUpperCase()}</span>
+                                                    {event.date.toDate().toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
                                             </div>
                                             <div className="event-title-compact" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
@@ -391,7 +436,7 @@ const Events = () => {
                                                             e.stopPropagation(); 
                                                             setEditingEvent({ 
                                                                 ...event, 
-                                                                date: event.date.toDate().toISOString().split('T')[0], 
+                                                                date: formatLocalDate(event.date.toDate()),
                                                                 time: event.date.toDate().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }) 
                                                             }); 
                                                             setTimeout(() => {

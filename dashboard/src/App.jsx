@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react
 import { LayoutDashboard, Users, Calendar, Settings as SettingsIcon, Bell, LogOut, Music, Megaphone, RefreshCw } from 'lucide-react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 // Components
 import Login from './components/Login';
@@ -15,7 +15,7 @@ import EventDetails from './pages/EventDetails';
 import Songs from './pages/Songs';
 import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
-import { useLanguage } from './LanguageContext';
+import { useLanguage } from './useLanguage';
 
 const APP_VERSION = "1.0.6";
 

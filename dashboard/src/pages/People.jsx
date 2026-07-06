@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc } from 'firebase/firestore';
 import { UserPlus, Search, Mail, Calendar, CalendarX, Trash2 } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -40,7 +40,7 @@ const People = () => {
 
     const filteredPeople = people.filter(person => {
         if (!searchTerm) return true;
-        const search = normalizeString(searchTerm);
+        const search = normalizeString(searchTerm.trim());
         const name = normalizeString(person.name || '');
         const email = normalizeString(person.email || '');
         return name.includes(search) || email.includes(search);

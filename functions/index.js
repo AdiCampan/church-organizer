@@ -5,6 +5,25 @@ const { Expo } = require('expo-server-sdk');
 admin.initializeApp();
 const expo = new Expo();
 
+const declineNotificationText = {
+    es: {
+        title: '⚠️ Asignación rechazada',
+        body: (eventTitle) => `Se ha rechazado una asignación para "${eventTitle}". Abre la app para ver el detalle.`
+    },
+    ro: {
+        title: '⚠️ Alocare refuzată',
+        body: (eventTitle) => `O alocare pentru "${eventTitle}" a fost refuzată. Deschide aplicația pentru detalii.`
+    },
+    en: {
+        title: '⚠️ Assignment declined',
+        body: (eventTitle) => `An assignment for "${eventTitle}" was declined. Open the app to view details.`
+    }
+};
+
+const getDeclineNotificationText = (language) => {
+    return declineNotificationText[language] || declineNotificationText.es;
+};
+
 /**
  * Trigger: When a new schedule (assignment) is created
  * Action: Send push notification to the assigned volunteer
@@ -228,11 +247,15 @@ exports.onScheduleUpdated = functions.firestore
                     leaderIds = teamData.leaders || [];
                 }
 
+                leaderIds = leaderIds.filter(leaderId => leaderId && leaderId !== after.userId);
+
                 // If no leaders, fallback to all admins
                 if (leaderIds.length === 0) {
                     console.log(`[INFO] No leaders assigned to team ${after.teamId}. Falling back to all admins.`);
                     const adminsSnap = await admin.firestore().collection('users').where('role', '==', 'admin').get();
-                    leaderIds = adminsSnap.docs.map(doc => doc.id);
+                    leaderIds = adminsSnap.docs
+                        .map(doc => doc.id)
+                        .filter(adminId => adminId !== after.userId);
                 }
 
                 if (leaderIds.length === 0) {
@@ -247,22 +270,23 @@ exports.onScheduleUpdated = functions.firestore
                 // Get tokens for leaders
                 const messages = [];
                 for (const leaderId of leaderIds) {
-                    // Don't notify the user who declined if they happen to be a leader
-                    if (leaderId === after.userId) continue;
-
                     const tokenDoc = await admin.firestore().collection('fcmTokens').doc(leaderId).get();
                     if (tokenDoc.exists) {
-                        const pushToken = tokenDoc.data().token;
+                        const tokenData = tokenDoc.data();
+                        const pushToken = tokenData.token;
+                        const strings = getDeclineNotificationText(tokenData.language || 'es');
                         if (Expo.isExpoPushToken(pushToken)) {
                             messages.push({
                                 to: pushToken,
                                 sound: 'default',
-                                title: '⚠️ Asignación Rechazada',
-                                body: `${after.userName || 'Un voluntario'} ha rechazado servir en "${eventTitle}".\nMotivo: ${after.declineReason || 'Sin motivo especificado.'}`,
+                                title: strings.title,
+                                body: strings.body(eventTitle),
                                 data: {
                                     type: 'assignment_declined',
                                     eventId: after.eventId,
-                                    scheduleId: context.params.scheduleId
+                                    scheduleId: context.params.scheduleId,
+                                    userName: after.userName || null,
+                                    declineReason: after.declineReason || null
                                 },
                                 priority: 'high',
                                 channelId: 'default'

@@ -57,7 +57,20 @@ const translations = {
     services: 'Servicios',
     orderTab: 'Orden',
     teamsTab: 'Equipos',
-    scheduleTab: 'Horario'
+    scheduleTab: 'Horario',
+    viewOrderOfService: 'Ver orden de servicio',
+    dateAndTime: 'Fecha y hora',
+    location: 'Ubicación',
+    dateTimeSeparator: 'a las',
+    acceptThanksTitle: '¡Gracias!',
+    acceptThanksBody: '¡Gracias por aceptar la solicitud! Por favor, acuérdate que tienes que acudir con antelación 15 min al servicio para prepararte.',
+    confirmAssignmentError: 'No se pudo confirmar la asignación',
+    declineAssignmentTitle: 'Rechazar asignación',
+    declineAssignmentMessage: 'Por favor, indica el motivo del rechazo (obligatorio):',
+    declineReasonPlaceholder: 'Escribe el motivo aquí...',
+    cancel: 'Cancelar',
+    submitDecline: 'Enviar rechazo',
+    declineAssignmentError: 'No se pudo rechazar la asignación'
   },
   ro: {
     loginTitle: 'ChurchOrg Mobile',
@@ -102,7 +115,20 @@ const translations = {
     services: 'Servicii',
     orderTab: 'Ordine',
     teamsTab: 'Echipe',
-    scheduleTab: 'Program'
+    scheduleTab: 'Program',
+    viewOrderOfService: 'Vezi ordinea serviciului',
+    dateAndTime: 'Data și ora',
+    location: 'Locație',
+    dateTimeSeparator: 'la',
+    acceptThanksTitle: 'Mulțumim!',
+    acceptThanksBody: 'Mulțumim că ai acceptat solicitarea! Te rugăm să ajungi cu 15 minute înainte de serviciu pentru pregătire.',
+    confirmAssignmentError: 'Nu s-a putut confirma alocarea',
+    declineAssignmentTitle: 'Refuză alocarea',
+    declineAssignmentMessage: 'Te rugăm să indici motivul refuzului (obligatoriu):',
+    declineReasonPlaceholder: 'Scrie motivul aici...',
+    cancel: 'Anulează',
+    submitDecline: 'Trimite refuzul',
+    declineAssignmentError: 'Nu s-a putut refuza alocarea'
   },
   en: {
     loginTitle: 'ChurchOrg Mobile',
@@ -147,8 +173,54 @@ const translations = {
     services: 'Services',
     orderTab: 'Order',
     teamsTab: 'Teams',
-    scheduleTab: 'Schedule'
+    scheduleTab: 'Schedule',
+    viewOrderOfService: 'View order of service',
+    dateAndTime: 'Date and time',
+    location: 'Location',
+    dateTimeSeparator: 'at',
+    acceptThanksTitle: 'Thank you!',
+    acceptThanksBody: 'Thank you for accepting the request. Please remember to arrive 15 minutes before the service to prepare.',
+    confirmAssignmentError: 'Could not confirm the assignment',
+    declineAssignmentTitle: 'Decline assignment',
+    declineAssignmentMessage: 'Please enter the rejection reason (required):',
+    declineReasonPlaceholder: 'Write the reason here...',
+    cancel: 'Cancel',
+    submitDecline: 'Submit decline',
+    declineAssignmentError: 'Could not decline the assignment'
   }
+};
+
+const getDateLocale = (language) => {
+  if (language === 'ro') return 'ro-RO';
+  if (language === 'en') return 'en-US';
+  return 'es-ES';
+};
+
+const isHttpUrl = (value) => {
+  try {
+    const parsedUrl = new URL(value);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const isYouTubeUrl = (value) => {
+  if (!isHttpUrl(value)) return false;
+
+  const allowedHosts = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'];
+  const parsedUrl = new URL(value);
+  return allowedHosts.includes(parsedUrl.hostname.toLowerCase());
+};
+
+const openExternalUrl = (url, options = {}) => {
+  const isAllowed = options.youtubeOnly ? isYouTubeUrl(url) : isHttpUrl(url);
+  if (!isAllowed) {
+    console.warn('Blocked unsafe external URL');
+    return;
+  }
+
+  Linking.openURL(url);
 };
 
 
@@ -629,7 +701,7 @@ const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teamm
                             {song && (
                               <View style={[styles.songAttachments, { marginLeft: 0 }]}>
                                 {song.pdfUrl && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.pdfUrl)}>
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
                                     <FileText size={14} color="#007bff" />
                                     <Text style={styles.attachmentText}>{t('chords')}</Text>
                                   </TouchableOpacity>
@@ -641,13 +713,13 @@ const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teamm
                                   </TouchableOpacity>
                                 )}
                                 {song.mp3Url && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.mp3Url)}>
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
                                     <Play size={14} color="#007bff" />
                                     <Text style={styles.attachmentText}>{t('audio')}</Text>
                                   </TouchableOpacity>
                                 )}
                                 {song.youtubeUrl && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.youtubeUrl)}>
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
                                     <ExternalLink size={14} color="#007bff" />
                                     <Text style={styles.attachmentText}>YouTube</Text>
                                   </TouchableOpacity>
@@ -672,15 +744,16 @@ const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teamm
 };
 
 // --- Assignment Card ---
-const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, t, teams, user }) => {
+const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, eventSchedules, t, teams, user, language }) => {
   const [expanded, setExpanded] = useState(false);
   const [expandedOthers, setExpandedOthers] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
 
   if (!event) return null;
 
-  const formattedDate = event.date ? event.date.toDate().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
-  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+  const locale = getDateLocale(language);
+  const formattedDate = event.date ? event.date.toDate().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <View style={styles.card}>
@@ -821,7 +894,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
               style={{ backgroundColor: '#eff6ff', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 16 }}
               onPress={() => setShowOrderModal(true)}
             >
-              <Text style={{ color: '#007bff', fontWeight: '700', fontSize: 14 }}>Ver Orden de Servicio</Text>
+              <Text style={{ color: '#007bff', fontWeight: '700', fontSize: 14 }}>{t('viewOrderOfService')}</Text>
             </TouchableOpacity>
           ) : (
             <Text style={[styles.oosEmpty, { marginTop: 16 }]}>{t('noOrder')}</Text>
@@ -833,7 +906,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
             event={event}
             globalSongsMap={globalSongsMap}
             t={t}
-            teammates={teammates}
+            teammates={eventSchedules}
             user={user}
           />
         </View>
@@ -843,7 +916,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
 };
 
 // --- Service Card (For Services Tab) ---
-const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user }) => {
+const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, language }) => {
   const [expanded, setExpanded] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState('orden'); // 'orden', 'equipos', 'horario'
   const [expandedItemIndex, setExpandedItemIndex] = useState(null);
@@ -852,8 +925,9 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user }) => {
 
   if (!event) return null;
 
-  const formattedDate = event.date ? event.date.toDate().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
-  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+  const locale = getDateLocale(language);
+  const formattedDate = event.date ? event.date.toDate().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <View style={styles.card}>
@@ -937,7 +1011,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user }) => {
                           {song && (
                             <View style={[styles.songAttachments, { marginLeft: 0 }]}>
                               {song.pdfUrl && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.pdfUrl)}>
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
                                   <FileText size={14} color="#007bff" />
                                   <Text style={styles.attachmentText}>{t('chords')}</Text>
                                 </TouchableOpacity>
@@ -949,13 +1023,13 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user }) => {
                                 </TouchableOpacity>
                               )}
                               {song.mp3Url && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.mp3Url)}>
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
                                   <Play size={14} color="#007bff" />
                                   <Text style={styles.attachmentText}>{t('audio')}</Text>
                                 </TouchableOpacity>
                               )}
                               {song.youtubeUrl && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.youtubeUrl)}>
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
                                   <ExternalLink size={14} color="#007bff" />
                                   <Text style={styles.attachmentText}>YouTube</Text>
                                 </TouchableOpacity>
@@ -1004,12 +1078,12 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user }) => {
           {activeSubTab === 'horario' && (
             <View style={{ backgroundColor: 'white', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' }}>
               <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>Fecha y Hora</Text>
-                <Text style={{ fontSize: 15, color: '#1e293b', fontWeight: '500' }}>{formattedDate} a las {formattedTime}</Text>
+                <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>{t('dateAndTime')}</Text>
+                <Text style={{ fontSize: 15, color: '#1e293b', fontWeight: '500' }}>{formattedDate} {t('dateTimeSeparator')} {formattedTime}</Text>
               </View>
               {event.location && (
                 <View>
-                  <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>Ubicación</Text>
+                  <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>{t('location')}</Text>
                   <Text style={{ fontSize: 15, color: '#1e293b', fontWeight: '500' }}>{event.location}</Text>
                 </View>
               )}
@@ -1052,6 +1126,7 @@ export default function App() {
   const [decliningAssignmentId, setDecliningAssignmentId] = useState(null);
   const [decliningEventTitle, setDecliningEventTitle] = useState('');
   const [declineReason, setDeclineReason] = useState('');
+  const [declineSubmitting, setDeclineSubmitting] = useState(false);
 
   // i18n helper
   const t = (key) => {
@@ -1216,15 +1291,20 @@ export default function App() {
     // 1. Fetch upcoming events
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(today);
+    rangeEnd.setDate(today.getDate() + 90);
+    rangeEnd.setHours(23, 59, 59, 999);
 
     const qEvents = query(
       collection(db, 'events'),
       where('date', '>=', Timestamp.fromDate(today)),
+      where('date', '<=', Timestamp.fromDate(rangeEnd)),
       orderBy('date', 'asc')
     );
 
     const unsubEvents = onSnapshot(qEvents, (snapshot) => {
       const eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const activeEventIds = new Set(eventsData.map(event => event.id));
       setUpcomingEvents(eventsData);
 
       // Populate eventsMap explicitly for these upcoming events
@@ -1232,6 +1312,17 @@ export default function App() {
         const newEventsMap = { ...prev };
         eventsData.forEach(e => { newEventsMap[e.id] = e; });
         return newEventsMap;
+      });
+
+      Object.entries(eventListeners.current).forEach(([listenerKey, unsubscribe]) => {
+        if (!listenerKey.endsWith('_schedules')) return;
+
+        const eventId = listenerKey.replace('_schedules', '');
+        if (activeEventIds.has(eventId)) return;
+
+        unsubscribe();
+        delete eventListeners.current[listenerKey];
+        setAllSchedules(prev => prev.filter(schedule => schedule.eventId !== eventId));
       });
 
       // Listen to teammates/schedules for ALL upcoming events
@@ -1338,12 +1429,12 @@ export default function App() {
         respondedAt: new Date()
       });
       Alert.alert(
-        "¡Gracias!",
-        "¡Gracias por aceptar la solicitud! Por favor, acuérdate que tienes que acudir con antelación 15 min al Servicio para prepararte."
+        t('acceptThanksTitle'),
+        t('acceptThanksBody')
       );
     } catch (error) {
       console.error("Error accepting assignment:", error);
-      Alert.alert("Error", "No se pudo confirmar la asignación");
+      Alert.alert("Error", t('confirmAssignmentError'));
     }
   };
 
@@ -1351,10 +1442,12 @@ export default function App() {
     setDecliningAssignmentId(assignmentId);
     setDecliningEventTitle(eventTitle);
     setDeclineReason('');
+    setDeclineSubmitting(false);
   };
 
   const submitDecline = async () => {
-    if (!declineReason.trim() || !decliningAssignmentId) return;
+    if (!declineReason.trim() || !decliningAssignmentId || declineSubmitting) return;
+    setDeclineSubmitting(true);
     try {
       const assignmentRef = doc(db, 'schedules', decliningAssignmentId);
       await updateDoc(assignmentRef, {
@@ -1377,7 +1470,9 @@ export default function App() {
       setDecliningEventTitle('');
     } catch (error) {
       console.error("Error declining assignment:", error);
-      Alert.alert("Error", "No se pudo rechazar la asignación");
+      Alert.alert("Error", t('declineAssignmentError'));
+    } finally {
+      setDeclineSubmitting(false);
     }
   };
 
@@ -1446,30 +1541,31 @@ export default function App() {
         />
 
         {/* Decline Reason Modal */}
-        <Modal transparent visible={!!decliningAssignmentId} animationType="fade" onRequestClose={() => setDecliningAssignmentId(null)}>
+        <Modal transparent visible={!!decliningAssignmentId} animationType="fade" onRequestClose={() => !declineSubmitting && setDecliningAssignmentId(null)}>
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { maxWidth: 400 }]}>
-              <Text style={styles.modalTitle}>Rechazar asignación</Text>
+              <Text style={styles.modalTitle}>{t('declineAssignmentTitle')}</Text>
               <Text style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>
-                Por favor, indica el motivo del rechazo (obligatorio):
+                {t('declineAssignmentMessage')}
               </Text>
               <TextInput
                 style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, padding: 12, minHeight: 80, textAlignVertical: 'top', marginBottom: 16, fontSize: 14 }}
-                placeholder="Escribe el motivo aquí..."
+                placeholder={t('declineReasonPlaceholder')}
                 multiline
                 value={declineReason}
                 onChangeText={setDeclineReason}
+                editable={!declineSubmitting}
               />
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
-                <TouchableOpacity onPress={() => setDecliningAssignmentId(null)} style={{ padding: 12 }}>
-                  <Text style={{ color: '#64748b', fontWeight: '600' }}>Cancelar</Text>
+                <TouchableOpacity disabled={declineSubmitting} onPress={() => setDecliningAssignmentId(null)} style={{ padding: 12 }}>
+                  <Text style={{ color: '#64748b', fontWeight: '600' }}>{t('cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   onPress={submitDecline} 
-                  disabled={declineReason.trim().length === 0}
-                  style={{ backgroundColor: declineReason.trim().length === 0 ? '#cbd5e1' : '#ef4444', padding: 12, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  disabled={declineReason.trim().length === 0 || declineSubmitting}
+                  style={{ backgroundColor: declineReason.trim().length === 0 || declineSubmitting ? '#cbd5e1' : '#ef4444', padding: 12, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Text style={{ color: 'white', fontWeight: '600' }}>Enviar rechazo</Text>
+                  <Text style={{ color: 'white', fontWeight: '600' }}>{declineSubmitting ? t('loading') : t('submitDecline')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1502,9 +1598,11 @@ export default function App() {
                       onDecline={handleDecline}
                       globalSongsMap={songsMap}
                       teammates={allSchedules.filter(s => s.eventId === event.id && s.userId !== user.uid)}
+                      eventSchedules={allSchedules.filter(s => s.eventId === event.id)}
                       t={t}
                       teams={teams}
                       user={user}
+                      language={language}
                     />
                   );
                 });
@@ -1529,6 +1627,7 @@ export default function App() {
                     teams={teams}
                     t={t}
                     user={user}
+                    language={language}
                   />
                 ))
               )}
@@ -1574,7 +1673,7 @@ export default function App() {
                                   <Text style={{ fontSize: 10, color: '#007bff', fontWeight: '700', textTransform: 'uppercase' }}>{teamName}</Text>
                                 </View>
                               )}
-                              <Text style={styles.postMeta}>{post.authorName} • {post.createdAt?.toDate().toLocaleDateString('es-ES')}</Text>
+                              <Text style={styles.postMeta}>{post.authorName} • {post.createdAt?.toDate().toLocaleDateString(getDateLocale(language))}</Text>
                             </View>
                           </View>
                         </View>

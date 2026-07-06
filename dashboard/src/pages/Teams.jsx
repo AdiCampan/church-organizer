@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import { Users, Plus, Search, Info, X, Check, UserPlus, Pencil, Trash2 } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 
 
 const Teams = () => {
@@ -103,8 +103,10 @@ const Teams = () => {
     const openEditModal = (team) => {
         setEditingTeamData({
             ...team,
-            positions: team.positions ? team.positions.join(', ') : '',
-            leaders: team.leaders || []
+            positions: Array.isArray(team.positions)
+                ? team.positions.join(', ')
+                : (team.positions || ''),
+            leaders: Array.isArray(team.leaders) ? team.leaders : []
         });
         setTimeout(() => {
             editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -149,7 +151,7 @@ const Teams = () => {
         person.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const admins = people.filter(p => p.role === 'admin');
+    const leaderCandidates = people.filter(p => p.role === 'leader' || p.role === 'admin');
 
     return (
         <div className="page">
@@ -202,30 +204,32 @@ const Teams = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Líderes (Administradores)</label>
-                            {admins.length === 0 ? (
-                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>No hay administradores disponibles.</p>
+                            <label>{t('teamLeaders')}</label>
+                            {leaderCandidates.length === 0 ? (
+                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{t('noLeaderCandidates')}</p>
                             ) : (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {admins.map(admin => {
-                                        const isSelected = newTeam.leaders?.includes(admin.id);
+                                    {leaderCandidates.map(candidate => {
+                                        const isSelected = newTeam.leaders?.includes(candidate.id);
                                         return (
-                                            <div 
-                                                key={admin.id}
+                                            <button
+                                                type="button"
+                                                key={candidate.id}
                                                 onClick={() => {
                                                     const currentLeaders = newTeam.leaders || [];
                                                     const newLeaders = isSelected 
-                                                        ? currentLeaders.filter(id => id !== admin.id)
-                                                        : [...currentLeaders, admin.id];
+                                                        ? currentLeaders.filter(id => id !== candidate.id)
+                                                        : [...currentLeaders, candidate.id];
                                                     setNewTeam({ ...newTeam, leaders: newLeaders });
                                                 }}
+                                                aria-pressed={isSelected}
                                                 style={{ 
-                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600',
+                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600', border: 'none',
                                                     backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
                                                     color: isSelected ? 'white' : '#475569'
                                                 }}>
-                                                {admin.name}
-                                            </div>
+                                                {candidate.name}
+                                            </button>
                                         )
                                     })}
                                 </div>
@@ -271,30 +275,32 @@ const Teams = () => {
                             />
                         </div>
                         <div style={styles.inputGroup}>
-                            <label>Líderes (Administradores)</label>
-                            {admins.length === 0 ? (
-                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>No hay administradores disponibles.</p>
+                            <label>{t('teamLeaders')}</label>
+                            {leaderCandidates.length === 0 ? (
+                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{t('noLeaderCandidates')}</p>
                             ) : (
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {admins.map(admin => {
-                                        const isSelected = editingTeamData.leaders?.includes(admin.id);
+                                    {leaderCandidates.map(candidate => {
+                                        const isSelected = editingTeamData.leaders?.includes(candidate.id);
                                         return (
-                                            <div 
-                                                key={admin.id}
+                                            <button
+                                                type="button"
+                                                key={candidate.id}
                                                 onClick={() => {
                                                     const currentLeaders = editingTeamData.leaders || [];
                                                     const newLeaders = isSelected 
-                                                        ? currentLeaders.filter(id => id !== admin.id)
-                                                        : [...currentLeaders, admin.id];
+                                                        ? currentLeaders.filter(id => id !== candidate.id)
+                                                        : [...currentLeaders, candidate.id];
                                                     setEditingTeamData({ ...editingTeamData, leaders: newLeaders });
                                                 }}
+                                                aria-pressed={isSelected}
                                                 style={{ 
-                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600',
+                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600', border: 'none',
                                                     backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
                                                     color: isSelected ? 'white' : '#475569'
                                                 }}>
-                                                {admin.name}
-                                            </div>
+                                                {candidate.name}
+                                            </button>
                                         )
                                     })}
                                 </div>
