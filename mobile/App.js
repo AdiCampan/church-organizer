@@ -3,10 +3,10 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Activi
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle } from 'lucide-react-native';
+import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -53,7 +53,25 @@ const translations = {
     chords: 'Acordes',
     lyrics: 'Letras',
     audio: 'Audio',
-    noLyrics: 'No hay letras disponibles'
+    noLyrics: 'No hay letras disponibles',
+    services: 'Servicios',
+    orderTab: 'Orden',
+    teamsTab: 'Equipos',
+    scheduleTab: 'Horario',
+    noTeamsAssigned: 'No hay equipos asignados.',
+    viewOrderOfService: 'Ver orden de servicio',
+    dateAndTime: 'Fecha y hora',
+    location: 'Ubicación',
+    dateTimeSeparator: 'a las',
+    acceptThanksTitle: '¡Gracias!',
+    acceptThanksBody: '¡Gracias por aceptar la solicitud! Por favor, acuérdate que tienes que acudir con antelación 15 min al servicio para prepararte.',
+    confirmAssignmentError: 'No se pudo confirmar la asignación',
+    declineAssignmentTitle: 'Rechazar asignación',
+    declineAssignmentMessage: 'Por favor, indica el motivo del rechazo (obligatorio):',
+    declineReasonPlaceholder: 'Escribe el motivo aquí...',
+    cancel: 'Cancelar',
+    submitDecline: 'Enviar rechazo',
+    declineAssignmentError: 'No se pudo rechazar la asignación'
   },
   ro: {
     loginTitle: 'ChurchOrg Mobile',
@@ -94,7 +112,25 @@ const translations = {
     chords: 'Acorduri',
     lyrics: 'Versuri',
     audio: 'Audio',
-    noLyrics: 'Nu sunt versuri disponibile'
+    noLyrics: 'Nu sunt versuri disponibile',
+    services: 'Servicii',
+    orderTab: 'Ordine',
+    teamsTab: 'Echipe',
+    scheduleTab: 'Program',
+    noTeamsAssigned: 'Nu sunt echipe alocate.',
+    viewOrderOfService: 'Vezi ordinea serviciului',
+    dateAndTime: 'Data și ora',
+    location: 'Locație',
+    dateTimeSeparator: 'la',
+    acceptThanksTitle: 'Mulțumim!',
+    acceptThanksBody: 'Mulțumim că ai acceptat solicitarea! Te rugăm să ajungi cu 15 minute înainte de serviciu pentru pregătire.',
+    confirmAssignmentError: 'Nu s-a putut confirma alocarea',
+    declineAssignmentTitle: 'Refuză alocarea',
+    declineAssignmentMessage: 'Te rugăm să indici motivul refuzului (obligatoriu):',
+    declineReasonPlaceholder: 'Scrie motivul aici...',
+    cancel: 'Anulează',
+    submitDecline: 'Trimite refuzul',
+    declineAssignmentError: 'Nu s-a putut refuza alocarea'
   },
   en: {
     loginTitle: 'ChurchOrg Mobile',
@@ -135,8 +171,59 @@ const translations = {
     chords: 'Chords',
     lyrics: 'Lyrics',
     audio: 'Audio',
-    noLyrics: 'No lyrics available'
+    noLyrics: 'No lyrics available',
+    services: 'Services',
+    orderTab: 'Order',
+    teamsTab: 'Teams',
+    scheduleTab: 'Schedule',
+    noTeamsAssigned: 'No teams assigned.',
+    viewOrderOfService: 'View order of service',
+    dateAndTime: 'Date and time',
+    location: 'Location',
+    dateTimeSeparator: 'at',
+    acceptThanksTitle: 'Thank you!',
+    acceptThanksBody: 'Thank you for accepting the request. Please remember to arrive 15 minutes before the service to prepare.',
+    confirmAssignmentError: 'Could not confirm the assignment',
+    declineAssignmentTitle: 'Decline assignment',
+    declineAssignmentMessage: 'Please enter the rejection reason (required):',
+    declineReasonPlaceholder: 'Write the reason here...',
+    cancel: 'Cancel',
+    submitDecline: 'Submit decline',
+    declineAssignmentError: 'Could not decline the assignment'
   }
+};
+
+const getDateLocale = (language) => {
+  if (language === 'ro') return 'ro-RO';
+  if (language === 'en') return 'en-US';
+  return 'es-ES';
+};
+
+const isHttpUrl = (value) => {
+  try {
+    const parsedUrl = new URL(value);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const isYouTubeUrl = (value) => {
+  if (!isHttpUrl(value)) return false;
+
+  const allowedHosts = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'];
+  const parsedUrl = new URL(value);
+  return allowedHosts.includes(parsedUrl.hostname.toLowerCase());
+};
+
+const openExternalUrl = (url, options = {}) => {
+  const isAllowed = options.youtubeOnly ? isYouTubeUrl(url) : isHttpUrl(url);
+  if (!isAllowed) {
+    console.warn('Blocked unsafe external URL');
+    return;
+  }
+
+  Linking.openURL(url);
 };
 
 
@@ -280,6 +367,7 @@ const LoginScreen = ({ t }) => {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              autoCapitalize="none"
             />
           </View>
 
@@ -536,17 +624,139 @@ const LyricsModal = ({ visible, onClose, song, t }) => {
   );
 };
 
-// --- Assignment Card ---
-const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, t, teams, user }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [expandedOthers, setExpandedOthers] = useState(false);
+// --- Order of Service Modal ---
+const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teammates, user }) => {
+  const [expandedItemIndex, setExpandedItemIndex] = useState(null);
   const [showLyrics, setShowLyrics] = useState(false);
   const [selectedSongForLyrics, setSelectedSongForLyrics] = useState(null);
 
   if (!event) return null;
 
-  const formattedDate = event.date ? event.date.toDate().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
-  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={onClose}><View style={{ flex: 1, width: '100%' }} /></TouchableWithoutFeedback>
+        <View style={[styles.modalContent, { maxHeight: '90%', paddingBottom: 32 }]}>
+          
+          {showLyrics && selectedSongForLyrics ? (
+            <View style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTitle}>{selectedSongForLyrics.title}</Text>
+                  <Text style={{ fontSize: 14, color: '#64748b' }}>{selectedSongForLyrics.artist}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowLyrics(false)}>
+                  <X size={24} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={true}>
+                <Text style={{ fontSize: 16, lineHeight: 24, color: '#1e293b', paddingVertical: 10 }}>
+                  {selectedSongForLyrics.lyrics || t('noLyrics')}
+                </Text>
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTitle}>{t('orderOfService')}</Text>
+                  <Text style={{ fontSize: 14, color: '#64748b' }}>{event.title}</Text>
+                </View>
+                <TouchableOpacity onPress={onClose}>
+                  <X size={24} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={true}>
+                {event.orderOfService && event.orderOfService.length > 0 ? (
+                  event.orderOfService.map((item, index) => {
+                    const sid = item.songId || item.song;
+                    const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(s => s.id === sid)) : null;
+                    const isItemExpanded = expandedItemIndex === index;
+
+                    const userTeamIds = teammates ? teammates.filter(t => t.userId === user?.uid).map(t => t.teamId) : [];
+                    const showNote = item.details && (!item.targetTeams || item.targetTeams.includes('all') || item.targetTeams.some(tid => userTeamIds.includes(tid)));
+
+                    return (
+                      <View key={item.id || index} style={styles.oosItemContainer}>
+                        <TouchableOpacity onPress={() => setExpandedItemIndex(isItemExpanded ? null : index)} style={styles.oosItem}>
+                          <View style={styles.oosDot} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.oosTitle}>{item.title}</Text>
+                            {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
+                          </View>
+                          {showNote && (
+                            <View style={{ marginRight: 8, backgroundColor: '#fee2e2', padding: 4, borderRadius: 12 }}>
+                              <MessageCircle size={14} color="#ef4444" />
+                            </View>
+                          )}
+                          {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
+                        </TouchableOpacity>
+                        
+                        {isItemExpanded && (
+                          <View style={{ marginLeft: 20, marginTop: 4 }}>
+                            {showNote && (
+                              <View style={{ padding: 8, backgroundColor: '#f1f5f9', borderRadius: 4, marginBottom: 8 }}>
+                                <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
+                                  {item.details}
+                                </Text>
+                              </View>
+                            )}
+                            {song && (
+                              <View style={[styles.songAttachments, { marginLeft: 0 }]}>
+                                {song.pdfUrl && (
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
+                                    <FileText size={14} color="#007bff" />
+                                    <Text style={styles.attachmentText}>{t('chords')}</Text>
+                                  </TouchableOpacity>
+                                )}
+                                {song.lyrics && (
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => { setSelectedSongForLyrics(song); setShowLyrics(true); }}>
+                                    <Music size={14} color="#007bff" />
+                                    <Text style={styles.attachmentText}>{t('lyrics')}</Text>
+                                  </TouchableOpacity>
+                                )}
+                                {song.mp3Url && (
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
+                                    <Play size={14} color="#007bff" />
+                                    <Text style={styles.attachmentText}>{t('audio')}</Text>
+                                  </TouchableOpacity>
+                                )}
+                                {song.youtubeUrl && (
+                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
+                                    <ExternalLink size={14} color="#007bff" />
+                                    <Text style={styles.attachmentText}>YouTube</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
+                )}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// --- Assignment Card ---
+const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, eventSchedules, t, teams, user, language }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [expandedOthers, setExpandedOthers] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+
+  if (!event) return null;
+
+  const locale = getDateLocale(language);
+  const formattedDate = event.date ? event.date.toDate().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
 
   return (
     <View style={styles.card}>
@@ -556,9 +766,11 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
         activeOpacity={0.7}
       >
         <View style={styles.cardInfo}>
-          <View style={styles.tagContainer}>
-            <Text style={styles.positionTag}>{assignment.position}</Text>
-          </View>
+          {assignment && assignment.position ? (
+            <View style={styles.tagContainer}>
+              <Text style={styles.positionTag}>{assignment.position}</Text>
+            </View>
+          ) : null}
           <Text style={styles.cardTitle}>{event.title}</Text>
           <View style={styles.metaRow}>
             <Clock size={12} color="#64748b" />
@@ -573,30 +785,32 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
         </View>
 
         <View style={styles.cardActions}>
-          {assignment.status === 'pending' ? (
-            <View style={{ flexDirection: 'column', gap: 12 }}>
-              <TouchableOpacity style={styles.acceptButton} onPress={() => onAccept(assignment.id)}>
-                <Text style={styles.acceptButtonText}>{t('confirm')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={{ ...styles.acceptButton, backgroundColor: '#fee2e2', borderColor: '#fee2e2' }} onPress={() => onDecline(assignment.id, event.title)}>
-                <Text style={{ ...styles.acceptButtonText, color: '#991b1b' }}>{t('decline')}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.confirmedBadge}>
-              {assignment.status === 'confirmed' ? (
-                <>
-                  <CheckCircle size={14} color="#166534" />
-                  <Text style={styles.confirmedText}>{t('confirmed')}</Text>
-                </>
-              ) : (
-                <>
-                  <MinusCircle size={14} color="#991b1b" />
-                  <Text style={{ ...styles.confirmedText, color: '#991b1b' }}>{t('declined')}</Text>
-                </>
-              )}
-            </View>
-          )}
+          {assignment ? (
+            assignment.status === 'pending' ? (
+              <View style={{ flexDirection: 'column', gap: 12 }}>
+                <TouchableOpacity style={styles.acceptButton} onPress={() => onAccept(assignment.id)}>
+                  <Text style={styles.acceptButtonText}>{t('confirm')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ ...styles.acceptButton, backgroundColor: '#fee2e2', borderColor: '#fee2e2' }} onPress={() => onDecline(assignment.id, event.title)}>
+                  <Text style={{ ...styles.acceptButtonText, color: '#991b1b' }}>{t('decline')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.confirmedBadge}>
+                {assignment.status === 'confirmed' ? (
+                  <>
+                    <CheckCircle size={14} color="#166534" />
+                    <Text style={styles.confirmedText}>{t('confirmed')}</Text>
+                  </>
+                ) : (
+                  <>
+                    <MinusCircle size={14} color="#991b1b" />
+                    <Text style={{ ...styles.confirmedText, color: '#991b1b' }}>{t('declined')}</Text>
+                  </>
+                )}
+              </View>
+            )
+          ) : null}
           <View style={{ marginTop: 8 }}>
             {expanded ? <ChevronUp size={20} color="#cbd5e1" /> : <ChevronDown size={20} color="#cbd5e1" />}
           </View>
@@ -678,64 +892,205 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
             })()}
           </View>
 
-          <Text style={styles.oosHeader}>{t('orderOfService')}</Text>
           {event.orderOfService && event.orderOfService.length > 0 ? (
-            event.orderOfService.map((item, index) => {
-              // Try multiple possible ways to find the song
-              const sid = item.songId || item.song;
-              const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(s => s.id === sid)) : null;
-
-              return (
-                <View key={item.id || index} style={styles.oosItemContainer}>
-                  <View style={styles.oosItem}>
-                    <View style={styles.oosDot} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.oosTitle}>{item.title}</Text>
-                      {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
-                    </View>
-                    <Text style={styles.oosDuration}>{item.duration}m</Text>
-                  </View>
-                  {item.details && (
-                    <View style={{ marginLeft: 28, marginTop: 4, padding: 8, backgroundColor: '#f1f5f9', borderRadius: 4 }}>
-                      <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
-                        {item.details}
-                      </Text>
-                    </View>
-                  )}
-
-                  {song && (
-                    <View style={styles.songAttachments}>
-                      {song.pdfUrl && (
-                        <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.pdfUrl)}>
-                          <FileText size={14} color="#007bff" />
-                          <Text style={styles.attachmentText}>{t('chords')}</Text>
-                        </TouchableOpacity>
-                      )}
-                      {song.lyrics && (
-                        <TouchableOpacity style={styles.attachmentBtn} onPress={() => { setSelectedSongForLyrics(song); setShowLyrics(true); }}>
-                          <Music size={14} color="#007bff" />
-                          <Text style={styles.attachmentText}>{t('lyrics')}</Text>
-                        </TouchableOpacity>
-                      )}
-                      {song.mp3Url && (
-                        <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.mp3Url)}>
-                          <Play size={14} color="#007bff" />
-                          <Text style={styles.attachmentText}>{t('audio')}</Text>
-                        </TouchableOpacity>
-                      )}
-                      {song.youtubeUrl && (
-                        <TouchableOpacity style={styles.attachmentBtn} onPress={() => Linking.openURL(song.youtubeUrl)}>
-                          <ExternalLink size={14} color="#007bff" />
-                          <Text style={styles.attachmentText}>YouTube</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-                </View>
-              );
-            })
+            <TouchableOpacity 
+              style={{ backgroundColor: '#eff6ff', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 16 }}
+              onPress={() => setShowOrderModal(true)}
+            >
+              <Text style={{ color: '#007bff', fontWeight: '700', fontSize: 14 }}>{t('viewOrderOfService')}</Text>
+            </TouchableOpacity>
           ) : (
-            <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
+            <Text style={[styles.oosEmpty, { marginTop: 16 }]}>{t('noOrder')}</Text>
+          )}
+
+          <OrderOfServiceModal
+            visible={showOrderModal}
+            onClose={() => setShowOrderModal(false)}
+            event={event}
+            globalSongsMap={globalSongsMap}
+            t={t}
+            teammates={eventSchedules}
+            user={user}
+          />
+        </View>
+      )}
+    </View>
+  );
+};
+
+// --- Service Card (For Services Tab) ---
+const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, language }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState('orden'); // 'orden', 'equipos', 'horario'
+  const [expandedItemIndex, setExpandedItemIndex] = useState(null);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [selectedSongForLyrics, setSelectedSongForLyrics] = useState(null);
+
+  if (!event) return null;
+
+  const locale = getDateLocale(language);
+  const formattedDate = event.date ? event.date.toDate().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
+
+  return (
+    <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.cardMain}
+        onPress={() => setExpanded(!expanded)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle}>{event.title}</Text>
+          <View style={styles.metaRow}>
+            <Clock size={12} color="#64748b" />
+            <Text style={styles.cardTime}>{formattedDate} • {formattedTime}</Text>
+          </View>
+          {event.location ? (
+            <View style={styles.metaRow}>
+              <MapPin size={12} color="#64748b" />
+              <Text style={styles.cardLocation}>{event.location}</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.cardActions}>
+          <View style={{ marginTop: 8 }}>
+            {expanded ? <ChevronUp size={20} color="#cbd5e1" /> : <ChevronDown size={20} color="#cbd5e1" />}
+          </View>
+        </View>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.oosSection}>
+          {/* Sub-tabs header */}
+          <View style={{ flexDirection: 'row', marginBottom: 16, backgroundColor: '#f1f5f9', borderRadius: 8, padding: 4 }}>
+            <TouchableOpacity style={[styles.subTabBtn, activeSubTab === 'orden' && styles.subTabBtnActive]} onPress={() => setActiveSubTab('orden')}>
+              <Text style={[styles.subTabTxt, activeSubTab === 'orden' && styles.subTabTxtActive]}>{t('orderTab')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.subTabBtn, activeSubTab === 'equipos' && styles.subTabBtnActive]} onPress={() => setActiveSubTab('equipos')}>
+              <Text style={[styles.subTabTxt, activeSubTab === 'equipos' && styles.subTabTxtActive]}>{t('teamsTab')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.subTabBtn, activeSubTab === 'horario' && styles.subTabBtnActive]} onPress={() => setActiveSubTab('horario')}>
+              <Text style={[styles.subTabTxt, activeSubTab === 'horario' && styles.subTabTxtActive]}>{t('scheduleTab')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Tab content */}
+          {activeSubTab === 'orden' && (
+            <View>
+              {event.orderOfService && event.orderOfService.length > 0 ? (
+                event.orderOfService.map((item, index) => {
+                  const sid = item.songId || item.song;
+                  const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(s => s.id === sid)) : null;
+                  const isItemExpanded = expandedItemIndex === index;
+
+                  const userTeamIds = teammates ? teammates.filter(t => t.userId === user?.uid).map(t => t.teamId) : [];
+                  const showNote = item.details && (!item.targetTeams || item.targetTeams.includes('all') || item.targetTeams.some(tid => userTeamIds.includes(tid)));
+
+                  return (
+                    <View key={item.id || index} style={styles.oosItemContainer}>
+                      <TouchableOpacity onPress={() => setExpandedItemIndex(isItemExpanded ? null : index)} style={styles.oosItem}>
+                        <View style={styles.oosDot} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.oosTitle}>{item.title}</Text>
+                          {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
+                        </View>
+                        {showNote && (
+                          <View style={{ marginRight: 8, backgroundColor: '#fee2e2', padding: 4, borderRadius: 12 }}>
+                            <MessageCircle size={14} color="#ef4444" />
+                          </View>
+                        )}
+                        {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
+                      </TouchableOpacity>
+                      
+                      {isItemExpanded && (
+                        <View style={{ marginLeft: 20, marginTop: 4 }}>
+                          {showNote && (
+                            <View style={{ padding: 8, backgroundColor: '#f1f5f9', borderRadius: 4, marginBottom: 8 }}>
+                              <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
+                                {item.details}
+                              </Text>
+                            </View>
+                          )}
+                          {song && (
+                            <View style={[styles.songAttachments, { marginLeft: 0 }]}>
+                              {song.pdfUrl && (
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
+                                  <FileText size={14} color="#007bff" />
+                                  <Text style={styles.attachmentText}>{t('chords')}</Text>
+                                </TouchableOpacity>
+                              )}
+                              {song.lyrics && (
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => { setSelectedSongForLyrics(song); setShowLyrics(true); }}>
+                                  <Music size={14} color="#007bff" />
+                                  <Text style={styles.attachmentText}>{t('lyrics')}</Text>
+                                </TouchableOpacity>
+                              )}
+                              {song.mp3Url && (
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
+                                  <Play size={14} color="#007bff" />
+                                  <Text style={styles.attachmentText}>{t('audio')}</Text>
+                                </TouchableOpacity>
+                              )}
+                              {song.youtubeUrl && (
+                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
+                                  <ExternalLink size={14} color="#007bff" />
+                                  <Text style={styles.attachmentText}>YouTube</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
+              ) : (
+                <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
+              )}
+            </View>
+          )}
+
+          {activeSubTab === 'equipos' && (
+            <View>
+              {teammates && teammates.length > 0 ? (
+                (() => {
+                  const grouped = {};
+                  teammates.forEach(tm => {
+                    const pos = tm.position || 'General';
+                    if (!grouped[pos]) grouped[pos] = [];
+                    grouped[pos].push(tm);
+                  });
+                  return Object.keys(grouped).map(pos => (
+                    <View key={pos} style={{ marginBottom: 12 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>{pos}</Text>
+                      {grouped[pos].map(tm => (
+                        <View key={tm.id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, paddingLeft: 8 }}>
+                          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: tm.status === 'confirmed' ? '#22c55e' : (tm.status === 'declined' ? '#ef4444' : '#cbd5e1'), marginRight: 8 }} />
+                          <Text style={{ fontSize: 14, color: '#1e293b' }}>{tm.userName || tm.userEmail?.split('@')[0]}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ));
+                })()
+              ) : (
+                <Text style={styles.oosEmpty}>{t('noTeamsAssigned')}</Text>
+              )}
+            </View>
+          )}
+
+          {activeSubTab === 'horario' && (
+            <View style={{ backgroundColor: 'white', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' }}>
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>{t('dateAndTime')}</Text>
+                <Text style={{ fontSize: 15, color: '#1e293b', fontWeight: '500' }}>{formattedDate} {t('dateTimeSeparator')} {formattedTime}</Text>
+              </View>
+              {event.location && (
+                <View>
+                  <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>{t('location')}</Text>
+                  <Text style={{ fontSize: 15, color: '#1e293b', fontWeight: '500' }}>{event.location}</Text>
+                </View>
+              )}
+            </View>
           )}
 
           <LyricsModal
@@ -755,6 +1110,7 @@ export default function App() {
   const [userName, setUserName] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [assignments, setAssignments] = useState([]);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [eventsMap, setEventsMap] = useState({});
   const [songsMap, setSongsMap] = useState({});
   const [announcements, setAnnouncements] = useState([]);
@@ -768,6 +1124,12 @@ export default function App() {
   const [blockoutDates, setBlockoutDates] = useState([]);
   const [isAvailableToday, setIsAvailableToday] = useState(true);
   const [language, setLanguage] = useState('es');
+
+  // Rejection modal state
+  const [decliningAssignmentId, setDecliningAssignmentId] = useState(null);
+  const [decliningEventTitle, setDecliningEventTitle] = useState('');
+  const [declineReason, setDeclineReason] = useState('');
+  const [declineSubmitting, setDeclineSubmitting] = useState(false);
 
   // i18n helper
   const t = (key) => {
@@ -864,10 +1226,10 @@ export default function App() {
     });
 
     return () => {
-      if (notificationListener.current) {
+      if (notificationListener.current && typeof Notifications.removeNotificationSubscription === 'function') {
         Notifications.removeNotificationSubscription(notificationListener.current);
       }
-      if (responseListener.current) {
+      if (responseListener.current && typeof Notifications.removeNotificationSubscription === 'function') {
         Notifications.removeNotificationSubscription(responseListener.current);
       }
     };
@@ -928,6 +1290,66 @@ export default function App() {
     if (!user) return;
 
     setLoading(true);
+
+    // 1. Fetch upcoming events
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const rangeEnd = new Date(today);
+    rangeEnd.setDate(today.getDate() + 90);
+    rangeEnd.setHours(23, 59, 59, 999);
+
+    const qEvents = query(
+      collection(db, 'events'),
+      where('date', '>=', Timestamp.fromDate(today)),
+      where('date', '<=', Timestamp.fromDate(rangeEnd)),
+      orderBy('date', 'asc')
+    );
+
+    const unsubEvents = onSnapshot(qEvents, (snapshot) => {
+      const eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const activeEventIds = new Set(eventsData.map(event => event.id));
+      setUpcomingEvents(eventsData);
+
+      // Populate eventsMap explicitly for these upcoming events
+      setEventsMap(prev => {
+        const newEventsMap = { ...prev };
+        eventsData.forEach(e => { newEventsMap[e.id] = e; });
+        return newEventsMap;
+      });
+
+      Object.entries(eventListeners.current).forEach(([listenerKey, unsubscribe]) => {
+        if (!listenerKey.endsWith('_schedules')) return;
+
+        const eventId = listenerKey.replace('_schedules', '');
+        if (activeEventIds.has(eventId)) return;
+
+        unsubscribe();
+        delete eventListeners.current[listenerKey];
+        setAllSchedules(prev => prev.filter(schedule => schedule.eventId !== eventId));
+      });
+
+      // Listen to teammates/schedules for ALL upcoming events
+      eventsData.forEach(e => {
+        if (!eventListeners.current[e.id + '_schedules']) {
+          const qTeammates = query(collection(db, 'schedules'), where('eventId', '==', e.id));
+          const unsubTeammates = onSnapshot(qTeammates, (snap) => {
+            const teammates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setAllSchedules(prev => {
+              const filtered = prev.filter(s => s.eventId !== e.id);
+              return [...filtered, ...teammates];
+            });
+          });
+          eventListeners.current[e.id + '_schedules'] = unsubTeammates;
+        }
+      });
+
+      setLoading(false);
+    }, (error) => {
+      console.warn("Events listener error:", error.message);
+      setLoading(false);
+    });
+
+    // 2. Fetch user's assignments
     const qAssignments = query(
       collection(db, 'schedules'),
       where('userId', '==', user.uid)
@@ -938,44 +1360,13 @@ export default function App() {
         id: doc.id,
         ...doc.data()
       }));
-
-      assignmentsData.sort((a, b) => {
-        const dateA = a.assignedAt?.toDate() || 0;
-        const dateB = b.assignedAt?.toDate() || 0;
-        return dateB - dateA;
-      });
-
       setAssignments(assignmentsData);
-
-      // Fetch events and ALL schedules for those events
-      assignmentsData.forEach((a) => {
-        // Event listener
-        if (!eventListeners.current[a.eventId]) {
-          const unsubEvent = onSnapshot(doc(db, 'events', a.eventId), (docSnap) => {
-            if (docSnap.exists()) {
-              setEventsMap(prev => ({ ...prev, [a.eventId]: docSnap.data() }));
-            }
-          });
-          eventListeners.current[a.eventId] = unsubEvent;
-
-          // Teammates listener for this specific event
-          const qTeammates = query(collection(db, 'schedules'), where('eventId', '==', a.eventId));
-          const unsubTeammates = onSnapshot(qTeammates, (snap) => {
-            const teammates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            setAllSchedules(prev => {
-              const filtered = prev.filter(s => s.eventId !== a.eventId);
-              return [...filtered, ...teammates];
-            });
-          });
-          // We can store this in the same ref or just let it live (it cleans up on logout anyway)
-        }
-      });
-      setLoading(false);
     }, (error) => {
       console.warn("Assignments listener error:", error.message);
     });
 
     return () => {
+      unsubEvents();
       unsubAssignments();
       Object.values(eventListeners.current).forEach(unsub => unsub());
       eventListeners.current = {};
@@ -1040,46 +1431,52 @@ export default function App() {
         status: 'confirmed',
         respondedAt: new Date()
       });
+      Alert.alert(
+        t('acceptThanksTitle'),
+        t('acceptThanksBody')
+      );
     } catch (error) {
       console.error("Error accepting assignment:", error);
-      Alert.alert("Error", "No se pudo confirmar la asignación");
+      Alert.alert("Error", t('confirmAssignmentError'));
     }
   };
 
-  const handleDecline = async (assignmentId, eventTitle) => {
-    Alert.alert(
-      "Rechazar asignación",
-      "¿Estás seguro de que no puedes servir en este evento?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sí, rechazar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const assignmentRef = doc(db, 'schedules', assignmentId);
-              await updateDoc(assignmentRef, {
-                status: 'declined',
-                respondedAt: new Date()
-              });
+  const handleDecline = (assignmentId, eventTitle) => {
+    setDecliningAssignmentId(assignmentId);
+    setDecliningEventTitle(eventTitle);
+    setDeclineReason('');
+    setDeclineSubmitting(false);
+  };
 
-              // Notify admin
-              await createNotification('assignment_declined', {
-                userId: user.uid,
-                userName: userName || user.email,
-                assignmentId,
-                eventTitle,
-                reason: 'Rechazado por usuario'
-              });
+  const submitDecline = async () => {
+    if (!declineReason.trim() || !decliningAssignmentId || declineSubmitting) return;
+    setDeclineSubmitting(true);
+    try {
+      const assignmentRef = doc(db, 'schedules', decliningAssignmentId);
+      await updateDoc(assignmentRef, {
+        status: 'declined',
+        respondedAt: new Date(),
+        declineReason: declineReason.trim()
+      });
 
-            } catch (error) {
-              console.error("Error declining assignment:", error);
-              Alert.alert("Error", "No se pudo rechazar la asignación");
-            }
-          }
-        }
-      ]
-    );
+      // Notify admin (local notification collection)
+      await createNotification('assignment_declined', {
+        userId: user.uid,
+        userName: userName || user.email,
+        assignmentId: decliningAssignmentId,
+        eventTitle: decliningEventTitle,
+        reason: declineReason.trim()
+      });
+
+      setDecliningAssignmentId(null);
+      setDeclineReason('');
+      setDecliningEventTitle('');
+    } catch (error) {
+      console.error("Error declining assignment:", error);
+      Alert.alert("Error", t('declineAssignmentError'));
+    } finally {
+      setDeclineSubmitting(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -1146,29 +1543,94 @@ export default function App() {
           t={t}
         />
 
+        {/* Decline Reason Modal */}
+        <Modal transparent visible={!!decliningAssignmentId} animationType="fade" onRequestClose={() => !declineSubmitting && setDecliningAssignmentId(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxWidth: 400 }]}>
+              <Text style={styles.modalTitle}>{t('declineAssignmentTitle')}</Text>
+              <Text style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>
+                {t('declineAssignmentMessage')}
+              </Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, padding: 12, minHeight: 80, textAlignVertical: 'top', marginBottom: 16, fontSize: 14 }}
+                placeholder={t('declineReasonPlaceholder')}
+                multiline
+                value={declineReason}
+                onChangeText={setDeclineReason}
+                editable={!declineSubmitting}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                <TouchableOpacity disabled={declineSubmitting} onPress={() => setDecliningAssignmentId(null)} style={{ padding: 12 }}>
+                  <Text style={{ color: '#64748b', fontWeight: '600' }}>{t('cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={submitDecline} 
+                  disabled={declineReason.trim().length === 0 || declineSubmitting}
+                  style={{ backgroundColor: declineReason.trim().length === 0 || declineSubmitting ? '#cbd5e1' : '#ef4444', padding: 12, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ color: 'white', fontWeight: '600' }}>{declineSubmitting ? t('loading') : t('submitDecline')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <ScrollView style={styles.content}>
           {activeTab === 'turns' ? (
             <>
-              <Text style={styles.sectionTitle}>{t('myAssignments')}</Text>
+              <Text style={styles.sectionTitle}>{t('agenda')}</Text>
               {loading && <ActivityIndicator color="#007bff" style={{ marginVertical: 20 }} />}
-              {assignments.length === 0 && !loading ? (
+              {(() => {
+                const myEvents = upcomingEvents.filter(event => assignments.some(a => a.eventId === event.id));
+                if (myEvents.length === 0 && !loading) {
+                  return (
+                    <View style={styles.emptyState}>
+                      <Calendar size={48} color="#94a3b8" />
+                      <Text style={styles.emptyStateText}>{t('noAssignments')}</Text>
+                    </View>
+                  );
+                }
+                return myEvents.map(event => {
+                  const assignment = assignments.find(a => a.eventId === event.id);
+                  return (
+                    <AssignmentCard
+                      key={event.id}
+                      assignment={assignment || null}
+                      event={event}
+                      onAccept={handleAccept}
+                      onDecline={handleDecline}
+                      globalSongsMap={songsMap}
+                      teammates={allSchedules.filter(s => s.eventId === event.id && s.userId !== user.uid)}
+                      eventSchedules={allSchedules.filter(s => s.eventId === event.id)}
+                      t={t}
+                      teams={teams}
+                      user={user}
+                      language={language}
+                    />
+                  );
+                });
+              })()}
+            </>
+          ) : activeTab === 'services' ? (
+            <>
+              <Text style={styles.sectionTitle}>{t('services')}</Text>
+              {loading && <ActivityIndicator color="#007bff" style={{ marginVertical: 20 }} />}
+              {upcomingEvents.length === 0 && !loading ? (
                 <View style={styles.emptyState}>
-                  <Calendar size={48} color="#94a3b8" />
+                  <ClipboardList size={48} color="#94a3b8" />
                   <Text style={styles.emptyStateText}>{t('noAssignments')}</Text>
                 </View>
               ) : (
-                assignments.map(item => (
-                  <AssignmentCard
-                    key={item.id}
-                    assignment={item}
-                    event={eventsMap[item.eventId]}
-                    onAccept={handleAccept}
-                    onDecline={handleDecline}
+                upcomingEvents.map(event => (
+                  <ServiceCard
+                    key={event.id}
+                    event={event}
                     globalSongsMap={songsMap}
-                    teammates={allSchedules.filter(s => s.eventId === item.eventId && s.userId !== user.uid)}
-                    t={t}
+                    teammates={allSchedules.filter(s => s.eventId === event.id)}
                     teams={teams}
+                    t={t}
                     user={user}
+                    language={language}
                   />
                 ))
               )}
@@ -1214,7 +1676,7 @@ export default function App() {
                                   <Text style={{ fontSize: 10, color: '#007bff', fontWeight: '700', textTransform: 'uppercase' }}>{teamName}</Text>
                                 </View>
                               )}
-                              <Text style={styles.postMeta}>{post.authorName} • {post.createdAt?.toDate().toLocaleDateString('es-ES')}</Text>
+                              <Text style={styles.postMeta}>{post.authorName} • {post.createdAt?.toDate().toLocaleDateString(getDateLocale(language))}</Text>
                             </View>
                           </View>
                         </View>
@@ -1247,6 +1709,10 @@ export default function App() {
             <Calendar size={24} color={activeTab === 'turns' ? '#007bff' : '#94a3b8'} />
             <Text style={[styles.navText, activeTab === 'turns' && { color: '#007bff' }]}>{t('agenda')}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('services')}>
+            <ClipboardList size={24} color={activeTab === 'services' ? '#007bff' : '#94a3b8'} />
+            <Text style={[styles.navText, activeTab === 'services' && { color: '#007bff' }]}>{t('services')}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.navItem} onPress={() => setActiveTab('teams')}>
             <Users size={24} color={activeTab === 'teams' ? '#007bff' : '#94a3b8'} />
             <Text style={[styles.navText, activeTab === 'teams' && { color: '#007bff' }]}>{t('teams')}</Text>
@@ -1272,7 +1738,7 @@ const styles = StyleSheet.create({
   loginSubtitle: { fontSize: 16, color: '#64748b', marginBottom: 40 },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#475569', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: '#f8fafc' },
+  input: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 16, backgroundColor: '#f8fafc', color: '#1e293b' },
   loginButton: { backgroundColor: '#007bff', padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 10 },
   loginButtonText: { color: 'white', fontSize: 16, fontWeight: '700' },
   forgotPasswordBtn: { alignSelf: 'flex-end', marginBottom: 20, marginTop: -10 },
@@ -1314,6 +1780,10 @@ const styles = StyleSheet.create({
   navItem: { alignItems: 'center', gap: 4 },
   navText: { fontSize: 11, fontWeight: '600', color: '#94a3b8' },
   notifDot: { position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ef4444', borderWidth: 1, borderColor: 'white' },
+  subTabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
+  subTabBtnActive: { backgroundColor: 'white', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
+  subTabTxt: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  subTabTxtActive: { color: '#007bff' },
 
   // El Muro styles
   postCard: { backgroundColor: 'white', borderRadius: 16, padding: 20, marginBottom: 16, borderWidth: 1, borderColor: '#f1f5f9' },
@@ -1333,7 +1803,7 @@ const styles = StyleSheet.create({
   sectionSub: { fontSize: 13, color: '#64748b', marginBottom: 16 },
   addBlockoutForm: { backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, marginBottom: 20 },
   labelSmall: { fontSize: 12, fontWeight: '600', color: '#475569', marginBottom: 6 },
-  inputSmall: { backgroundColor: 'white', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, padding: 10, fontSize: 14, marginBottom: 12 },
+  inputSmall: { backgroundColor: 'white', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, padding: 10, fontSize: 14, marginBottom: 12, color: '#1e293b' },
   addButton: { backgroundColor: '#007bff', padding: 12, borderRadius: 8, alignItems: 'center' },
   addButtonText: { color: 'white', fontWeight: '700', fontSize: 14 },
   blockoutList: { gap: 12 },

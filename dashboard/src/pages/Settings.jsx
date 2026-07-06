@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 
 import { LayoutList, MapPin, Users, Hash } from 'lucide-react';
 import ServiceTypeSettings from '../components/settings/ServiceTypeSettings';

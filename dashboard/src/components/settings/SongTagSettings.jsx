@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit2, Trash2, Plus, Tag } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+import { useLanguage } from '../../useLanguage';
 
 
 const SongTagSettings = () => {
@@ -18,18 +18,38 @@ const SongTagSettings = () => {
         '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#64748b'
     ];
 
-    useEffect(() => {
-        fetchTags();
-    }, []);
+    const loadTagsData = async () => {
+        const querySnapshot = await getDocs(collection(db, 'song_tags'));
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    };
 
     const fetchTags = async () => {
         try {
-            const querySnapshot = await getDocs(collection(db, 'song_tags'));
-            setTags(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setTags(await loadTagsData());
         } catch (err) {
             console.error("Error fetching tags:", err);
         }
     };
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadTags = async () => {
+            try {
+                const tagsData = await loadTagsData();
+                if (isMounted) {
+                    setTags(tagsData);
+                }
+            } catch (err) {
+                console.error("Error fetching tags:", err);
+            }
+        };
+
+        loadTags();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleAddTag = async (e) => {
         e.preventDefault();

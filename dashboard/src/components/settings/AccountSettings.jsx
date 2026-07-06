@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../../firebase';
-import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { User, Phone, Lock, Save, AlertCircle, CheckCircle } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+import { useLanguage } from '../../useLanguage';
 
 
 const AccountSettings = () => {

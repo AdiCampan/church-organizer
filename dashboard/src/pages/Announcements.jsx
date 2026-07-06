@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
-import { Megaphone, Plus, Trash2, Edit2, Users, Send, Bell, Clock, Info, AlertTriangle, MessageSquare, X } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { Megaphone, Plus, Trash2, Edit2, Users, Send, Bell, Clock, Info, AlertTriangle, MessageSquare, X, RotateCcw } from 'lucide-react';
+import { useLanguage } from '../useLanguage';
 
 
 const Announcements = () => {
@@ -69,6 +69,18 @@ const Announcements = () => {
 
     const handleEdit = (post) => {
         setEditingId(post.id);
+        setFormData({
+            title: post.title,
+            content: post.content,
+            details: post.details || '',
+            targetTeamId: post.targetTeamId || 'all',
+            type: post.type || 'announcement'
+        });
+        setShowAddModal(true);
+    };
+
+    const handleForward = (post) => {
+        setEditingId(null); // Ensure it's a new post
         setFormData({
             title: post.title,
             content: post.content,
@@ -157,10 +169,13 @@ const Announcements = () => {
                                 </div>
 
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                    <button onClick={() => handleEdit(post)} style={styles.actionBtn}>
+                                    <button onClick={() => handleForward(post)} style={styles.actionBtn} title={t('forward')}>
+                                        <RotateCcw size={16} />
+                                    </button>
+                                    <button onClick={() => handleEdit(post)} style={styles.actionBtn} title={t('edit')}>
                                         <Edit2 size={16} />
                                     </button>
-                                    <button onClick={() => handleDelete(post.id)} style={styles.deleteBtn}>
+                                    <button onClick={() => handleDelete(post.id)} style={styles.deleteBtn} title={t('delete')}>
                                         <Trash2 size={16} />
                                     </button>
                                 </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, FileText, Play, Music, ExternalLink, Youtube } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 
 const SongPreviewModal = ({ song, onClose }) => {
     const { t } = useLanguage();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit2, Trash2, Plus } from 'lucide-react';
-import { useLanguage } from '../../LanguageContext';
+import { useLanguage } from '../../useLanguage';
 
 
 const RoleSettings = () => {
@@ -13,18 +13,38 @@ const RoleSettings = () => {
     const [editingRole, setEditingRole] = useState(null);
     const [newRole, setNewRole] = useState({ name: '', permissions: '' }); // permissions as comma‑separated string
 
-    useEffect(() => {
-        fetchRoles();
-    }, []);
+    const loadRolesData = async () => {
+        const querySnapshot = await getDocs(collection(db, 'roles'));
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    };
 
     const fetchRoles = async () => {
         try {
-            const querySnapshot = await getDocs(collection(db, 'roles'));
-            setRoles(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setRoles(await loadRolesData());
         } catch (err) {
             console.error('Error fetching roles:', err);
         }
     };
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadRoles = async () => {
+            try {
+                const rolesData = await loadRolesData();
+                if (isMounted) {
+                    setRoles(rolesData);
+                }
+            } catch (err) {
+                console.error('Error fetching roles:', err);
+            }
+        };
+
+        loadRoles();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const handleAddRole = async e => {
         e.preventDefault();

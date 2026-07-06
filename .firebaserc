@@ -9,6 +9,13 @@
           "teams-betel-dej"
         ]
       }
+    },
+    "church-teams": {
+      "hosting": {
+        "webapp": [
+          "church-teams"
+        ]
+      }
     }
   },
   "etags": {}
