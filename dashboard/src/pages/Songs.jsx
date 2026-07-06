@@ -164,8 +164,14 @@ const Songs = () => {
     };
 
     const filteredSongs = songs.filter(song => {
-        if (selectedTagFilters.length === 0) return true;
-        return selectedTagFilters.some(tagId => song.tags?.includes(tagId));
+        const normalizedTerm = normalizeText(searchTerm.trim());
+        const matchesSearch = !normalizedTerm ||
+            normalizeText(song.title).includes(normalizedTerm) ||
+            normalizeText(song.artist).includes(normalizedTerm);
+        const matchesTags = selectedTagFilters.length === 0 ||
+            selectedTagFilters.some(tagId => song.tags?.includes(tagId));
+
+        return matchesSearch && matchesTags;
     });
 
     const uploadFile = async (file, path) => {

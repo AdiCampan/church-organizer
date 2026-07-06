@@ -58,6 +58,7 @@ const translations = {
     orderTab: 'Orden',
     teamsTab: 'Equipos',
     scheduleTab: 'Horario',
+    noTeamsAssigned: 'No hay equipos asignados.',
     viewOrderOfService: 'Ver orden de servicio',
     dateAndTime: 'Fecha y hora',
     location: 'Ubicación',
@@ -116,6 +117,7 @@ const translations = {
     orderTab: 'Ordine',
     teamsTab: 'Echipe',
     scheduleTab: 'Program',
+    noTeamsAssigned: 'Nu sunt echipe alocate.',
     viewOrderOfService: 'Vezi ordinea serviciului',
     dateAndTime: 'Data și ora',
     location: 'Locație',
@@ -174,6 +176,7 @@ const translations = {
     orderTab: 'Order',
     teamsTab: 'Teams',
     scheduleTab: 'Schedule',
+    noTeamsAssigned: 'No teams assigned.',
     viewOrderOfService: 'View order of service',
     dateAndTime: 'Date and time',
     location: 'Location',
@@ -686,7 +689,7 @@ const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teamm
                               <MessageCircle size={14} color="#ef4444" />
                             </View>
                           )}
-                          <Text style={styles.oosDuration}>{item.duration}m</Text>
+                          {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
                         </TouchableOpacity>
                         
                         {isItemExpanded && (
@@ -996,7 +999,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
                             <MessageCircle size={14} color="#ef4444" />
                           </View>
                         )}
-                        <Text style={styles.oosDuration}>{item.duration}m</Text>
+                        {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
                       </TouchableOpacity>
                       
                       {isItemExpanded && (
@@ -1070,7 +1073,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
                   ));
                 })()
               ) : (
-                <Text style={styles.oosEmpty}>No hay equipos asignados.</Text>
+                <Text style={styles.oosEmpty}>{t('noTeamsAssigned')}</Text>
               )}
             </View>
           )}

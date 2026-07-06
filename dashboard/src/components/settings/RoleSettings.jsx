@@ -13,10 +13,14 @@ const RoleSettings = () => {
     const [editingRole, setEditingRole] = useState(null);
     const [newRole, setNewRole] = useState({ name: '', permissions: '' }); // permissions as comma‑separated string
 
+    const loadRolesData = async () => {
+        const querySnapshot = await getDocs(collection(db, 'roles'));
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    };
+
     const fetchRoles = async () => {
         try {
-            const querySnapshot = await getDocs(collection(db, 'roles'));
-            setRoles(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setRoles(await loadRolesData());
         } catch (err) {
             console.error('Error fetching roles:', err);
         }
@@ -27,9 +31,9 @@ const RoleSettings = () => {
 
         const loadRoles = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, 'roles'));
+                const rolesData = await loadRolesData();
                 if (isMounted) {
-                    setRoles(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    setRoles(rolesData);
                 }
             } catch (err) {
                 console.error('Error fetching roles:', err);

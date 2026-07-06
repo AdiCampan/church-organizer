@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2, Users, Music, ChevronDown, ChevronUp, CheckCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../useLanguage';
 
-const getWeekRanges = () => {
+const getWeekRanges = (baseDate = new Date()) => {
     const ranges = [];
-    const now = new Date();
-    const startOfCurrentWeek = new Date(now);
-    const day = now.getDay();
+    const startOfCurrentWeek = new Date(baseDate);
+    const day = baseDate.getDay();
     const diff = (day === 0 ? -6 : 1) - day;
-    startOfCurrentWeek.setDate(now.getDate() + diff);
+    startOfCurrentWeek.setDate(baseDate.getDate() + diff);
     startOfCurrentWeek.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 4; i++) {
@@ -52,36 +51,34 @@ const Events = () => {
         return `${year}-${month}-${day}`;
     };
 
-    const fetchEvents = async () => {
-        try {
-            if (filterDate) {
-                const startOfDay = new Date(filterDate + 'T00:00:00');
-                const endOfDay = new Date(filterDate + 'T23:59:59');
+    const displayedWeekRanges = useMemo(() => {
+        return getWeekRanges(filterDate ? new Date(filterDate + 'T00:00:00') : new Date());
+    }, [filterDate]);
 
-                const q = query(
-                    collection(db, 'events'),
-                    where('date', '>=', Timestamp.fromDate(startOfDay)),
-                    where('date', '<=', Timestamp.fromDate(endOfDay)),
-                    orderBy('date', 'asc')
-                );
+    const buildEventsQuery = useCallback(() => {
+        if (filterDate) {
+            const startOfDay = new Date(filterDate + 'T00:00:00');
+            const endOfDay = new Date(filterDate + 'T23:59:59');
 
-                const snapshot = await getDocs(q);
-                setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                return;
-            }
-
-            const ranges = getWeekRanges();
-            const visibleStart = ranges[0].start;
-            const visibleEnd = ranges[ranges.length - 1].end;
-            
-            const q = query(
+            return query(
                 collection(db, 'events'),
-                where('date', '>=', Timestamp.fromDate(visibleStart)),
-                where('date', '<=', Timestamp.fromDate(visibleEnd)),
+                where('date', '>=', Timestamp.fromDate(startOfDay)),
+                where('date', '<=', Timestamp.fromDate(endOfDay)),
                 orderBy('date', 'asc')
             );
+        }
 
-            const snapshot = await getDocs(q);
+        return query(
+            collection(db, 'events'),
+            where('date', '>=', Timestamp.fromDate(displayedWeekRanges[0].start)),
+            where('date', '<=', Timestamp.fromDate(displayedWeekRanges[displayedWeekRanges.length - 1].end)),
+            orderBy('date', 'asc')
+        );
+    }, [displayedWeekRanges, filterDate]);
+
+    const fetchEvents = async () => {
+        try {
+            const snapshot = await getDocs(buildEventsQuery());
             setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (err) {
             console.error("Error fetching events:", err);
@@ -93,32 +90,8 @@ const Events = () => {
 
         const loadPageData = async () => {
             try {
-                let eventsQuery;
-                if (filterDate) {
-                    const startOfDay = new Date(filterDate + 'T00:00:00');
-                    const endOfDay = new Date(filterDate + 'T23:59:59');
-
-                    eventsQuery = query(
-                        collection(db, 'events'),
-                        where('date', '>=', Timestamp.fromDate(startOfDay)),
-                        where('date', '<=', Timestamp.fromDate(endOfDay)),
-                        orderBy('date', 'asc')
-                    );
-                } else {
-                    const ranges = getWeekRanges();
-                    const visibleStart = ranges[0].start;
-                    const visibleEnd = ranges[ranges.length - 1].end;
-
-                    eventsQuery = query(
-                        collection(db, 'events'),
-                        where('date', '>=', Timestamp.fromDate(visibleStart)),
-                        where('date', '<=', Timestamp.fromDate(visibleEnd)),
-                        orderBy('date', 'asc')
-                    );
-                }
-
                 const [eventsSnapshot, serviceTypesSnapshot, locationsSnapshot] = await Promise.all([
-                    getDocs(eventsQuery),
+                    getDocs(buildEventsQuery()),
                     getDocs(collection(db, 'service_types')),
                     getDocs(collection(db, 'locations'))
                 ]);
@@ -137,9 +110,7 @@ const Events = () => {
         return () => {
             isMounted = false;
         };
-    }, [filterDate]);
-
-    const weekRanges = getWeekRanges();
+    }, [buildEventsQuery]);
 
     const handleAddEvent = async (e) => {
         e.preventDefault();
@@ -399,7 +370,7 @@ const Events = () => {
                 gridTemplateColumns: 'repeat(4, 1fr)',
                 transition: 'grid-template-columns 0.3s ease'
             }}>
-                {weekRanges.map((range, weekIndex) => {
+                {displayedWeekRanges.map((range, weekIndex) => {
                     const weekEvents = events.filter(e => {
                         const d = e.date.toDate();
                         return d >= range.start && d <= range.end;

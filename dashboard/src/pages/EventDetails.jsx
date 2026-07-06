@@ -278,7 +278,7 @@ const EventDetails = () => {
 
         } catch (err) {
             console.error("Error calling to rehearsal:", err);
-            alert("Error al programar el ensayo");
+            alert(t('rehearsalScheduleError'));
         }
     };
 

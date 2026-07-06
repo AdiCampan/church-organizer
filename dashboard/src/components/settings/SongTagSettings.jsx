@@ -18,10 +18,14 @@ const SongTagSettings = () => {
         '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#64748b'
     ];
 
+    const loadTagsData = async () => {
+        const querySnapshot = await getDocs(collection(db, 'song_tags'));
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    };
+
     const fetchTags = async () => {
         try {
-            const querySnapshot = await getDocs(collection(db, 'song_tags'));
-            setTags(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setTags(await loadTagsData());
         } catch (err) {
             console.error("Error fetching tags:", err);
         }
@@ -32,9 +36,9 @@ const SongTagSettings = () => {
 
         const loadTags = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, 'song_tags'));
+                const tagsData = await loadTagsData();
                 if (isMounted) {
-                    setTags(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                    setTags(tagsData);
                 }
             } catch (err) {
                 console.error("Error fetching tags:", err);

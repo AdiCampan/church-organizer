@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X, MapPin } from 'lucide-react';
 import { useLanguage } from '../../useLanguage';
 
@@ -75,10 +75,25 @@ const ServiceTypeSettings = () => {
     const handleAdd = async () => {
         if (!newType.name.trim()) return;
         try {
-            await addDoc(collection(db, 'service_types'), {
-                ...newType,
-                createdAt: new Date()
-            });
+            if (newType.isRehearsal) {
+                const batch = writeBatch(db);
+                types.forEach(type => {
+                    if (type.isRehearsal) {
+                        batch.update(doc(db, 'service_types', type.id), { isRehearsal: false });
+                    }
+                });
+                const serviceTypeRef = doc(collection(db, 'service_types'));
+                batch.set(serviceTypeRef, {
+                    ...newType,
+                    createdAt: new Date()
+                });
+                await batch.commit();
+            } else {
+                await addDoc(collection(db, 'service_types'), {
+                    ...newType,
+                    createdAt: new Date()
+                });
+            }
             setNewType({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', isRehearsal: false, requiredTeams: [] });
             setIsAdding(false);
             fetchTypes();
@@ -89,7 +104,18 @@ const ServiceTypeSettings = () => {
 
     const handleUpdate = async (id, data) => {
         try {
-            await updateDoc(doc(db, 'service_types', id), data);
+            if (data.isRehearsal) {
+                const batch = writeBatch(db);
+                types.forEach(type => {
+                    if (type.id !== id && type.isRehearsal) {
+                        batch.update(doc(db, 'service_types', type.id), { isRehearsal: false });
+                    }
+                });
+                batch.update(doc(db, 'service_types', id), data);
+                await batch.commit();
+            } else {
+                await updateDoc(doc(db, 'service_types', id), data);
+            }
             setEditingId(null);
             setEditType(null);
             fetchTypes();
@@ -409,7 +435,7 @@ const ServiceTypeSettings = () => {
                                     )}
                                 </div>
                                 <div style={styles.actions}>
-                                    <button onClick={() => { setEditingId(type.id); setEditType({ ...type, isRehearsal: Boolean(type.isRehearsal), requiredTeams: type.requiredTeams || [] }); }} style={styles.actionBtn}><Edit2 size={16} /></button>
+                                    <button onClick={() => { setEditingId(type.id); setEditType({ ...type, defaultStartTime: type.defaultStartTime || '', dayOfWeek: type.dayOfWeek || '', locationId: type.locationId || '', isRehearsal: Boolean(type.isRehearsal), requiredTeams: type.requiredTeams || [] }); }} style={styles.actionBtn}><Edit2 size={16} /></button>
                                     <button onClick={() => handleDelete(type.id)} style={{ ...styles.actionBtn, color: '#ef4444' }}><Trash2 size={16} /></button>
                                 </div>
                             </>
