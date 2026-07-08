@@ -394,6 +394,7 @@ const Events = () => {
                                             tabIndex={0}
                                             onClick={() => navigate(`/events/${event.id}`)}
                                             onKeyDown={(e) => {
+                                                if (e.target.closest('button, a, input, select, textarea')) return;
                                                 if (e.key === 'Enter' || e.key === ' ') {
                                                     e.preventDefault();
                                                     navigate(`/events/${event.id}`);

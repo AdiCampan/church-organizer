@@ -236,6 +236,11 @@ const EventDetails = () => {
                 const rehearsalKey = `rehearsal_${repetitiiType.id}_${formatLocalDateKey(rehearsalDate)}`;
                 const rehearsalRef = doc(db, 'events', rehearsalKey);
                 const rehearsalSnap = await getDoc(rehearsalRef);
+                let rehearsalLocation = repetitiiType.location || '';
+                if (!rehearsalLocation && repetitiiType.locationId) {
+                    const locationSnap = await getDoc(doc(db, 'locations', repetitiiType.locationId));
+                    rehearsalLocation = locationSnap.exists() ? locationSnap.data().name || '' : '';
+                }
 
                 if (rehearsalSnap.exists()) {
                     rehearsalEventId = rehearsalRef.id;
@@ -246,8 +251,8 @@ const EventDetails = () => {
                         serviceTypeId: repetitiiType.id,
                         serviceTypeName: repetitiiType.name,
                         color: repetitiiType.color || '#64748b',
-                        locationId: repetitiiType.locationId || event.locationId || null,
-                        location: repetitiiType.location || event.location || '',
+                        locationId: repetitiiType.locationId || null,
+                        location: rehearsalLocation,
                         status: 'draft',
                         createdAt: serverTimestamp(),
                         requiredTeams: repetitiiType.requiredTeams || []
@@ -445,8 +450,9 @@ const EventDetails = () => {
 
                                         {(() => {
                                             const requiredTeam = event.requiredTeams?.find(rt => rt.teamId === team.id);
-                                            const positionsToShow = requiredTeam && requiredTeam.positions.length > 0
-                                                ? team.positions?.filter(p => requiredTeam.positions.includes(p))
+                                            const requiredPositions = Array.isArray(requiredTeam?.positions) ? requiredTeam.positions : [];
+                                            const positionsToShow = requiredPositions.length > 0
+                                                ? team.positions?.filter(p => requiredPositions.includes(p))
                                                 : team.positions;
 
                                             return positionsToShow?.map((p, i) => (

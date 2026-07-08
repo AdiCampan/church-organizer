@@ -1127,7 +1127,9 @@ export default function App() {
       if (!user) {
         // Clear all data on logout
         setAssignments([]);
+        setUpcomingEvents([]);
         setEventsMap({});
+        setAllSchedules([]);
         setBlockoutDates([]);
         // Unsubscribe from all event listeners
         if (eventListeners.current) {

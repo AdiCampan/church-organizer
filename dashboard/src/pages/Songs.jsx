@@ -345,6 +345,7 @@ const Songs = () => {
                                 type="button"
                                 onClick={() => openEditSong(song)}
                                 style={{ ...styles.iconBtn, color: '#64748b' }}
+                                aria-label={t('edit')}
                                 title={t('edit')}
                             >
                                 <Pencil size={16} />
