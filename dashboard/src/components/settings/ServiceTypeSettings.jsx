@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, runTransaction, updateDoc } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X, MapPin } from 'lucide-react';
 import { useLanguage } from '../../useLanguage';
 
@@ -72,22 +72,61 @@ const ServiceTypeSettings = () => {
         }
     };
 
+    const saveRehearsalType = async (serviceTypeRef, data, isNew) => {
+        const configRef = doc(db, 'settings', 'serviceTypes');
+        await runTransaction(db, async (transaction) => {
+            const configSnap = await transaction.get(configRef);
+            const currentRehearsalId = configSnap.exists() ? configSnap.data().rehearsalTypeId : null;
+
+            if (data.isRehearsal) {
+                const currentRehearsalRef = currentRehearsalId && currentRehearsalId !== serviceTypeRef.id
+                    ? doc(db, 'service_types', currentRehearsalId)
+                    : null;
+                const currentRehearsalSnap = currentRehearsalRef
+                    ? await transaction.get(currentRehearsalRef)
+                    : null;
+
+                if (isNew) {
+                    transaction.set(serviceTypeRef, data);
+                } else {
+                    transaction.update(serviceTypeRef, data);
+                }
+                if (currentRehearsalSnap?.exists()) {
+                    transaction.update(currentRehearsalRef, { isRehearsal: false });
+                }
+                transaction.set(configRef, { rehearsalTypeId: serviceTypeRef.id }, { merge: true });
+                return;
+            }
+
+            if (isNew) {
+                transaction.set(serviceTypeRef, data);
+            } else {
+                transaction.update(serviceTypeRef, data);
+            }
+
+            if (currentRehearsalId === serviceTypeRef.id) {
+                transaction.set(configRef, { rehearsalTypeId: null }, { merge: true });
+            }
+        });
+
+        if (data.isRehearsal) {
+            await Promise.all(
+                types
+                    .filter(type => type.id !== serviceTypeRef.id && type.isRehearsal)
+                    .map(type => updateDoc(doc(db, 'service_types', type.id), { isRehearsal: false }))
+            );
+        }
+    };
+
     const handleAdd = async () => {
         if (!newType.name.trim()) return;
         try {
             if (newType.isRehearsal) {
-                const batch = writeBatch(db);
-                types.forEach(type => {
-                    if (type.isRehearsal) {
-                        batch.update(doc(db, 'service_types', type.id), { isRehearsal: false });
-                    }
-                });
                 const serviceTypeRef = doc(collection(db, 'service_types'));
-                batch.set(serviceTypeRef, {
+                await saveRehearsalType(serviceTypeRef, {
                     ...newType,
                     createdAt: new Date()
-                });
-                await batch.commit();
+                }, true);
             } else {
                 await addDoc(collection(db, 'service_types'), {
                     ...newType,
@@ -105,16 +144,9 @@ const ServiceTypeSettings = () => {
     const handleUpdate = async (id, data) => {
         try {
             if (data.isRehearsal) {
-                const batch = writeBatch(db);
-                types.forEach(type => {
-                    if (type.id !== id && type.isRehearsal) {
-                        batch.update(doc(db, 'service_types', type.id), { isRehearsal: false });
-                    }
-                });
-                batch.update(doc(db, 'service_types', id), data);
-                await batch.commit();
+                await saveRehearsalType(doc(db, 'service_types', id), data, false);
             } else {
-                await updateDoc(doc(db, 'service_types', id), data);
+                await saveRehearsalType(doc(db, 'service_types', id), data, false);
             }
             setEditingId(null);
             setEditType(null);

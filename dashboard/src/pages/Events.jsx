@@ -161,6 +161,7 @@ const Events = () => {
             const eventDate = new Date(`${editingEvent.date}T${editingEvent.time}`);
             const selectedType = serviceTypes.find(t => t.id === editingEvent.serviceTypeId);
             const selectedLocation = locations.find(l => l.id === editingEvent.locationId);
+            const hasServiceType = Boolean(editingEvent.serviceTypeId);
 
             await updateDoc(doc(db, 'events', editingEvent.id), {
                 title: editingEvent.title,
@@ -169,9 +170,9 @@ const Events = () => {
                 locationId: editingEvent.locationId || null,
                 location: selectedLocation?.name || '',
                 serviceTypeId: editingEvent.serviceTypeId || null,
-                serviceTypeName: selectedType?.name || null,
-                requiredTeams: selectedType?.requiredTeams || [],
-                color: selectedType?.color || '#3b82f6',
+                serviceTypeName: selectedType ? selectedType.name : (hasServiceType ? editingEvent.serviceTypeName : null),
+                requiredTeams: selectedType ? (selectedType.requiredTeams || []) : (hasServiceType ? (editingEvent.requiredTeams || []) : []),
+                color: selectedType ? (selectedType.color || '#3b82f6') : (hasServiceType ? (editingEvent.color || '#3b82f6') : '#3b82f6'),
             });
 
             setEditingEvent(null);
@@ -367,7 +368,7 @@ const Events = () => {
 
             {/* 4-Week Grid */}
             <div className="events-grid" style={{ 
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: 'repeat(4, minmax(260px, 1fr))',
                 transition: 'grid-template-columns 0.3s ease'
             }}>
                 {displayedWeekRanges.map((range, weekIndex) => {
@@ -387,9 +388,17 @@ const Events = () => {
                             ) : (
                                 weekEvents.map(event => (
                                     <React.Fragment key={event.id}>
-                                        <div 
+                                        <div
                                             className="event-card-compact"
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={() => navigate(`/events/${event.id}`)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    navigate(`/events/${event.id}`);
+                                                }
+                                            }}
                                             style={{ cursor: 'pointer' }}
                                         >
                                             <div className="event-color-strip" style={{ backgroundColor: event.color || '#3b82f6' }}></div>

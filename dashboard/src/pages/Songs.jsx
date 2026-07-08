@@ -124,34 +124,20 @@ const Songs = () => {
         setSearchTerm(term);
 
         if (term.length === 0) {
-            fetchSongs();
+            fetchSongs(false, selectedTagFilters.length > 0);
             return;
         }
         if (term.length < 2) return; // Prevent searching for single chars to save reads
 
-        // Retrieve more songs to filter client-side for better ux (case/accent insensitive)
+        // Retrieve the catalog before local filtering so search is not limited to the current page.
         // Note: For very large databases, we should store a normalized "searchKey" field instead.
-        const q = query(
-            collection(db, 'songs'),
-            orderBy('title', 'asc'),
-            limit(100) // Limit to 100 for safety, or increase if catalog is larger
-        );
+        fetchSongs(false, true);
+    };
 
-        try {
-            const snapshot = await getDocs(q);
-            const allFetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const normalizedTerm = normalizeText(term);
-            const filtered = allFetched.filter(song =>
-                normalizeText(song.title).includes(normalizedTerm) ||
-                normalizeText(song.artist).includes(normalizedTerm)
-            );
-
-            setSongs(filtered);
-            setHasMore(false);
-        } catch (error) {
-            console.error("Search error:", error);
-        }
+    const openEditSong = (song) => {
+        setIsEditing(song);
+        setFormData({ ...defaultSongFormData, ...song, tags: song.tags || [] });
+        setShowAddModal(true);
     };
 
     const toggleTagFilter = (tagId) => {
@@ -160,7 +146,7 @@ const Songs = () => {
             : [...selectedTagFilters, tagId];
 
         setSelectedTagFilters(nextFilters);
-        fetchSongs(false, nextFilters.length > 0);
+        fetchSongs(false, nextFilters.length > 0 || searchTerm.trim().length >= 2);
     };
 
     const filteredSongs = songs.filter(song => {
@@ -296,7 +282,7 @@ const Songs = () => {
                             </button>
                         ))}
                         {selectedTagFilters.length > 0 && (
-                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(); }} style={styles.clearFilterBtn}>
+                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(false, searchTerm.trim().length >= 2); }} style={styles.clearFilterBtn}>
                                 {t('showAll')}
                             </button>
                         )}
@@ -310,7 +296,6 @@ const Songs = () => {
                         key={song.id} 
                         className="card" 
                         style={styles.songCard}
-                        onClick={() => { setIsEditing(song); setFormData({ ...defaultSongFormData, ...song, tags: song.tags || [] }); setShowAddModal(true); }}
                     >
                         <div style={styles.songMain}>
                             <div style={styles.musicIcon}>
@@ -356,7 +341,16 @@ const Songs = () => {
                                     </div>
                                 </div>
                             </div>
-                            <button 
+                            <button
+                                type="button"
+                                onClick={() => openEditSong(song)}
+                                style={{ ...styles.iconBtn, color: '#64748b' }}
+                                title={t('edit')}
+                            >
+                                <Pencil size={16} />
+                            </button>
+                            <button
+                                type="button"
                                 onClick={(e) => { e.stopPropagation(); handleDelete(song.id); }} 
                                 style={{ ...styles.iconBtn, color: '#ced4da' }}
                                 onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
@@ -542,7 +536,7 @@ const styles = {
     tagFilterBtn: { padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: '1px solid', cursor: 'pointer', transition: 'all 0.2s' },
     clearFilterBtn: { background: 'none', border: 'none', color: '#007bff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: '6px' },
     songsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' },
-    songCard: { padding: '12px 16px', transition: 'all 0.2s', cursor: 'pointer' },
+    songCard: { padding: '12px 16px', transition: 'all 0.2s' },
     songMain: { display: 'flex', alignItems: 'center', gap: '12px' },
     musicIcon: { width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 },
     actions: { display: 'none' },

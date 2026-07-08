@@ -238,6 +238,11 @@ exports.onScheduleUpdated = functions.firestore
             console.log(`[TRIGGER] Assignment declined. scheduleId: ${context.params.scheduleId}, userId: ${after.userId}`);
 
             try {
+                if (after.declineNotifiedAt) {
+                    console.log(`[INFO] Decline notification already sent for schedule ${context.params.scheduleId}.`);
+                    return null;
+                }
+
                 // Get team details to find leaders
                 const teamDoc = await admin.firestore().collection('teams').doc(after.teamId).get();
                 let leaderIds = [];
@@ -269,8 +274,11 @@ exports.onScheduleUpdated = functions.firestore
 
                 // Get tokens for leaders
                 const messages = [];
-                for (const leaderId of leaderIds) {
-                    const tokenDoc = await admin.firestore().collection('fcmTokens').doc(leaderId).get();
+                const tokenDocs = await Promise.all(
+                    leaderIds.map(leaderId => admin.firestore().collection('fcmTokens').doc(leaderId).get())
+                );
+
+                tokenDocs.forEach((tokenDoc) => {
                     if (tokenDoc.exists) {
                         const tokenData = tokenDoc.data();
                         const pushToken = tokenData.token;
@@ -293,7 +301,7 @@ exports.onScheduleUpdated = functions.firestore
                             });
                         }
                     }
-                }
+                });
 
                 if (messages.length === 0) {
                     console.log(`[INFO] No valid push tokens found for leaders/admins.`);
@@ -309,6 +317,9 @@ exports.onScheduleUpdated = functions.firestore
                 }
 
                 console.log(`[RESULT] Decline notifications sent. Tickets:`, JSON.stringify(tickets));
+                await change.after.ref.update({
+                    declineNotifiedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
                 return tickets;
             } catch (error) {
                 console.error('[ERROR] Failure in onScheduleUpdated:', error);

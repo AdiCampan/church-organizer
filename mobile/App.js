@@ -624,6 +624,79 @@ const LyricsModal = ({ visible, onClose, song, t }) => {
   );
 };
 
+const OrderOfServiceList = ({ event, globalSongsMap, teammates, user, t, expandedItemIndex, onToggleItem, onSelectLyrics }) => {
+  if (!event?.orderOfService || event.orderOfService.length === 0) {
+    return <Text style={styles.oosEmpty}>{t('noOrder')}</Text>;
+  }
+
+  const userTeamIds = teammates ? teammates.filter(teammate => teammate.userId === user?.uid).map(teammate => teammate.teamId) : [];
+
+  return event.orderOfService.map((item, index) => {
+    const sid = item.songId || item.song;
+    const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(songItem => songItem.id === sid)) : null;
+    const isItemExpanded = expandedItemIndex === index;
+    const showNote = item.details && (!item.targetTeams || item.targetTeams.includes('all') || item.targetTeams.some(tid => userTeamIds.includes(tid)));
+
+    return (
+      <View key={item.id || index} style={styles.oosItemContainer}>
+        <TouchableOpacity onPress={() => onToggleItem(isItemExpanded ? null : index)} style={styles.oosItem}>
+          <View style={styles.oosDot} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.oosTitle}>{item.title}</Text>
+            {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
+          </View>
+          {showNote && (
+            <View style={{ marginRight: 8, backgroundColor: '#fee2e2', padding: 4, borderRadius: 12 }}>
+              <MessageCircle size={14} color="#ef4444" />
+            </View>
+          )}
+          {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
+        </TouchableOpacity>
+
+        {isItemExpanded && (
+          <View style={{ marginLeft: 20, marginTop: 4 }}>
+            {showNote && (
+              <View style={{ padding: 8, backgroundColor: '#f1f5f9', borderRadius: 4, marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
+                  {item.details}
+                </Text>
+              </View>
+            )}
+            {song && (
+              <View style={[styles.songAttachments, { marginLeft: 0 }]}>
+                {song.pdfUrl && (
+                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
+                    <FileText size={14} color="#007bff" />
+                    <Text style={styles.attachmentText}>{t('chords')}</Text>
+                  </TouchableOpacity>
+                )}
+                {song.lyrics && (
+                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => onSelectLyrics(song)}>
+                    <Music size={14} color="#007bff" />
+                    <Text style={styles.attachmentText}>{t('lyrics')}</Text>
+                  </TouchableOpacity>
+                )}
+                {song.mp3Url && (
+                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
+                    <Play size={14} color="#007bff" />
+                    <Text style={styles.attachmentText}>{t('audio')}</Text>
+                  </TouchableOpacity>
+                )}
+                {song.youtubeUrl && (
+                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
+                    <ExternalLink size={14} color="#007bff" />
+                    <Text style={styles.attachmentText}>YouTube</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  });
+};
+
 // --- Order of Service Modal ---
 const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teammates, user }) => {
   const [expandedItemIndex, setExpandedItemIndex] = useState(null);
@@ -667,76 +740,19 @@ const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teamm
                 </TouchableOpacity>
               </View>
               <ScrollView showsVerticalScrollIndicator={true}>
-                {event.orderOfService && event.orderOfService.length > 0 ? (
-                  event.orderOfService.map((item, index) => {
-                    const sid = item.songId || item.song;
-                    const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(s => s.id === sid)) : null;
-                    const isItemExpanded = expandedItemIndex === index;
-
-                    const userTeamIds = teammates ? teammates.filter(t => t.userId === user?.uid).map(t => t.teamId) : [];
-                    const showNote = item.details && (!item.targetTeams || item.targetTeams.includes('all') || item.targetTeams.some(tid => userTeamIds.includes(tid)));
-
-                    return (
-                      <View key={item.id || index} style={styles.oosItemContainer}>
-                        <TouchableOpacity onPress={() => setExpandedItemIndex(isItemExpanded ? null : index)} style={styles.oosItem}>
-                          <View style={styles.oosDot} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.oosTitle}>{item.title}</Text>
-                            {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
-                          </View>
-                          {showNote && (
-                            <View style={{ marginRight: 8, backgroundColor: '#fee2e2', padding: 4, borderRadius: 12 }}>
-                              <MessageCircle size={14} color="#ef4444" />
-                            </View>
-                          )}
-                          {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
-                        </TouchableOpacity>
-                        
-                        {isItemExpanded && (
-                          <View style={{ marginLeft: 20, marginTop: 4 }}>
-                            {showNote && (
-                              <View style={{ padding: 8, backgroundColor: '#f1f5f9', borderRadius: 4, marginBottom: 8 }}>
-                                <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
-                                  {item.details}
-                                </Text>
-                              </View>
-                            )}
-                            {song && (
-                              <View style={[styles.songAttachments, { marginLeft: 0 }]}>
-                                {song.pdfUrl && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
-                                    <FileText size={14} color="#007bff" />
-                                    <Text style={styles.attachmentText}>{t('chords')}</Text>
-                                  </TouchableOpacity>
-                                )}
-                                {song.lyrics && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => { setSelectedSongForLyrics(song); setShowLyrics(true); }}>
-                                    <Music size={14} color="#007bff" />
-                                    <Text style={styles.attachmentText}>{t('lyrics')}</Text>
-                                  </TouchableOpacity>
-                                )}
-                                {song.mp3Url && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
-                                    <Play size={14} color="#007bff" />
-                                    <Text style={styles.attachmentText}>{t('audio')}</Text>
-                                  </TouchableOpacity>
-                                )}
-                                {song.youtubeUrl && (
-                                  <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
-                                    <ExternalLink size={14} color="#007bff" />
-                                    <Text style={styles.attachmentText}>YouTube</Text>
-                                  </TouchableOpacity>
-                                )}
-                              </View>
-                            )}
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })
-                ) : (
-                  <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
-                )}
+                <OrderOfServiceList
+                  event={event}
+                  globalSongsMap={globalSongsMap}
+                  teammates={teammates}
+                  user={user}
+                  t={t}
+                  expandedItemIndex={expandedItemIndex}
+                  onToggleItem={setExpandedItemIndex}
+                  onSelectLyrics={(song) => {
+                    setSelectedSongForLyrics(song);
+                    setShowLyrics(true);
+                  }}
+                />
               </ScrollView>
             </View>
           )}
@@ -977,76 +993,19 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
           {/* Tab content */}
           {activeSubTab === 'orden' && (
             <View>
-              {event.orderOfService && event.orderOfService.length > 0 ? (
-                event.orderOfService.map((item, index) => {
-                  const sid = item.songId || item.song;
-                  const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(s => s.id === sid)) : null;
-                  const isItemExpanded = expandedItemIndex === index;
-
-                  const userTeamIds = teammates ? teammates.filter(t => t.userId === user?.uid).map(t => t.teamId) : [];
-                  const showNote = item.details && (!item.targetTeams || item.targetTeams.includes('all') || item.targetTeams.some(tid => userTeamIds.includes(tid)));
-
-                  return (
-                    <View key={item.id || index} style={styles.oosItemContainer}>
-                      <TouchableOpacity onPress={() => setExpandedItemIndex(isItemExpanded ? null : index)} style={styles.oosItem}>
-                        <View style={styles.oosDot} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.oosTitle}>{item.title}</Text>
-                          {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
-                        </View>
-                        {showNote && (
-                          <View style={{ marginRight: 8, backgroundColor: '#fee2e2', padding: 4, borderRadius: 12 }}>
-                            <MessageCircle size={14} color="#ef4444" />
-                          </View>
-                        )}
-                        {item.duration ? <Text style={styles.oosDuration}>{item.duration}m</Text> : null}
-                      </TouchableOpacity>
-                      
-                      {isItemExpanded && (
-                        <View style={{ marginLeft: 20, marginTop: 4 }}>
-                          {showNote && (
-                            <View style={{ padding: 8, backgroundColor: '#f1f5f9', borderRadius: 4, marginBottom: 8 }}>
-                              <Text style={{ fontSize: 13, color: '#475569', fontStyle: 'italic' }}>
-                                {item.details}
-                              </Text>
-                            </View>
-                          )}
-                          {song && (
-                            <View style={[styles.songAttachments, { marginLeft: 0 }]}>
-                              {song.pdfUrl && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.pdfUrl)}>
-                                  <FileText size={14} color="#007bff" />
-                                  <Text style={styles.attachmentText}>{t('chords')}</Text>
-                                </TouchableOpacity>
-                              )}
-                              {song.lyrics && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => { setSelectedSongForLyrics(song); setShowLyrics(true); }}>
-                                  <Music size={14} color="#007bff" />
-                                  <Text style={styles.attachmentText}>{t('lyrics')}</Text>
-                                </TouchableOpacity>
-                              )}
-                              {song.mp3Url && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.mp3Url)}>
-                                  <Play size={14} color="#007bff" />
-                                  <Text style={styles.attachmentText}>{t('audio')}</Text>
-                                </TouchableOpacity>
-                              )}
-                              {song.youtubeUrl && (
-                                <TouchableOpacity style={styles.attachmentBtn} onPress={() => openExternalUrl(song.youtubeUrl, { youtubeOnly: true })}>
-                                  <ExternalLink size={14} color="#007bff" />
-                                  <Text style={styles.attachmentText}>YouTube</Text>
-                                </TouchableOpacity>
-                              )}
-                            </View>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                  );
-                })
-              ) : (
-                <Text style={styles.oosEmpty}>{t('noOrder')}</Text>
-              )}
+              <OrderOfServiceList
+                event={event}
+                globalSongsMap={globalSongsMap}
+                teammates={teammates}
+                user={user}
+                t={t}
+                expandedItemIndex={expandedItemIndex}
+                onToggleItem={setExpandedItemIndex}
+                onSelectLyrics={(song) => {
+                  setSelectedSongForLyrics(song);
+                  setShowLyrics(true);
+                }}
+              />
             </View>
           )}
 
@@ -1226,12 +1185,8 @@ export default function App() {
     });
 
     return () => {
-      if (notificationListener.current && typeof Notifications.removeNotificationSubscription === 'function') {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current && typeof Notifications.removeNotificationSubscription === 'function') {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, [user]);
 
@@ -1317,30 +1272,40 @@ export default function App() {
         return newEventsMap;
       });
 
-      Object.entries(eventListeners.current).forEach(([listenerKey, unsubscribe]) => {
-        if (!listenerKey.endsWith('_schedules')) return;
+      const scheduleEventIds = eventsData.map(event => event.id);
+      const scheduleBatches = [];
+      for (let index = 0; index < scheduleEventIds.length; index += 10) {
+        scheduleBatches.push(scheduleEventIds.slice(index, index + 10));
+      }
+      const activeScheduleListenerKeys = new Set(
+        scheduleBatches.map(batchIds => `schedules_${batchIds.join('|')}`)
+      );
 
-        const eventId = listenerKey.replace('_schedules', '');
-        if (activeEventIds.has(eventId)) return;
+      Object.entries(eventListeners.current).forEach(([listenerKey, unsubscribe]) => {
+        if (!listenerKey.startsWith('schedules_')) return;
+        if (activeScheduleListenerKeys.has(listenerKey)) return;
 
         unsubscribe();
         delete eventListeners.current[listenerKey];
-        setAllSchedules(prev => prev.filter(schedule => schedule.eventId !== eventId));
       });
 
-      // Listen to teammates/schedules for ALL upcoming events
-      eventsData.forEach(e => {
-        if (!eventListeners.current[e.id + '_schedules']) {
-          const qTeammates = query(collection(db, 'schedules'), where('eventId', '==', e.id));
-          const unsubTeammates = onSnapshot(qTeammates, (snap) => {
-            const teammates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            setAllSchedules(prev => {
-              const filtered = prev.filter(s => s.eventId !== e.id);
-              return [...filtered, ...teammates];
-            });
+      setAllSchedules(prev => prev.filter(schedule => activeEventIds.has(schedule.eventId)));
+
+      // Listen to teammates/schedules for upcoming events in Firestore "in" batches.
+      scheduleBatches.forEach(batchIds => {
+        const listenerKey = `schedules_${batchIds.join('|')}`;
+        if (eventListeners.current[listenerKey]) return;
+
+        const qTeammates = query(collection(db, 'schedules'), where('eventId', 'in', batchIds));
+        const unsubTeammates = onSnapshot(qTeammates, (snap) => {
+          const teammates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setAllSchedules(prev => {
+            const batchIdSet = new Set(batchIds);
+            const filtered = prev.filter(schedule => !batchIdSet.has(schedule.eventId));
+            return [...filtered, ...teammates];
           });
-          eventListeners.current[e.id + '_schedules'] = unsubTeammates;
-        }
+        });
+        eventListeners.current[listenerKey] = unsubTeammates;
       });
 
       setLoading(false);

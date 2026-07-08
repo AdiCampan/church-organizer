@@ -39,17 +39,25 @@ const EventDetails = () => {
         let isMounted = true;
 
         const loadInitialData = async () => {
-            const [teamsSnapshot, peopleSnapshot, songsSnapshot] = await Promise.all([
-                getDocs(collection(db, 'teams')),
-                getDocs(collection(db, 'users')),
-                getDocs(collection(db, 'songs'))
-            ]);
+            try {
+                const [teamsSnapshot, peopleSnapshot, songsSnapshot] = await Promise.all([
+                    getDocs(collection(db, 'teams')),
+                    getDocs(collection(db, 'users')),
+                    getDocs(collection(db, 'songs'))
+                ]);
 
-            if (!isMounted) return;
+                if (!isMounted) return;
 
-            setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setAvailablePeople(peopleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setAllSongs(songsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setAvailablePeople(peopleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setAllSongs(songsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error("Error loading event details data:", err);
+                if (!isMounted) return;
+                setTeams([]);
+                setAvailablePeople([]);
+                setAllSongs([]);
+            }
         };
 
         loadInitialData();
@@ -238,6 +246,8 @@ const EventDetails = () => {
                         serviceTypeId: repetitiiType.id,
                         serviceTypeName: repetitiiType.name,
                         color: repetitiiType.color || '#64748b',
+                        locationId: repetitiiType.locationId || event.locationId || null,
+                        location: repetitiiType.location || event.location || '',
                         status: 'draft',
                         createdAt: serverTimestamp(),
                         requiredTeams: repetitiiType.requiredTeams || []
@@ -261,7 +271,8 @@ const EventDetails = () => {
             const promises = currentAssignments
                 .filter(a => !existingUserIds.includes(a.userId))
                 .map(a => {
-                    return addDoc(collection(db, 'schedules'), {
+                    const rehearsalScheduleId = [rehearsalEventId, teamId, a.userId].map(encodeURIComponent).join('_');
+                    return setDoc(doc(db, 'schedules', rehearsalScheduleId), {
                         eventId: rehearsalEventId,
                         teamId: teamId,
                         userId: a.userId,
@@ -295,6 +306,10 @@ const EventDetails = () => {
 
     if (loading || !event) return <div className="page">{t('loading')}...</div>;
 
+    const eventTeamIds = event.requiredTeams?.map(rt => rt.teamId).filter(Boolean) || [];
+    const oosSelectableTeams = eventTeamIds.length > 0
+        ? teams.filter(team => eventTeamIds.includes(team.id))
+        : teams;
 
     return (
         <div className="page">
@@ -338,7 +353,7 @@ const EventDetails = () => {
                             <div style={styles.teamHeader}>
                                 <h3 style={{ margin: 0, fontSize: '16px' }}>{team.name}</h3>
                                 <div style={{ display: 'flex', gap: '8px' }}>
-                                    {assignments.filter(a => a.teamId === team.id).length > 0 && (
+                                    {assignments.filter(a => a.teamId === team.id && a.status !== 'declined').length > 0 && (
                                         <button
                                             onClick={() => handleCallToRehearsal(team.id)}
                                             style={{ ...styles.addBtn, backgroundColor: '#f0fdf4', color: '#166534' }}
@@ -539,14 +554,15 @@ const EventDetails = () => {
                                     }}>
                                     {t('all')}
                                 </button>
-                                {teams.map(team => {
+                                {oosSelectableTeams.map(team => {
                                     const isSelected = newItem.targetTeams.includes(team.id);
                                     return (
                                         <button
                                             type="button"
                                             key={team.id}
                                             onClick={() => {
-                                                let newTargets = newItem.targetTeams.filter(t => t !== 'all');
+                                                const allowedTeamIds = new Set(oosSelectableTeams.map(team => team.id));
+                                                let newTargets = newItem.targetTeams.filter(t => t !== 'all' && allowedTeamIds.has(t));
                                                 if (isSelected) {
                                                     newTargets = newTargets.filter(t => t !== team.id);
                                                     if (newTargets.length === 0) newTargets = ['all'];
@@ -575,6 +591,7 @@ const EventDetails = () => {
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <input
                                     type="number"
+                                    min="0"
                                     placeholder={t('min')}
                                     value={newItem.duration}
                                     onChange={e => setNewItem({ ...newItem, duration: e.target.value })}
