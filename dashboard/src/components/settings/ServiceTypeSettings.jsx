@@ -150,11 +150,7 @@ const ServiceTypeSettings = () => {
 
     const handleUpdate = async (id, data) => {
         try {
-            if (data.isRehearsal) {
-                await saveRehearsalType(doc(db, 'service_types', id), data, false);
-            } else {
-                await saveRehearsalType(doc(db, 'service_types', id), data, false);
-            }
+            await saveRehearsalType(doc(db, 'service_types', id), data, false);
             setEditingId(null);
             setEditType(null);
             fetchTypes();
