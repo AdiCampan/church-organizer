@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc } from 'firebase/firestore';
 import { UserPlus, Search, Mail, Calendar, CalendarX, Trash2 } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -21,6 +21,7 @@ const firebaseConfig = {
 const People = () => {
     const { t } = useLanguage();
     const [people, setPeople] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const [showAddForm, setShowAddForm] = useState(false);
     const [newPerson, setNewPerson] = useState({ name: '', email: '', role: 'volunteer' });
@@ -29,6 +30,21 @@ const People = () => {
     useEffect(() => {
         fetchPeople();
     }, []);
+
+    const normalizeString = (str) => {
+        return str
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+    };
+
+    const filteredPeople = people.filter(person => {
+        if (!searchTerm) return true;
+        const search = normalizeString(searchTerm.trim());
+        const name = normalizeString(person.name || '');
+        const email = normalizeString(person.email || '');
+        return name.includes(search) || email.includes(search);
+    });
 
     const fetchPeople = async () => {
         try {
@@ -183,6 +199,8 @@ const People = () => {
                         type="text"
                         placeholder={t('searchPeople')}
                         style={{ ...styles.input, paddingLeft: '40px', width: '100%', maxWidth: '300px' }}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
 
@@ -197,14 +215,14 @@ const People = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {people.length === 0 ? (
+                        {filteredPeople.length === 0 ? (
                             <tr>
-                                <td colSpan="3" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
+                                <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#64748b' }}>
                                     {t('noPeople')}
                                 </td>
                             </tr>
                         ) : (
-                            people.map(person => (
+                            filteredPeople.map(person => (
                                 <tr key={person.id} style={styles.tr}>
                                     <td style={styles.td}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

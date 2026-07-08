@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
 import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music, Eye } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
 
 
@@ -24,14 +24,43 @@ const EventDetails = () => {
 
     // Order of Service state
     const [oos, setOos] = useState([]);
-    const [newItem, setNewItem] = useState({ title: '', duration: '', songId: '', details: '' });
+    const [newItem, setNewItem] = useState({ title: '', duration: '', songId: '', details: '', targetTeams: ['all'] });
     const [editingOosId, setEditingOosId] = useState(null); // ID of item being edited
     const [previewSong, setPreviewSong] = useState(null);
 
+    const formatLocalDateKey = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     useEffect(() => {
-        fetchTeams();
-        fetchPeople();
-        fetchSongs();
+        let isMounted = true;
+
+        const loadInitialData = async () => {
+            try {
+                const [teamsSnapshot, peopleSnapshot, songsSnapshot] = await Promise.all([
+                    getDocs(collection(db, 'teams')),
+                    getDocs(collection(db, 'users')),
+                    getDocs(collection(db, 'songs'))
+                ]);
+
+                if (!isMounted) return;
+
+                setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setAvailablePeople(peopleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setAllSongs(songsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error("Error loading event details data:", err);
+                if (!isMounted) return;
+                setTeams([]);
+                setAvailablePeople([]);
+                setAllSongs([]);
+            }
+        };
+
+        loadInitialData();
 
         // Subscribe to assignments for this event
         const qSchedules = query(collection(db, 'schedules'), where('eventId', '==', eventId));
@@ -52,26 +81,11 @@ const EventDetails = () => {
         });
 
         return () => {
+            isMounted = false;
             unsubSchedules();
             unsubEvent();
         };
-    }, [eventId]);
-
-    const fetchTeams = async () => {
-        const querySnapshot = await getDocs(collection(db, 'teams'));
-        setTeams(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    };
-
-    const fetchPeople = async () => {
-        const querySnapshot = await getDocs(collection(db, 'users'));
-        // Include blockoutDates in the state
-        setAvailablePeople(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    };
-
-    const fetchSongs = async () => {
-        const querySnapshot = await getDocs(collection(db, 'songs'));
-        setAllSongs(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    };
+    }, [eventId, navigate]);
 
     const handleAssign = async (teamId) => {
         if (!selectedUser || !selectedPosition) return;
@@ -110,7 +124,7 @@ const EventDetails = () => {
 
     const handleAddOOSItem = async (e) => {
         e?.preventDefault();
-        if (!newItem.title || !newItem.duration) return;
+        if (!newItem.title) return;
 
         let updatedOOS;
 
@@ -128,7 +142,7 @@ const EventDetails = () => {
             await updateDoc(doc(db, 'events', eventId), {
                 orderOfService: updatedOOS
             });
-            setNewItem({ title: '', duration: '', songId: '', details: '' });
+            setNewItem({ title: '', duration: '', songId: '', details: '', targetTeams: ['all'] });
             setEditingOosId(null);
         } catch (err) {
             console.error(err);
@@ -141,13 +155,14 @@ const EventDetails = () => {
             title: item.title,
             duration: item.duration,
             songId: item.songId || '',
-            details: item.details || ''
+            details: item.details || '',
+            targetTeams: item.targetTeams || ['all']
         });
     };
 
     const handleCancelOOSEdit = () => {
         setEditingOosId(null);
-        setNewItem({ title: '', duration: '', songId: '', details: '' });
+        setNewItem({ title: '', duration: '', songId: '', details: '', targetTeams: ['all'] });
     };
 
     const handleRemoveOOSItem = async (itemId) => {
@@ -158,6 +173,128 @@ const EventDetails = () => {
             });
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const handleCallToRehearsal = async (teamId) => {
+        try {
+            // 1. Get current team members assigned to this event
+            const currentAssignments = assignments.filter(a => a.teamId === teamId && a.status !== 'declined');
+            if (currentAssignments.length === 0) return;
+
+            // 2. Find the configured rehearsal service type
+            const serviceTypesSnap = await getDocs(collection(db, 'service_types'));
+            const repetitiiType = serviceTypesSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .find(type => type.isRehearsal === true);
+
+            if (!repetitiiType) {
+                alert(t('rehearsalServiceTypeRequired'));
+                return;
+            }
+
+            if (!repetitiiType.dayOfWeek) {
+                alert(t('rehearsalDayRequired'));
+                return;
+            }
+
+            // 3. Calculate Date
+            const eventDate = event.date.toDate();
+            const eventDay = eventDate.getDay();
+            const rehearsalDay = parseInt(repetitiiType.dayOfWeek);
+
+            let daysToSubtract = eventDay - rehearsalDay;
+            if (daysToSubtract <= 0) daysToSubtract += 7;
+
+            const rehearsalDate = new Date(eventDate);
+            rehearsalDate.setDate(eventDate.getDate() - daysToSubtract);
+
+            if (repetitiiType.defaultStartTime) {
+                const [hours, minutes] = repetitiiType.defaultStartTime.split(':');
+                rehearsalDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            }
+
+            // 4. Create or Find the rehearsal event
+            // Start of day for the rehearsal date to query
+            const startOfDay = new Date(rehearsalDate);
+            startOfDay.setHours(0, 0, 0, 0);
+            const endOfDay = new Date(rehearsalDate);
+            endOfDay.setHours(23, 59, 59, 999);
+
+            const qEvents = query(
+                collection(db, 'events'),
+                where('date', '>=', startOfDay),
+                where('date', '<=', endOfDay)
+            );
+            const eventSnap = await getDocs(qEvents);
+
+            // Filter in memory to avoid requiring a composite index
+            const existingRehearsal = eventSnap.docs.find(doc => doc.data().serviceTypeId === repetitiiType.id);
+
+            let rehearsalEventId;
+            if (!existingRehearsal) {
+                const rehearsalKey = `rehearsal_${repetitiiType.id}_${formatLocalDateKey(rehearsalDate)}`;
+                const rehearsalRef = doc(db, 'events', rehearsalKey);
+                const rehearsalSnap = await getDoc(rehearsalRef);
+                let rehearsalLocation = repetitiiType.location || '';
+                if (!rehearsalLocation && repetitiiType.locationId) {
+                    const locationSnap = await getDoc(doc(db, 'locations', repetitiiType.locationId));
+                    rehearsalLocation = locationSnap.exists() ? locationSnap.data().name || '' : '';
+                }
+
+                if (rehearsalSnap.exists()) {
+                    rehearsalEventId = rehearsalRef.id;
+                } else {
+                    await setDoc(rehearsalRef, {
+                        title: `${repetitiiType.name} - ${event.title}`,
+                        date: rehearsalDate,
+                        serviceTypeId: repetitiiType.id,
+                        serviceTypeName: repetitiiType.name,
+                        color: repetitiiType.color || '#64748b',
+                        locationId: repetitiiType.locationId || null,
+                        location: rehearsalLocation,
+                        status: 'draft',
+                        createdAt: serverTimestamp(),
+                        requiredTeams: repetitiiType.requiredTeams || []
+                    });
+                    rehearsalEventId = rehearsalRef.id;
+                }
+            } else {
+                rehearsalEventId = existingRehearsal.id;
+            }
+
+            // 5. Assign people to the rehearsal
+            // Check existing assignments for the rehearsal to avoid duplicates
+            const qExisting = query(
+                collection(db, 'schedules'),
+                where('eventId', '==', rehearsalEventId),
+                where('teamId', '==', teamId)
+            );
+            const existingSnap = await getDocs(qExisting);
+            const existingUserIds = existingSnap.docs.map(doc => doc.data().userId);
+
+            const promises = currentAssignments
+                .filter(a => !existingUserIds.includes(a.userId))
+                .map(a => {
+                    const rehearsalScheduleId = [rehearsalEventId, teamId, a.userId].map(encodeURIComponent).join('_');
+                    return setDoc(doc(db, 'schedules', rehearsalScheduleId), {
+                        eventId: rehearsalEventId,
+                        teamId: teamId,
+                        userId: a.userId,
+                        userName: a.userName,
+                        userEmail: a.userEmail,
+                        position: a.position,
+                        status: 'pending',
+                        assignedAt: serverTimestamp(),
+                    });
+                });
+
+            await Promise.all(promises);
+            alert(t('rehearsalScheduled'));
+
+        } catch (err) {
+            console.error("Error calling to rehearsal:", err);
+            alert(t('rehearsalScheduleError'));
         }
     };
 
@@ -174,6 +311,10 @@ const EventDetails = () => {
 
     if (loading || !event) return <div className="page">{t('loading')}...</div>;
 
+    const eventTeamIds = event.requiredTeams?.map(rt => rt.teamId).filter(Boolean) || [];
+    const oosSelectableTeams = eventTeamIds.length > 0
+        ? teams.filter(team => eventTeamIds.includes(team.id))
+        : teams;
 
     return (
         <div className="page">
@@ -207,16 +348,32 @@ const EventDetails = () => {
                     </div>
 
 
-                    {teams.map(team => (
+                    {teams
+                        .filter(team => {
+                            if (!event.requiredTeams || event.requiredTeams.length === 0) return true;
+                            return event.requiredTeams.some(rt => rt.teamId === team.id);
+                        })
+                        .map(team => (
                         <div key={team.id} className="card" style={styles.teamCard}>
                             <div style={styles.teamHeader}>
                                 <h3 style={{ margin: 0, fontSize: '16px' }}>{team.name}</h3>
-                                <button
-                                    onClick={() => setShowAddMember(team.id)}
-                                    style={styles.addBtn}
-                                >
-                                    <Plus size={14} /> {t('add')}
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    {assignments.filter(a => a.teamId === team.id && a.status !== 'declined').length > 0 && (
+                                        <button
+                                            onClick={() => handleCallToRehearsal(team.id)}
+                                            style={{ ...styles.addBtn, backgroundColor: '#f0fdf4', color: '#166534' }}
+                                            title={t('callToRehearsal')}
+                                        >
+                                            <Calendar size={14} /> {t('rehearsal')}
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setShowAddMember(team.id)}
+                                        style={styles.addBtn}
+                                    >
+                                        <Plus size={14} /> {t('add')}
+                                    </button>
+                                </div>
                             </div>
 
 
@@ -291,9 +448,17 @@ const EventDetails = () => {
                                     >
                                         <option value="">{t('position')}...</option>
 
-                                        {team.positions?.map((p, i) => (
-                                            <option key={i} value={p}>{p}</option>
-                                        ))}
+                                        {(() => {
+                                            const requiredTeam = event.requiredTeams?.find(rt => rt.teamId === team.id);
+                                            const requiredPositions = Array.isArray(requiredTeam?.positions) ? requiredTeam.positions : [];
+                                            const positionsToShow = requiredPositions.length > 0
+                                                ? team.positions?.filter(p => requiredPositions.includes(p))
+                                                : team.positions;
+
+                                            return positionsToShow?.map((p, i) => (
+                                                <option key={i} value={p}>{p}</option>
+                                            ));
+                                        })()}
                                     </select>
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <button onClick={() => handleAssign(team.id)} className="btn-primary" style={{ flex: 1, padding: '8px' }}>{t('save')}</button>
@@ -329,11 +494,11 @@ const EventDetails = () => {
                                                 {item.songId && <Music size={12} color="#007bff" />}
                                             </div>
                                             <div style={styles.oosDurationText}>
-                                                {item.duration} {t('min')}
+                                                {item.duration && `${item.duration} ${t('min')}`}
 
                                                 {item.songId && (
                                                     <>
-                                                        {' • '}
+                                                        {item.duration ? ' • ' : ''}
                                                         <span
                                                             onClick={() => setPreviewSong(allSongs.find(s => s.id === item.songId))}
                                                             style={{ color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
@@ -383,6 +548,46 @@ const EventDetails = () => {
                                     <option key={s.id} value={s.id}>{s.title}</option>
                                 ))}
                             </select>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '4px', marginTop: '4px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setNewItem({ ...newItem, targetTeams: ['all'] })}
+                                    aria-pressed={newItem.targetTeams.includes('all')}
+                                    style={{ 
+                                        padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', fontWeight: '600', border: 'none',
+                                        backgroundColor: newItem.targetTeams.includes('all') ? '#007bff' : '#e2e8f0',
+                                        color: newItem.targetTeams.includes('all') ? 'white' : '#475569'
+                                    }}>
+                                    {t('all')}
+                                </button>
+                                {oosSelectableTeams.map(team => {
+                                    const isSelected = newItem.targetTeams.includes(team.id);
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={team.id}
+                                            onClick={() => {
+                                                const allowedTeamIds = new Set(oosSelectableTeams.map(team => team.id));
+                                                let newTargets = newItem.targetTeams.filter(t => t !== 'all' && allowedTeamIds.has(t));
+                                                if (isSelected) {
+                                                    newTargets = newTargets.filter(t => t !== team.id);
+                                                    if (newTargets.length === 0) newTargets = ['all'];
+                                                } else {
+                                                    newTargets.push(team.id);
+                                                }
+                                                setNewItem({ ...newItem, targetTeams: newTargets });
+                                            }}
+                                            aria-pressed={isSelected}
+                                            style={{ 
+                                                padding: '4px 10px', borderRadius: '12px', fontSize: '11px', cursor: 'pointer', fontWeight: '600', border: 'none',
+                                                backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
+                                                color: isSelected ? 'white' : '#475569'
+                                            }}>
+                                            {team.name}
+                                        </button>
+                                    )
+                                })}
+                            </div>
                             <textarea
                                 placeholder={`${t('details')} (${t('optional')})`}
                                 value={newItem.details}
@@ -392,11 +597,11 @@ const EventDetails = () => {
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <input
                                     type="number"
+                                    min="0"
                                     placeholder={t('min')}
                                     value={newItem.duration}
                                     onChange={e => setNewItem({ ...newItem, duration: e.target.value })}
                                     style={{ ...styles.oosInput, width: '70px' }}
-                                    required
                                 />
                                 <button type="submit" className="btn-primary" style={{ flex: 1, padding: '8px', fontSize: '13px' }}>
                                     {editingOosId ? t('save') : t('add')}
@@ -428,7 +633,7 @@ const styles = {
     meta: { display: 'flex', gap: '20px', marginTop: '12px', color: '#64748b', fontSize: '14px' },
     metaItem: { display: 'flex', alignItems: 'center', gap: '6px' },
     statusBadge: { backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '600', color: '#475569' },
-    content: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '32px' },
+    content: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' },
     schedulingSection: { display: 'flex', flexDirection: 'column' },
     teamCard: { marginBottom: '16px', padding: '20px' },
     teamHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },

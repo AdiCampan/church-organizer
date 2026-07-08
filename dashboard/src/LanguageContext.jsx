@@ -1,6 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-
-const LanguageContext = createContext();
+import React, { useState, useEffect } from 'react';
+import { LanguageContext } from './LanguageContextCore';
 
 const translations = {
     es: {
@@ -26,6 +25,7 @@ const translations = {
         cancel: 'Cancelar',
         confirm: 'Confirmar',
         search: 'Buscar',
+        forward: 'Reenviar',
         name: 'Nombre',
         email: 'Email',
         role: 'Rol',
@@ -59,7 +59,11 @@ const translations = {
         filterByDate: 'Filtrar por fecha',
         showAll: 'Ver todos',
         eventDetails: 'Detalles del Evento',
+        viewDetails: 'Ver detalles',
         backToEvents: 'Volver a Eventos',
+        // Recurring
+        repeat: 'Crear para las siguientes',
+        weeks: 'semanas',
         // People
         peopleTitle: 'Personas',
         addPerson: 'Añadir Persona',
@@ -93,6 +97,8 @@ const translations = {
         teamsDescription: 'Los equipos agrupan a las personas por su área de servicio.',
         teamName: 'Nombre del Equipo',
         teamNamePlaceholder: 'Ej: Alabanza',
+        teamLeaders: 'Líderes del equipo',
+        noLeaderCandidates: 'No hay líderes ni administradores disponibles.',
         positions: 'Posiciones (separadas por comas)',
         positionsPlaceholder: 'Ej: Voz, Instrumento, Dirección',
         create: 'Crear',
@@ -110,6 +116,8 @@ const translations = {
         searchByTitle: 'Buscar por título...',
         artist: 'Artista',
         key: 'Tonalidad',
+        bpm: 'BPM',
+        meter: 'Compás',
         chords: 'Acordes',
         audio: 'Audio',
         loadMore: 'Cargar más canciones',
@@ -170,6 +178,20 @@ const translations = {
         momentPlaceholder: 'Momento (ej: Bienvenida)',
         noSong: '(Sin canción)',
         errorAssigning: 'Error al asignar',
+        callToRehearsal: 'Llamar a Ensayo',
+        rehearsalScheduled: 'Ensayo programado con éxito',
+        rehearsalServiceTypeRequired: 'Configura un tipo de servicio como ensayo antes de llamar a ensayo.',
+        rehearsalDayRequired: 'El tipo de servicio de ensayo no tiene configurado un día de la semana.',
+        rehearsalScheduleError: 'Error al programar el ensayo',
+        dayOfWeek: 'Día de la semana',
+        monday: 'Lunes',
+        tuesday: 'Martes',
+        wednesday: 'Miércoles',
+        thursday: 'Jueves',
+        friday: 'Viernes',
+        saturday: 'Sábado',
+        sunday: 'Domingo',
+        rehearsal: 'Ensayo',
 
         // Settings
         configTitle: 'Configuración',
@@ -188,6 +210,7 @@ const translations = {
         serviceTypeName: 'Nombre del Servicio',
         serviceTypeNamePlaceholder: 'Ej: Servicio Dominical',
         defaultStartTime: 'Hora de inicio por defecto',
+        rehearsalServiceType: 'Tipo de servicio de ensayo',
         confirmDeleteServiceType: '¿Eliminar este tipo de servicio?',
         noServiceTypes: 'No hay tipos de servicio.',
         roleName: 'Nombre del Rol',
@@ -265,6 +288,7 @@ const translations = {
         cancel: 'Anulează',
         confirm: 'Confirmă',
         search: 'Caută',
+        forward: 'Retrimite',
         name: 'Nume',
         email: 'Email',
         role: 'Rol',
@@ -298,7 +322,11 @@ const translations = {
         filterByDate: 'Filtrează după dată',
         showAll: 'Vezi toate',
         eventDetails: 'Detalii Eveniment',
+        viewDetails: 'Vezi detalii',
         backToEvents: 'Înapoi la Evenimente',
+        // Recurring
+        repeat: 'Creează pentru următoarele',
+        weeks: 'săptămâni',
         // People
         peopleTitle: 'Persoane',
         addPerson: 'Adaugă Persoană',
@@ -332,6 +360,8 @@ const translations = {
         teamsDescription: 'Echipele grupează persoanele după aria lor de serviciu.',
         teamName: 'Numele Echipei',
         teamNamePlaceholder: 'Ex: Laudă și Închinare',
+        teamLeaders: 'Liderii echipei',
+        noLeaderCandidates: 'Nu sunt lideri sau administratori disponibili.',
         positions: 'Poziții (separate prin virgulă)',
         positionsPlaceholder: 'Ex: Voce, Instrument, Direcție',
         create: 'Creează',
@@ -349,6 +379,8 @@ const translations = {
         searchByTitle: 'Caută după titlu...',
         artist: 'Artist',
         key: 'Tonalitate',
+        bpm: 'BPM',
+        meter: 'Măsură',
         chords: 'Acorduri',
         audio: 'Audio',
         loadMore: 'Încarcă mai multe cântări',
@@ -409,6 +441,20 @@ const translations = {
         momentPlaceholder: 'Moment (ex: Bun venit)',
         noSong: '(Fără cântare)',
         errorAssigning: 'Eroare la asignare',
+        callToRehearsal: 'Cheamă la Repetiție',
+        rehearsalScheduled: 'Repetiție programată cu succes',
+        rehearsalServiceTypeRequired: 'Configurează un tip de serviciu ca repetiție înainte de a chema la repetiție.',
+        rehearsalDayRequired: 'Tipul de serviciu de repetiție nu are o zi a săptămânii configurată.',
+        rehearsalScheduleError: 'Eroare la programarea repetiției',
+        dayOfWeek: 'Ziua săptămânii',
+        monday: 'Luni',
+        tuesday: 'Marți',
+        wednesday: 'Miercuri',
+        thursday: 'Joi',
+        friday: 'Vineri',
+        saturday: 'Sâmbătă',
+        sunday: 'Duminică',
+        rehearsal: 'Repetiție',
 
         // Settings
         configTitle: 'Configurare',
@@ -427,6 +473,7 @@ const translations = {
         serviceTypeName: 'Numele Serviciului',
         serviceTypeNamePlaceholder: 'Ex: Serviciu de duminică',
         defaultStartTime: 'Ora de start implicită',
+        rehearsalServiceType: 'Tip de serviciu pentru repetiție',
         confirmDeleteServiceType: 'Ștergi acest tip de serviciu?',
         noServiceTypes: 'Nu sunt tipuri de serviciu.',
         roleName: 'Numele Rolului',
@@ -504,6 +551,7 @@ const translations = {
         cancel: 'Cancel',
         confirm: 'Confirm',
         search: 'Search',
+        forward: 'Resend',
         name: 'Name',
         email: 'Email',
         role: 'Role',
@@ -537,7 +585,11 @@ const translations = {
         filterByDate: 'Filter by date',
         showAll: 'Show all',
         eventDetails: 'Event Details',
+        viewDetails: 'View details',
         backToEvents: 'Back to Events',
+        // Recurring
+        repeat: 'Create for the next',
+        weeks: 'weeks',
         // People
         peopleTitle: 'People',
         addPerson: 'Add Person',
@@ -571,6 +623,8 @@ const translations = {
         teamsDescription: 'Teams group people by their service area.',
         teamName: 'Team Name',
         teamNamePlaceholder: 'e.g. Worship',
+        teamLeaders: 'Team leaders',
+        noLeaderCandidates: 'No leaders or administrators available.',
         positions: 'Positions (comma separated)',
         positionsPlaceholder: 'e.g. Vocals, Instrument, Direction',
         create: 'Create',
@@ -588,6 +642,8 @@ const translations = {
         searchByTitle: 'Search by title...',
         artist: 'Artist',
         key: 'Key',
+        bpm: 'BPM',
+        meter: 'Meter',
         chords: 'Chords',
         audio: 'Audio',
         loadMore: 'Load more songs',
@@ -648,6 +704,20 @@ const translations = {
         momentPlaceholder: 'Moment (e.g. Welcome)',
         noSong: '(No song)',
         errorAssigning: 'Error assigning',
+        callToRehearsal: 'Call to Rehearsal',
+        rehearsalScheduled: 'Rehearsal scheduled successfully',
+        rehearsalServiceTypeRequired: 'Configure a service type as rehearsal before calling to rehearsal.',
+        rehearsalDayRequired: 'The rehearsal service type does not have a day of the week configured.',
+        rehearsalScheduleError: 'Error scheduling rehearsal',
+        dayOfWeek: 'Day of the week',
+        monday: 'Monday',
+        tuesday: 'Tuesday',
+        wednesday: 'Wednesday',
+        thursday: 'Thursday',
+        friday: 'Friday',
+        saturday: 'Saturday',
+        sunday: 'Sunday',
+        rehearsal: 'Rehearsal',
 
         // Settings
         configTitle: 'Settings',
@@ -666,6 +736,7 @@ const translations = {
         serviceTypeName: 'Service Name',
         serviceTypeNamePlaceholder: 'e.g. Sunday Service',
         defaultStartTime: 'Default start time',
+        rehearsalServiceType: 'Rehearsal service type',
         confirmDeleteServiceType: 'Delete this service type?',
         noServiceTypes: 'No service types.',
         roleName: 'Role Name',
@@ -721,7 +792,6 @@ const translations = {
 
 
 };
-
 export const LanguageProvider = ({ children }) => {
     const [language, setLanguage] = useState(localStorage.getItem('appLanguage') || 'es');
 
@@ -738,12 +808,4 @@ export const LanguageProvider = ({ children }) => {
             {children}
         </LanguageContext.Provider>
     );
-};
-
-export const useLanguage = () => {
-    const context = useContext(LanguageContext);
-    if (!context) {
-        throw new Error('useLanguage must be used within a LanguageProvider');
-    }
-    return context;
 };

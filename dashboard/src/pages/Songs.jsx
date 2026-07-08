@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { db, storage } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, where, doc, updateDoc, deleteDoc, limit, startAfter } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, doc, updateDoc, deleteDoc, limit, startAfter } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { Music, Plus, Search, FileText, Play, Trash2, X, Upload, Save, MoreVertical, ExternalLink, Eye } from 'lucide-react';
-import { useLanguage } from '../LanguageContext';
+import { Music, Plus, Search, FileText, Play, Trash2, X, Upload, Save, Pencil, ExternalLink, Youtube } from 'lucide-react';
+import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
 
 
 const Songs = () => {
     const { t } = useLanguage();
-    const [songs, setSongs] = useState([]);
-
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [previewSong, setPreviewSong] = useState(null);
-    const [isEditing, setIsEditing] = useState(null);
-    const [formData, setFormData] = useState({
+    const defaultSongFormData = {
         title: '',
         artist: '',
         key: '',
@@ -24,8 +17,21 @@ const Songs = () => {
         youtubeUrl: '',
         spotifyUrl: '',
         pdfUrl: '',
-        mp3Url: ''
-    });
+        mp3Url: '',
+        bpm: '',
+        meter: '',
+        tags: []
+    };
+    const [songs, setSongs] = useState([]);
+
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [previewSong, setPreviewSong] = useState(null);
+    const [isEditing, setIsEditing] = useState(null);
+    const [availableTags, setAvailableTags] = useState([]);
+    const [selectedTagFilters, setSelectedTagFilters] = useState([]);
+    const [formData, setFormData] = useState(defaultSongFormData);
     const [files, setFiles] = useState({
         pdf: null,
         mp3: null
@@ -38,14 +44,48 @@ const Songs = () => {
     const [hasMore, setHasMore] = useState(true);
 
     useEffect(() => {
-        fetchSongs();
+        let isMounted = true;
+
+        const loadInitialData = async () => {
+            try {
+                const [songsSnapshot, tagsSnapshot] = await Promise.all([
+                    getDocs(query(collection(db, 'songs'), orderBy('title', 'asc'), limit(20))),
+                    getDocs(collection(db, 'song_tags'))
+                ]);
+
+                if (!isMounted) return;
+
+                const songsData = songsSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return { ...data, id: doc.id };
+                });
+
+                setSongs(songsData);
+                setLastDoc(songsSnapshot.docs[songsSnapshot.docs.length - 1]);
+                setHasMore(songsSnapshot.docs.length === 20);
+                setAvailableTags(tagsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error("Error fetching songs page data:", err);
+            } finally {
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadInitialData();
+        return () => {
+            isMounted = false;
+        };
     }, []);
 
-    const fetchSongs = async (isLoadMore = false) => {
+    const fetchSongs = async (isLoadMore = false, loadAll = false) => {
         setLoading(true);
         try {
             let q;
-            if (isLoadMore && lastDoc) {
+            if (loadAll) {
+                q = query(collection(db, 'songs'), orderBy('title', 'asc'));
+            } else if (isLoadMore && lastDoc) {
                 q = query(collection(db, 'songs'), orderBy('title', 'asc'), startAfter(lastDoc), limit(20));
             } else {
                 q = query(collection(db, 'songs'), orderBy('title', 'asc'), limit(20));
@@ -65,7 +105,7 @@ const Songs = () => {
             }
 
             setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
-            setHasMore(snapshot.docs.length === 20);
+            setHasMore(!loadAll && snapshot.docs.length === 20);
         } catch (err) {
             console.error("Error fetching songs:", err);
         } finally {
@@ -84,35 +124,41 @@ const Songs = () => {
         setSearchTerm(term);
 
         if (term.length === 0) {
-            fetchSongs();
+            fetchSongs(false, selectedTagFilters.length > 0);
             return;
         }
         if (term.length < 2) return; // Prevent searching for single chars to save reads
 
-        // Retrieve more songs to filter client-side for better ux (case/accent insensitive)
+        // Retrieve the catalog before local filtering so search is not limited to the current page.
         // Note: For very large databases, we should store a normalized "searchKey" field instead.
-        const q = query(
-            collection(db, 'songs'),
-            orderBy('title', 'asc'),
-            limit(100) // Limit to 100 for safety, or increase if catalog is larger
-        );
-
-        try {
-            const snapshot = await getDocs(q);
-            const allFetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-            const normalizedTerm = normalizeText(term);
-            const filtered = allFetched.filter(song =>
-                normalizeText(song.title).includes(normalizedTerm) ||
-                normalizeText(song.artist).includes(normalizedTerm)
-            );
-
-            setSongs(filtered);
-            setHasMore(false);
-        } catch (error) {
-            console.error("Search error:", error);
-        }
+        fetchSongs(false, true);
     };
+
+    const openEditSong = (song) => {
+        setIsEditing(song);
+        setFormData({ ...defaultSongFormData, ...song, tags: song.tags || [] });
+        setShowAddModal(true);
+    };
+
+    const toggleTagFilter = (tagId) => {
+        const nextFilters = selectedTagFilters.includes(tagId)
+            ? selectedTagFilters.filter(id => id !== tagId)
+            : [...selectedTagFilters, tagId];
+
+        setSelectedTagFilters(nextFilters);
+        fetchSongs(false, nextFilters.length > 0 || searchTerm.trim().length >= 2);
+    };
+
+    const filteredSongs = songs.filter(song => {
+        const normalizedTerm = normalizeText(searchTerm.trim());
+        const matchesSearch = !normalizedTerm ||
+            normalizeText(song.title).includes(normalizedTerm) ||
+            normalizeText(song.artist).includes(normalizedTerm);
+        const matchesTags = selectedTagFilters.length === 0 ||
+            selectedTagFilters.some(tagId => song.tags?.includes(tagId));
+
+        return matchesSearch && matchesTags;
+    });
 
     const uploadFile = async (file, path) => {
         if (!file) return null;
@@ -159,11 +205,11 @@ const Songs = () => {
 
             if (isEditing) {
                 // Remove the 'id' field from data before updating to avoid pollution
-                const { id, ...saveData } = songData;
+                const { id: _id, ...saveData } = songData;
                 await updateDoc(doc(db, 'songs', isEditing.id), saveData);
             } else {
                 // Ensure we don't accidentally include an 'id' from a previous edit
-                const { id, ...saveData } = songData;
+                const { id: _id, ...saveData } = songData;
                 await addDoc(collection(db, 'songs'), {
                     ...saveData,
                     createdAt: new Date()
@@ -172,7 +218,7 @@ const Songs = () => {
 
             setShowAddModal(false);
             setIsEditing(null);
-            setFormData({ title: '', artist: '', key: '', lyrics: '', youtubeUrl: '', spotifyUrl: '', pdfUrl: '', mp3Url: '' });
+            setFormData(defaultSongFormData);
             setFiles({ pdf: null, mp3: null });
             setUploadProgress({ pdf: 0, mp3: 0 });
             fetchSongs();
@@ -203,7 +249,7 @@ const Songs = () => {
                     <h1>{t('repertoire')}</h1>
                     <p style={{ color: '#64748b' }}>{t('songsDescription')}</p>
                 </div>
-                <button className="btn-primary" onClick={() => setShowAddModal(true)} style={styles.addBtn}>
+                    <button className="btn-primary" onClick={() => { setFormData(defaultSongFormData); setShowAddModal(true); }} style={styles.addBtn}>
                     <Plus size={18} /> {t('newSong')}
                 </button>
             </div>
@@ -219,42 +265,98 @@ const Songs = () => {
                         style={styles.searchInput}
                     />
                 </div>
+                {availableTags.length > 0 && (
+                    <div style={styles.tagFilters}>
+                        {availableTags.map(tag => (
+                            <button
+                                key={tag.id}
+                                onClick={() => toggleTagFilter(tag.id)}
+                                style={{
+                                    ...styles.tagFilterBtn,
+                                    backgroundColor: selectedTagFilters.includes(tag.id) ? tag.color : 'white',
+                                    color: selectedTagFilters.includes(tag.id) ? 'white' : '#64748b',
+                                    borderColor: selectedTagFilters.includes(tag.id) ? tag.color : '#e2e8f0'
+                                }}
+                            >
+                                {tag.name}
+                            </button>
+                        ))}
+                        {selectedTagFilters.length > 0 && (
+                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(false, searchTerm.trim().length >= 2); }} style={styles.clearFilterBtn}>
+                                {t('showAll')}
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div style={styles.songsGrid}>
-                {songs.map(song => (
-                    <div key={song.id} className="card" style={styles.songCard}>
+                {filteredSongs.map(song => (
+                    <div 
+                        key={song.id} 
+                        className="card" 
+                        style={styles.songCard}
+                    >
                         <div style={styles.songMain}>
                             <div style={styles.musicIcon}>
-                                <Music size={24} color="#007bff" />
+                                <Music size={20} color="#94a3b8" />
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <h3 style={{ margin: 0, fontSize: '16px' }}>{song.title}</h3>
-                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>{song.artist} • {t('key')}: {song.key}</p>
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <h3 style={{ margin: 0, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
+                                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
+                                        {song.artist && `${song.artist} • `}{song.key} 
+                                        {song.bpm && ` • BPM: ${song.bpm}`} 
+                                        {song.meter && ` • ${song.meter}`}
+                                    </p>
+                                    {song.tags?.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            {song.tags.map(tagId => {
+                                                const tag = availableTags.find(t => t.id === tagId);
+                                                if (!tag) return null;
+                                                return (
+                                                    <span key={tagId} style={{ ...styles.tagBadge, backgroundColor: tag.color + '15', color: tag.color }}>
+                                                        {tag.name}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    <div style={{ display: 'flex', gap: '6px', marginLeft: '4px' }}>
+                                        {song.pdfUrl && (
+                                            <a href={song.pdfUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={styles.miniLink} title={t('chords')}>
+                                                <FileText size={12} />
+                                            </a>
+                                        )}
+                                        {song.mp3Url && (
+                                            <a href={song.mp3Url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={styles.miniLink} title={t('audio')}>
+                                                <Play size={12} />
+                                            </a>
+                                        )}
+                                        {song.youtubeUrl && (
+                                            <a href={song.youtubeUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={styles.miniLink} title="YouTube">
+                                                <Youtube size={12} />
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                            <div style={styles.actions}>
-                                <button style={styles.iconBtn} onClick={() => setPreviewSong(song)} title={t('viewSong')}>
-                                    <Eye size={18} />
-                                </button>
-                                <button style={styles.iconBtn} onClick={() => { setIsEditing(song); setFormData(song); setShowAddModal(true); }}>
-                                    <MoreVertical size={18} />
-                                </button>
-                            </div>
-                        </div>
-                        <div style={styles.songFooter}>
-                            <div style={styles.attachments}>
-                                {song.pdfUrl && (
-                                    <a href={song.pdfUrl} target="_blank" rel="noreferrer" style={styles.attachmentLink}>
-                                        <FileText size={14} /> {t('chords')}
-                                    </a>
-                                )}
-                                {song.mp3Url && (
-                                    <a href={song.mp3Url} target="_blank" rel="noreferrer" style={styles.attachmentLink}>
-                                        <Play size={14} /> {t('audio')}
-                                    </a>
-                                )}
-                            </div>
-                            <button onClick={() => handleDelete(song.id)} style={styles.deleteBtn}>
+                            <button
+                                type="button"
+                                onClick={() => openEditSong(song)}
+                                style={{ ...styles.iconBtn, color: '#64748b' }}
+                                aria-label={t('edit')}
+                                title={t('edit')}
+                            >
+                                <Pencil size={16} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(song.id); }} 
+                                style={{ ...styles.iconBtn, color: '#ced4da' }}
+                                onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
+                                onMouseLeave={e => e.currentTarget.style.color = '#ced4da'}
+                            >
                                 <Trash2 size={16} />
                             </button>
                         </div>
@@ -262,7 +364,7 @@ const Songs = () => {
                 ))}
             </div>
 
-            {hasMore && !searchTerm && (
+            {hasMore && !searchTerm && selectedTagFilters.length === 0 && (
                 <div style={{ textAlign: 'center', marginTop: '32px' }}>
                     <button className="btn-secondary" onClick={() => fetchSongs(true)} disabled={loading}>
                         {loading ? t('loading') : t('loadMore')}
@@ -278,7 +380,7 @@ const Songs = () => {
                             <button onClick={() => {
                                 setShowAddModal(false);
                                 setIsEditing(null);
-                                setFormData({ title: '', artist: '', key: '', lyrics: '', youtubeUrl: '', spotifyUrl: '', pdfUrl: '', mp3Url: '' });
+                                setFormData(defaultSongFormData);
                                 setFiles({ pdf: null, mp3: null });
                             }} style={styles.closeBtn}>
 
@@ -310,7 +412,7 @@ const Songs = () => {
                                 </div>
                             </div>
 
-                            <div style={styles.formRow}>
+                             <div style={styles.formRow}>
                                 <div style={styles.inputGroup}>
                                     <label>{t('key')}</label>
                                     <input type="text" value={formData.key} onChange={e => setFormData({ ...formData, key: e.target.value })} style={styles.input} />
@@ -321,13 +423,54 @@ const Songs = () => {
                                 </div>
                             </div>
 
-                            <div style={styles.inputGroup}>
+                            <div style={styles.formRow}>
+                                <div style={styles.inputGroup}>
+                                    <label>{t('bpm')}</label>
+                                    <input type="text" placeholder="120" value={formData.bpm} onChange={e => setFormData({ ...formData, bpm: e.target.value })} style={styles.input} />
+                                </div>
+                                <div style={styles.inputGroup}>
+                                    <label>{t('meter')}</label>
+                                    <input type="text" placeholder="4/4" value={formData.meter} onChange={e => setFormData({ ...formData, meter: e.target.value })} style={styles.input} />
+                                </div>
+                            </div>
+
+                             <div style={styles.inputGroup}>
                                 <label>{t('lyrics')}</label>
                                 <textarea
                                     value={formData.lyrics}
                                     onChange={e => setFormData({ ...formData, lyrics: e.target.value })}
                                     style={{ ...styles.input, minHeight: '120px' }}
                                 />
+                            </div>
+
+                            <div style={styles.inputGroup}>
+                                <label>{t('tags')}</label>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                    {availableTags.map(tag => (
+                                        <button
+                                            type="button"
+                                            key={tag.id}
+                                            onClick={() => {
+                                                const currentTags = formData.tags || [];
+                                                const newTags = currentTags.includes(tag.id)
+                                                    ? currentTags.filter(id => id !== tag.id)
+                                                    : [...currentTags, tag.id];
+                                                setFormData({ ...formData, tags: newTags });
+                                            }}
+                                            style={{
+                                                ...styles.tagSelectBtn,
+                                                backgroundColor: formData.tags?.includes(tag.id) ? tag.color : 'white',
+                                                color: formData.tags?.includes(tag.id) ? 'white' : '#64748b',
+                                                borderColor: formData.tags?.includes(tag.id) ? tag.color : '#e2e8f0'
+                                            }}
+                                        >
+                                            {tag.name}
+                                        </button>
+                                    ))}
+                                    {availableTags.length === 0 && (
+                                        <p style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>{t('noTags')}</p>
+                                    )}
+                                </div>
                             </div>
 
                             <div style={{ ...styles.sectionDivider, margin: '20px 0' }}>
@@ -388,19 +531,21 @@ const Songs = () => {
 const styles = {
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' },
     addBtn: { display: 'flex', alignItems: 'center', gap: '8px' },
-    searchContainer: { marginBottom: '32px' },
-    searchBox: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'white', padding: '12px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', maxWidth: '500px' },
-    searchInput: { border: 'none', outline: 'none', flex: 1, fontSize: '16px' },
-    songsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' },
-    songCard: { padding: '20px' },
-    songMain: { display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' },
-    musicIcon: { width: '48px', height: '48px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    actions: { alignSelf: 'flex-start' },
-    iconBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' },
-    songFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '16px' },
-    attachments: { display: 'flex', gap: '8px' },
-    attachmentLink: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#007bff', backgroundColor: '#eff6ff', padding: '6px 12px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' },
-    deleteBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1' },
+    searchContainer: { marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '16px' },
+    searchBox: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'white', padding: '12px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', width: '100%', maxWidth: '500px' },
+    tagFilters: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+    tagFilterBtn: { padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: '1px solid', cursor: 'pointer', transition: 'all 0.2s' },
+    clearFilterBtn: { background: 'none', border: 'none', color: '#007bff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: '6px' },
+    songsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' },
+    songCard: { padding: '12px 16px', transition: 'all 0.2s' },
+    songMain: { display: 'flex', alignItems: 'center', gap: '12px' },
+    musicIcon: { width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 },
+    actions: { display: 'none' },
+    iconBtn: { background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' },
+    miniLink: { color: '#007bff', background: '#eff6ff', width: '22px', height: '22px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' },
+    tagBadge: { padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase' },
+    tagSelectBtn: { padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', border: '1px solid', cursor: 'pointer', transition: 'all 0.2s' },
+    deleteBtn: { display: 'none' },
 
     modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
     modal: { width: '90%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' },
