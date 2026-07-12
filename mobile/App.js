@@ -3,7 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Activi
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
+import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
@@ -919,13 +919,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
 };
 
 // --- Service Card (For Services Tab) ---
-const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, language }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('orden'); // 'orden', 'equipos', 'horario'
-  const [expandedItemIndex, setExpandedItemIndex] = useState(null);
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [selectedSongForLyrics, setSelectedSongForLyrics] = useState(null);
-
+const ServiceCard = ({ event, t, language, onPress }) => {
   if (!event) return null;
 
   const locale = getDateLocale(language);
@@ -936,7 +930,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
     <View style={styles.card}>
       <TouchableOpacity
         style={styles.cardMain}
-        onPress={() => setExpanded(!expanded)}
+        onPress={onPress}
         activeOpacity={0.7}
       >
         <View style={styles.cardInfo}>
@@ -953,14 +947,82 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
           ) : null}
         </View>
         <View style={styles.cardActions}>
-          <View style={{ marginTop: 8 }}>
-            {expanded ? <ChevronUp size={20} color="#cbd5e1" /> : <ChevronDown size={20} color="#cbd5e1" />}
-          </View>
+          <ChevronRight size={20} color="#cbd5e1" />
         </View>
       </TouchableOpacity>
+    </View>
+  );
+};
 
-      {expanded && (
-        <View style={styles.oosSection}>
+// --- Service Detail Modal ---
+const ServiceDetailModal = ({ visible, onClose, event, globalSongsMap, teammates, teams, t, user, language }) => {
+  const [activeSubTab, setActiveSubTab] = useState('orden'); // 'orden', 'equipos', 'horario'
+  const [expandedItemIndex, setExpandedItemIndex] = useState(null);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [selectedSongForLyrics, setSelectedSongForLyrics] = useState(null);
+
+  useEffect(() => {
+    if (visible) {
+      setActiveSubTab('orden');
+      setExpandedItemIndex(null);
+      setShowLyrics(false);
+      setSelectedSongForLyrics(null);
+    }
+  }, [visible]);
+
+  if (!event) return null;
+
+  const locale = getDateLocale(language);
+  const formattedDate = event.date ? event.date.toDate().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+  const formattedTime = event.date ? event.date.toDate().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+        {/* Detail Header */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 16,
+          backgroundColor: 'white',
+          borderBottomWidth: 1,
+          borderBottomColor: '#f1f5f9'
+        }}>
+          <TouchableOpacity onPress={onClose} style={{ padding: 4, marginRight: 12 }}>
+            <ChevronLeft size={28} color="#007bff" />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1e293b' }} numberOfLines={1}>
+              {event.title}
+            </Text>
+            <Text style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+              {formattedDate} • {formattedTime}
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView style={{ flex: 1, padding: 16 }}>
+          {/* Service Info Location */}
+          {event.location ? (
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: '#e2e8f0',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <MapPin size={16} color="#64748b" />
+              <Text style={{ fontSize: 14, color: '#475569', fontWeight: '500' }}>
+                {event.location}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Sub-tabs header */}
           <View style={{ flexDirection: 'row', marginBottom: 16, backgroundColor: '#f1f5f9', borderRadius: 8, padding: 4 }}>
             <TouchableOpacity style={[styles.subTabBtn, activeSubTab === 'orden' && styles.subTabBtnActive]} onPress={() => setActiveSubTab('orden')}>
@@ -976,7 +1038,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
 
           {/* Tab content */}
           {activeSubTab === 'orden' && (
-            <View>
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 20 }}>
               {event.orderOfService && event.orderOfService.length > 0 ? (
                 event.orderOfService.map((item, index) => {
                   const sid = item.songId || item.song;
@@ -1051,7 +1113,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
           )}
 
           {activeSubTab === 'equipos' && (
-            <View>
+            <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 20 }}>
               {teammates && teammates.length > 0 ? (
                 (() => {
                   const grouped = {};
@@ -1079,7 +1141,7 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
           )}
 
           {activeSubTab === 'horario' && (
-            <View style={{ backgroundColor: 'white', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0' }}>
+            <View style={{ backgroundColor: 'white', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', marginBottom: 20 }}>
               <View style={{ marginBottom: 12 }}>
                 <Text style={{ fontSize: 12, color: '#64748b', fontWeight: '600', marginBottom: 2 }}>{t('dateAndTime')}</Text>
                 <Text style={{ fontSize: 15, color: '#1e293b', fontWeight: '500' }}>{formattedDate} {t('dateTimeSeparator')} {formattedTime}</Text>
@@ -1092,16 +1154,16 @@ const ServiceCard = ({ event, globalSongsMap, teammates, teams, t, user, languag
               )}
             </View>
           )}
+        </ScrollView>
 
-          <LyricsModal
-            visible={showLyrics}
-            onClose={() => setShowLyrics(false)}
-            song={selectedSongForLyrics}
-            t={t}
-          />
-        </View>
-      )}
-    </View>
+        <LyricsModal
+          visible={showLyrics}
+          onClose={() => setShowLyrics(false)}
+          song={selectedSongForLyrics}
+          t={t}
+        />
+      </SafeAreaView>
+    </Modal>
   );
 };
 
@@ -1124,6 +1186,7 @@ export default function App() {
   const [blockoutDates, setBlockoutDates] = useState([]);
   const [isAvailableToday, setIsAvailableToday] = useState(true);
   const [language, setLanguage] = useState('es');
+  const [selectedServiceEvent, setSelectedServiceEvent] = useState(null);
 
   // Rejection modal state
   const [decliningAssignmentId, setDecliningAssignmentId] = useState(null);
@@ -1575,13 +1638,46 @@ export default function App() {
           </View>
         </Modal>
 
+        <ServiceDetailModal
+          visible={!!selectedServiceEvent}
+          onClose={() => setSelectedServiceEvent(null)}
+          event={selectedServiceEvent}
+          globalSongsMap={songsMap}
+          teammates={allSchedules.filter(s => s.eventId === selectedServiceEvent?.id)}
+          teams={teams}
+          t={t}
+          user={user}
+          language={language}
+        />
+
         <ScrollView style={styles.content}>
           {activeTab === 'turns' ? (
             <>
-              <Text style={styles.sectionTitle}>{t('agenda')}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={styles.sectionTitle}>{t('agenda')}</Text>
+                {(() => {
+                  // Only count pending assignments for UPCOMING events
+                  const upcomingEventIds = new Set(upcomingEvents.map(e => e.id));
+                  const pendingCount = assignments.filter(
+                    a => a.status === 'pending' && upcomingEventIds.has(a.eventId)
+                  ).length;
+                  if (pendingCount === 0) return null;
+                  return (
+                    <View style={{ backgroundColor: '#ef4444', borderRadius: 12, minWidth: 24, height: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6, marginRight: 4 }}>
+                      <Text style={{ color: 'white', fontSize: 13, fontWeight: '700' }}>{pendingCount}</Text>
+                    </View>
+                  );
+                })()}
+              </View>
               {loading && <ActivityIndicator color="#007bff" style={{ marginVertical: 20 }} />}
               {(() => {
-                const myEvents = upcomingEvents.filter(event => assignments.some(a => a.eventId === event.id));
+                const myEvents = upcomingEvents
+                  .filter(event => assignments.some(a => a.eventId === event.id))
+                  .sort((a, b) => {
+                    const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+                    const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+                    return dateA - dateB;
+                  });
                 if (myEvents.length === 0 && !loading) {
                   return (
                     <View style={styles.emptyState}>
@@ -1625,12 +1721,9 @@ export default function App() {
                   <ServiceCard
                     key={event.id}
                     event={event}
-                    globalSongsMap={songsMap}
-                    teammates={allSchedules.filter(s => s.eventId === event.id)}
-                    teams={teams}
                     t={t}
-                    user={user}
                     language={language}
+                    onPress={() => setSelectedServiceEvent(event)}
                   />
                 ))
               )}

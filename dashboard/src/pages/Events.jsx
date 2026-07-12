@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, Timestamp, deleteDoc, doc, updateDoc, where, serverTimestamp, writeBatch, limit } from 'firebase/firestore';
 import { Calendar as CalendarIcon, Plus, Clock, MapPin, Trash2, Edit2, Users, Music, ChevronDown, ChevronUp, CheckCircle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../useLanguage';
@@ -183,33 +183,66 @@ const Events = () => {
         }
     };
 
-    const handleQuickAdd = (type) => {
-        const now = new Date();
-        let targetDate = new Date();
-        
-        if (type.dayOfWeek !== undefined && type.dayOfWeek !== '') {
-            const targetDayNum = parseInt(type.dayOfWeek);
-            const currentDayNum = now.getDay();
-            let diff = targetDayNum - currentDayNum;
-            if (diff < 0) diff += 7;
-            targetDate.setDate(now.getDate() + diff);
-        }
+    const handleQuickAdd = async (type) => {
+        setLoading(true);
+        try {
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            let targetDate = new Date();
 
-        const dateStr = formatLocalDate(targetDate);
-        setNewEvent({
-            title: type.name,
-            date: dateStr,
-            time: type.defaultStartTime || '',
-            description: '',
-            locationId: type.locationId || '',
-            serviceTypeId: type.id,
-            repeatCount: 1
-        });
-        setEditingEvent(null);
-        setShowAddForm(true);
-        setTimeout(() => {
-            formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
+            // Query all events from today onwards ordered by date
+            const q = query(
+                collection(db, 'events'),
+                where('date', '>=', Timestamp.fromDate(startOfToday)),
+                orderBy('date', 'asc')
+            );
+            const snap = await getDocs(q);
+            
+            // Filter events in memory by serviceTypeId
+            const futureEventsOfType = snap.docs
+                .map(doc => doc.data())
+                .filter(e => e.serviceTypeId === type.id);
+
+            let latestEventDate = null;
+            if (futureEventsOfType.length > 0) {
+                latestEventDate = futureEventsOfType[futureEventsOfType.length - 1].date.toDate();
+            }
+
+            if (latestEventDate) {
+                // Since latestEventDate is >= startOfToday, schedule the next one exactly 7 days after it
+                targetDate = new Date(latestEventDate);
+                targetDate.setDate(targetDate.getDate() + 7);
+            } else {
+                // If no upcoming event exists yet, schedule for the next occurrence starting today
+                if (type.dayOfWeek !== undefined && type.dayOfWeek !== '') {
+                    const targetDayNum = parseInt(type.dayOfWeek);
+                    const currentDayNum = now.getDay();
+                    let diff = targetDayNum - currentDayNum;
+                    if (diff < 0) diff += 7;
+                    targetDate.setDate(now.getDate() + diff);
+                }
+            }
+
+            const dateStr = formatLocalDate(targetDate);
+            setNewEvent({
+                title: type.name,
+                date: dateStr,
+                time: type.defaultStartTime || '',
+                description: '',
+                locationId: type.locationId || '',
+                serviceTypeId: type.id,
+                repeatCount: 1
+            });
+            setEditingEvent(null);
+            setShowAddForm(true);
+            setTimeout(() => {
+                formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        } catch (err) {
+            console.error("Error in quick add:", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (

@@ -452,9 +452,23 @@ const EventDetails = () => {
 
                 {/* Order of Service */}
                 <div style={styles.sidePanel}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                        <Clock size={20} color="#64748b" />
-                        <h2 style={{ margin: 0 }}>{t('orderOfService')}</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Clock size={20} color="#64748b" />
+                            <h2 style={{ margin: 0 }}>{t('orderOfService')}</h2>
+                        </div>
+                        {oos.length > 0 && (() => {
+                            const totalMin = oos.reduce((sum, item) => sum + (parseInt(item.duration) || 0), 0);
+                            if (totalMin === 0) return null;
+                            const h = Math.floor(totalMin / 60);
+                            const m = totalMin % 60;
+                            const display = h > 0 ? `${h}h ${m > 0 ? m + 'min' : ''}` : `${m} min`;
+                            return (
+                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#007bff', backgroundColor: '#eff6ff', padding: '4px 10px', borderRadius: '100px' }}>
+                                    ⏱ {display} total
+                                </span>
+                            );
+                        })()}
                     </div>
 
 
@@ -467,19 +481,23 @@ const EventDetails = () => {
                                 oos.map((item, index) => (
                                     <div key={item.id} style={styles.oosItem}>
                                         <div style={styles.oosNumber}>{index + 1}</div>
-                                        <div style={styles.oosContent}>
+                                        <div
+                                            style={{ ...styles.oosContent, cursor: 'pointer' }}
+                                            onClick={() => handleEditOOSItem(item)}
+                                            title="Haz clic para editar"
+                                        >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 <div style={styles.oosTitleText}>{item.title}</div>
                                                 {item.songId && <Music size={12} color="#007bff" />}
                                             </div>
                                             <div style={styles.oosDurationText}>
-                                                {item.duration && `${item.duration} ${t('min')}`}
+                                                {item.duration && <span style={{ color: '#475569', fontWeight: '600' }}>{item.duration} min</span>}
 
                                                 {item.songId && (
                                                     <>
                                                         {item.duration ? ' • ' : ''}
                                                         <span
-                                                            onClick={() => setPreviewSong(allSongs.find(s => s.id === item.songId))}
+                                                            onClick={(e) => { e.stopPropagation(); setPreviewSong(allSongs.find(s => s.id === item.songId)); }}
                                                             style={{ color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
                                                         >
                                                             {allSongs.find(s => s.id === item.songId)?.title}
@@ -494,10 +512,10 @@ const EventDetails = () => {
                                             )}
                                         </div>
                                         <div style={{ display: 'flex', gap: '4px' }}>
-                                            <button onClick={() => handleEditOOSItem(item)} style={styles.actionBtn}>
+                                            <button onClick={(e) => { e.stopPropagation(); handleEditOOSItem(item); }} style={styles.actionBtn}>
                                                 <Edit2 size={14} />
                                             </button>
-                                            <button onClick={() => handleRemoveOOSItem(item.id)} style={styles.deleteBtn}>
+                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveOOSItem(item.id); }} style={styles.deleteBtn}>
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
@@ -519,7 +537,15 @@ const EventDetails = () => {
                             />
                             <select
                                 value={newItem.songId}
-                                onChange={e => setNewItem({ ...newItem, songId: e.target.value })}
+                                onChange={e => {
+                                    const selectedSong = allSongs.find(s => s.id === e.target.value);
+                                    setNewItem({
+                                        ...newItem,
+                                        songId: e.target.value,
+                                        // Auto-fill duration from song if available and duration not already set manually
+                                        duration: selectedSong?.duration || newItem.duration || ''
+                                    });
+                                }}
                                 style={styles.oosInput}
                             >
                                 <option value="">{t('noSong')}</option>
@@ -575,10 +601,11 @@ const EventDetails = () => {
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <input
                                     type="number"
-                                    placeholder={t('min')}
+                                    placeholder="Duración (min)"
                                     value={newItem.duration}
                                     onChange={e => setNewItem({ ...newItem, duration: e.target.value })}
-                                    style={{ ...styles.oosInput, width: '70px' }}
+                                    style={{ ...styles.oosInput, width: '110px' }}
+                                    min="0"
                                 />
                                 <button type="submit" className="btn-primary" style={{ flex: 1, padding: '8px', fontSize: '13px' }}>
                                     {editingOosId ? t('save') : t('add')}
