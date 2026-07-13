@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.28.0",
+    "version": ">= 20.5.1",
     "appVersionSource": "remote"
   },
   "build": {
@@ -14,7 +14,24 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
+      }
+    },
+    "churchteams": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC6pZYxoN437Ns3Smkk9TRCnWHeWKJsu3A",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "church-teams.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_DATABASE_URL": "https://church-teams.firebaseio.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "church-teams",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "church-teams.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "973766657344",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:973766657344:web:cbec3b33f3b2cf5c7ca6a5",
+        "EXPO_PUBLIC_APP_NAME": "Church Teams",
+        "EXPO_PUBLIC_APP_SLUG": "church-teams",
+        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.cds.churchteams",
+        "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.cds.churchteams",
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
       }
     },
     "ebenezer": {
@@ -28,7 +45,9 @@
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "973766657344",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:973766657344:web:cbec3b33f3b2cf5c7ca6a5",
         "EXPO_PUBLIC_APP_NAME": "Church Teams",
-        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.adi_es.mobile",
+        "EXPO_PUBLIC_APP_SLUG": "church-teams",
+        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.cds.churchteams",
+        "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.cds.churchteams",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
       }
     },
@@ -43,12 +62,28 @@
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "757330565566",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:757330565566:web:1fdf17b7d0a724f9c8c1ef",
         "EXPO_PUBLIC_APP_NAME": "Betel Dej Teams",
+        "EXPO_PUBLIC_APP_SLUG": "betel-dej-teams",
         "EXPO_PUBLIC_ANDROID_PACKAGE": "com.beteldej.teams",
+        "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.beteldej.teams",
         "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {}
+    },
+    "churchteams": {
+      "extends": "production"
+    },
+    "ebenezer": {
+      "extends": "production"
+    },
+    "beteldej": {
+      "extends": "production"
+    }
   }
 }
