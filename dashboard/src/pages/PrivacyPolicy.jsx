@@ -1,8 +1,13 @@
 const sections = [
   {
+    title: 'Responsable de la aplicación',
+    content:
+      'El responsable y desarrollador de Church Teams es Calatayud Digital Solutions. Para cualquier consulta relacionada con privacidad o protección de datos, puedes escribir a info@calatayud-digital-solutions.es.',
+  },
+  {
     title: 'Datos que recopilamos',
     content:
-      'Church Teams utiliza los datos necesarios para gestionar usuarios, equipos, servicios, disponibilidad, asignaciones, comunicaciones internas y notificaciones relacionadas con la organización de la iglesia.',
+      'Church Teams almacena en Firebase Auth y Firestore los datos necesarios para la gestión interna de la aplicación: nombre, dirección de correo electrónico, identificador de usuario, teléfono cuando el usuario lo facilita, rol, disponibilidad, fechas bloqueadas, asignaciones, estado de confirmación o rechazo, motivos de rechazo, equipos, comunicaciones internas y tokens técnicos de notificaciones push.',
   },
   {
     title: 'Uso de los datos',
@@ -12,12 +17,12 @@ const sections = [
   {
     title: 'Servicios de terceros',
     content:
-      'La aplicación usa Firebase de Google para autenticación, base de datos, almacenamiento y notificaciones. Estos servicios pueden procesar datos técnicos necesarios para mantener la seguridad y el funcionamiento de la aplicación.',
+      'La aplicación usa Firebase de Google para autenticación, base de datos, almacenamiento y notificaciones. Estos servicios pueden procesar datos técnicos necesarios para mantener la seguridad y el funcionamiento de la aplicación, como identificadores de usuario, tokens de dispositivo, datos de sesión y registros técnicos asociados al servicio.',
   },
   {
     title: 'Conservación y eliminación',
     content:
-      'Los datos se conservan mientras la cuenta esté activa o mientras sean necesarios para la coordinación de los servicios. Puedes solicitar la eliminación o corrección de tus datos contactando con el responsable de la aplicación.',
+      'Los datos se conservan mientras la cuenta esté activa o mientras sean necesarios para la coordinación de los servicios. Para solicitar la baja, corrección o eliminación de la cuenta y de sus datos asociados, el usuario debe escribir a info@calatayud-digital-solutions.es indicando el correo de la cuenta. Tras verificar la solicitud, se eliminará o anonimizará la cuenta de Firebase Auth y la información asociada en Firestore que ya no sea necesaria.',
   },
   {
     title: 'Seguridad',
