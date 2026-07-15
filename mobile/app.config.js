@@ -16,6 +16,7 @@ export default {
             "bundleIdentifier": process.env.EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER || "com.cds.churchteams",
             "supportsTablet": true,
             "infoPlist": {
+                "ITSAppUsesNonExemptEncryption": false,
                 "UIBackgroundModes": [
                     "remote-notification"
                 ]
@@ -40,10 +41,10 @@ export default {
         },
         "extra": {
             "eas": {
-                "projectId": process.env.EXPO_PUBLIC_EAS_PROJECT_ID || "4e97cd73-f633-4e29-9d97-a2972277401c"
+                "projectId": process.env.EXPO_PUBLIC_EAS_PROJECT_ID || "75d64b3b-31d1-4d5c-970b-533785e08e4f"
             }
         },
-        "owner": "adi_es",
+        "owner": process.env.EXPO_PUBLIC_EAS_OWNER || "calaespi",
         "plugins": [
             "@react-native-community/datetimepicker"
         ]

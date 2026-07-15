@@ -15,6 +15,7 @@ import EventDetails from './pages/EventDetails';
 import Songs from './pages/Songs';
 import Announcements from './pages/Announcements';
 import Settings from './pages/Settings';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { useLanguage } from './useLanguage';
 
 const APP_VERSION = "1.0.6";
@@ -119,6 +120,10 @@ function App() {
   const handleLogout = () => {
     signOut(auth);
   };
+
+  if (window.location.pathname === '/privacy-policy') {
+    return <PrivacyPolicy />;
+  }
 
   if (loading) {
     return (
