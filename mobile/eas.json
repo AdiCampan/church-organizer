@@ -31,7 +31,7 @@
         "EXPO_PUBLIC_APP_SLUG": "church-teams",
         "EXPO_PUBLIC_ANDROID_PACKAGE": "com.cds.churchteams",
         "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.cds.churchteams",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "75d64b3b-31d1-4d5c-970b-533785e08e4f"
       }
     },
     "ebenezer": {
@@ -48,7 +48,7 @@
         "EXPO_PUBLIC_APP_SLUG": "church-teams",
         "EXPO_PUBLIC_ANDROID_PACKAGE": "com.cds.churchteams",
         "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.cds.churchteams",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "75d64b3b-31d1-4d5c-970b-533785e08e4f"
       }
     },
     "beteldej": {
@@ -65,7 +65,7 @@
         "EXPO_PUBLIC_APP_SLUG": "betel-dej-teams",
         "EXPO_PUBLIC_ANDROID_PACKAGE": "com.beteldej.teams",
         "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.beteldej.teams",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "4e97cd73-f633-4e29-9d97-a2972277401c"
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "75d64b3b-31d1-4d5c-970b-533785e08e4f"
       }
     }
   },
