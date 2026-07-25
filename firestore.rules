@@ -35,11 +35,14 @@ service cloud.firestore {
     match /teams/{teamId} {
       allow read: if hasTeamAccess(teamId);
       allow create: if isAdmin();
-      allow update: if isAdmin() || hasTeamAccess(teamId);
+      allow update: if isAdmin() || 
+                      (hasTeamAccess(teamId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['members', 'leaders', 'admins']));
       allow delete: if isAdmin();
     }
 
-    // Events collection - admin or team member access
+    // Events collection - read for authenticated users, write for admins
+    // TODO: Restrict read access based on event.teamId once schema is confirmed
     match /events/{eventId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -47,7 +50,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Schedules collection - admin or team member access
+    // Schedules collection - read for authenticated users, write for admins
+    // TODO: Restrict read access based on schedule.userId or schedule.teamId once schema is confirmed
     match /schedules/{scheduleId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
@@ -55,7 +59,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Notifications collection - read own, admin can write
+    // Notifications collection - read for authenticated users, write for admins
+    // TODO: Restrict read access based on notification.userId or notification.targetTeamId once schema is confirmed
     match /notifications/{notificationId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();

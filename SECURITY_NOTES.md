@@ -7,7 +7,7 @@ Los siguientes archivos contienen credenciales sensibles en texto plano que debe
 ### 1. APPLE_REVIEW_ACCOUNT.md
 **Credenciales expuestas:**
 - Email: applereview@beteldej.teams
-- Password: AppleReview2026!Betel
+- Password: [REDACTED - must be rotated immediately]
 
 **Ubicaciones:**
 - Líneas 7-15 (información de inicio de sesión)
@@ -17,7 +17,7 @@ Los siguientes archivos contienen credenciales sensibles en texto plano que debe
 ### 2. create-test-user.js
 **Credenciales expuestas:**
 - Email: reviewer@googleplay.com
-- Password: GooglePlay2026Review!
+- Password: [REDACTED - must be rotated immediately]
 
 **Ubicaciones:**
 - Líneas 18-35 (función createTestUser)
@@ -28,7 +28,7 @@ Los siguientes archivos contienen credenciales sensibles en texto plano que debe
 
 ### 3. CAPTURAS_REALES_GUIA.md
 **Credenciales expuestas:**
-- Email y password de Google Play reviewer
+- Email y password de Google Play reviewer [REDACTED]
 
 **Ubicaciones:**
 - Líneas 24-26
