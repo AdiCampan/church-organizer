@@ -17,7 +17,7 @@
 - ✅ Perfil EAS `beteldej` configurado
 - ✅ Variables de entorno en eas.json
 - ✅ App.config.js con lógica multi-tenant
-- ✅ Reglas de Firestore y Storage
+- ✅ Reglas de Firestore
 - ✅ Dashboard web configurado
 
 ### 4. Build Android
@@ -77,7 +77,6 @@ church-organizer/
 ├── BETEL_SETUP.md (documentación completa)
 ├── .firebaserc (alias de proyectos)
 ├── firestore.rules (reglas de seguridad)
-├── storage.rules (reglas de seguridad)
 ├── mobile/
 │   ├── assets-beteldej/ (iconos personalizados)
 │   ├── firebase-secrets/beteldej/ (configuración Firebase)

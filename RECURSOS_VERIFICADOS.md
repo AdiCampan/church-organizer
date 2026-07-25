@@ -3,14 +3,14 @@
 ## ✅ ARCHIVOS FINALES CON TAMAÑOS CORRECTOS
 
 ### 1. Icono de la aplicación
-- **Archivo**: `store-assets/play-store/icon-512x512.png`
+- **Archivo**: `store-assets/app-icon-512x512.png`
 - **Tamaño**: ✅ **512 x 512 px** (VERIFICADO)
 - **Formato**: PNG
 - **Peso**: ~285 KB
 - **Estado**: ✅ **LISTO PARA SUBIR**
 
 ### 2. Gráfico de funciones (Feature Graphic)
-- **Archivo**: `store-assets/play-store/feature-graphic-1024x500.png`
+- **Archivo**: `store-assets/play-store/feature-graphic.png`
 - **Tamaño**: ✅ **1024 x 500 px** (VERIFICADO)
 - **Formato**: PNG
 - **Peso**: ~612 KB
@@ -21,12 +21,12 @@
 ## 📋 Textos para Google Play Store
 
 ### Nombre de la aplicación (15/30)
-```
+```text
 Betel Dej Teams
 ```
 
-### Descripción breve (78/80)
-```
+### Descripción breve (66/80)
+```text
 Gestionează echipele și evenimentele bisericii tale într-un singur loc.
 ```
 
@@ -59,7 +59,7 @@ Ver archivo: `PLAY_STORE_LISTING.md`
 
 ## 📂 Estructura de archivos
 
-```
+```text
 store-assets/play-store/
 ├── icon-512x512.png              ✅ 512x512px - CORRECTO
 ├── feature-graphic-1024x500.png  ✅ 1024x500px - CORRECTO
@@ -94,9 +94,7 @@ store-assets/play-store/
 
 2. Instalar en Android o emulador
 
-3. Login con cuenta de prueba:
-   - Email: `reviewer@googleplay.beteldej.com`
-   - Password: `ReviewBetel2026!`
+3. Login con cuenta de prueba (credenciales en gestor de secretos interno)
 
 4. Tomar capturas de las pantallas principales
 

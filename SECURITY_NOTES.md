@@ -1,0 +1,108 @@
+# Notas de Seguridad - Credenciales Expuestas
+
+## CRÍTICO: Credenciales en texto plano detectadas
+
+Los siguientes archivos contienen credenciales sensibles en texto plano que deben eliminarse del repositorio:
+
+### 1. APPLE_REVIEW_ACCOUNT.md
+**Credenciales expuestas:**
+- Email: applereview@beteldej.teams
+- Password: AppleReview2026!Betel
+
+**Ubicaciones:**
+- Líneas 7-15 (información de inicio de sesión)
+- Líneas 21-40 (notas para revisores)
+- Líneas 49-57 (configuración App Store Connect)
+
+### 2. create-test-user.js
+**Credenciales expuestas:**
+- Email: reviewer@googleplay.com
+- Password: GooglePlay2026Review!
+
+**Ubicaciones:**
+- Líneas 18-35 (función createTestUser)
+
+**Problemas adicionales:**
+- Líneas 4-12: Configuración incorrecta de service account con privateKey dummy
+- El usuario de prueba recibe rol 'admin' automáticamente
+
+### 3. CAPTURAS_REALES_GUIA.md
+**Credenciales expuestas:**
+- Email y password de Google Play reviewer
+
+**Ubicaciones:**
+- Líneas 24-26
+
+## Acciones Requeridas
+
+### Paso 1: Rotar TODAS las contraseñas
+1. **Cuenta Apple Review** (applereview@beteldej.teams)
+   - Ir a Firebase Console: https://console.firebase.google.com/project/beteldej-teams/authentication/users
+   - Cambiar contraseña a una nueva segura
+   - Actualizar credenciales en App Store Connect (sección privada "App Review Information")
+
+2. **Cuenta Google Play** (reviewer@googleplay.com o reviewer@googleplay.beteldej.com)
+   - Ir a Firebase Console
+   - Cambiar contraseña
+   - Actualizar en Google Play Console (solo en campo interno, NO en documentación pública)
+
+### Paso 2: Usar gestor de secretos
+Las credenciales de prueba deben almacenarse SOLO en:
+- **App Store Connect**: Campo privado "App Review Information"
+- **Google Play Console**: Campo interno de notas de revisión
+- **Gestor de secretos interno**: Para uso del equipo (1Password, LastPass, etc.)
+
+### Paso 3: Eliminar del repositorio
+Eliminar las credenciales de:
+- APPLE_REVIEW_ACCOUNT.md (todo el archivo o reemplazar por instrucciones genéricas)
+- create-test-user.js (no debe contener credenciales hardcoded)
+- CAPTURAS_REALES_GUIA.md
+- APP_STORE_LISTING.md
+- Cualquier otro archivo de documentación
+
+### Paso 4: Limpiar historial de Git
+Después de eliminar las credenciales, considerar usar herramientas como:
+- `git filter-branch` o `git-filter-repo`
+- BFG Repo-Cleaner
+
+Para eliminar las credenciales del historial completo del repositorio.
+
+## Mejoras de Seguridad Adicionales
+
+### create-test-user.js
+1. **Service Account**: Cargar desde variable de entorno o archivo .env (NO commitear)
+2. **Rol de usuario**: NO asignar 'admin' automáticamente, usar rol mínimo necesario
+3. **Credenciales**: Leer desde variables de entorno:
+   ```javascript
+   const testEmail = process.env.TEST_USER_EMAIL;
+   const testPassword = process.env.TEST_USER_PASSWORD;
+   ```
+
+### Firestore Rules
+✅ **CORREGIDO** - Las reglas de seguridad han sido mejoradas:
+- Restringido acceso de lectura en colección users (solo owner o admin)
+- Implementada protección contra auto-modificación del campo 'role'
+- Añadidas verificaciones de pertenencia a equipo
+- Mejores controles de escritura en todas las colecciones
+
+## Estado Actual
+
+- ✅ Firestore rules mejoradas
+- ✅ delete-account.html corregido (eliminadas instrucciones inexistentes)
+- ⚠️ Credenciales AÚN EXPUESTAS en documentación
+- ⚠️ create-test-user.js necesita refactorización completa
+- ⚠️ Contraseñas deben rotarse INMEDIATAMENTE
+
+## Próximos Pasos Inmediatos
+
+1. **URGENTE**: Rotar todas las contraseñas de cuentas de prueba
+2. Eliminar credenciales de todos los archivos de documentación
+3. Actualizar create-test-user.js para usar variables de entorno
+4. Limpiar historial de Git si es posible
+5. Implementar política de no commitear credenciales en el futuro
+
+---
+
+**Fecha de detección**: 25 julio 2026
+**Severidad**: CRÍTICA
+**Estado**: Pendiente de acción del usuario

@@ -54,7 +54,7 @@ EAS creará automáticamente:
 Una vez configuradas las credenciales, ejecuta:
 
 ```bash
-cd /Users/calaespi/Desktop/Proyectos/Personales/EbenEzer/church-organizer/mobile
+cd church-organizer/mobile
 eas build -p ios --profile beteldej
 ```
 

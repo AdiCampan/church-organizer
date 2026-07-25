@@ -230,9 +230,9 @@ Privacy Policy: https://beteldej-teams.web.app/privacy-policy.html
 ## Checklist de recursos necesarios
 
 - [x] Icono 1024x1024 px
-- [ ] Capturas iPhone 6.7" (mínimo 3)
-- [ ] Capturas iPhone 6.5" (opcional)
-- [ ] Capturas iPad 12.9" (si soportas iPad)
+- [ ] Capturas iPhone 6.9" (2-10 capturas por dispositivo)
+- [ ] Capturas iPhone 6.7" (opcional, 2-10 capturas)
+- [ ] Capturas iPad 13" (si soportas iPad, 2-10 capturas)
 - [x] Textos en rumano
 - [x] Política de privacidad
 - [x] Cuenta de prueba
