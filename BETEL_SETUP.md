@@ -48,6 +48,7 @@
 ✅ `storage.rules` - Reglas de seguridad de Storage
 ✅ `dashboard/beteldej.env` - Variables de entorno para el dashboard
 ✅ `.firebaserc` - Configuración de alias de proyectos
+✅ `mobile/assets-beteldej/` - Assets personalizados (iconos, splash)
 
 ## Build commands:
 
@@ -57,6 +58,8 @@ cd mobile
 eas build -p android --profile beteldej
 ```
 
+Build completado exitosamente: https://expo.dev/accounts/calaespi/projects/church-teams/builds/4d6129dd-2fe8-465a-918c-baba667b4135
+
 ### iOS
 ```bash
 cd mobile
@@ -64,7 +67,48 @@ eas build -p ios --profile beteldej
 ```
 
 ### Submit a tiendas
+
+#### Google Play Store
 ```bash
+cd mobile
 eas submit -p android --profile beteldej
+```
+
+O descargar el .aab manualmente desde:
+https://expo.dev/artifacts/eas/OK5ggIe9II0qEUP8YWlDI6Pv40e9jf2L52MkhpRVy-Y.aab
+
+Y subirlo a Google Play Console:
+1. Ir a https://play.google.com/console
+2. Crear nueva aplicación con nombre "Betel Dej Teams"
+3. Completar el formulario de la tienda
+4. Subir el archivo .aab en "Releases" > "Production"
+5. Completar la clasificación de contenido
+6. Configurar la privacidad de datos
+7. Enviar para revisión
+
+#### Apple App Store
+```bash
+cd mobile
 eas submit -p ios --profile beteldej
 ```
+
+## Deploy Dashboard Web
+
+1. **Configurar variables de entorno**
+   ```bash
+   cd dashboard
+   cp beteldej.env .env
+   ```
+
+2. **Build del dashboard**
+   ```bash
+   npm run build
+   ```
+
+3. **Deploy a Firebase Hosting**
+   ```bash
+   firebase use beteldej
+   firebase deploy --only hosting
+   ```
+
+La web estará disponible en: https://beteldej-teams.web.app
