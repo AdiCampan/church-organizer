@@ -70,36 +70,49 @@ Para eliminar las credenciales del historial completo del repositorio.
 ## Mejoras de Seguridad Adicionales
 
 ### create-test-user.js
-1. **Service Account**: Cargar desde variable de entorno o archivo .env (NO commitear)
-2. **Rol de usuario**: NO asignar 'admin' automáticamente, usar rol mínimo necesario
-3. **Credenciales**: Leer desde variables de entorno:
-   ```javascript
-   const testEmail = process.env.TEST_USER_EMAIL;
-   const testPassword = process.env.TEST_USER_PASSWORD;
-   ```
+✅ **CORREGIDO** - Script refactorizado:
+- Service Account cargado desde archivo válido
+- Credenciales leídas desde variables de entorno (TEST_USER_EMAIL, TEST_USER_PASSWORD)
+- Rol por defecto cambiado a 'member' en lugar de 'admin'
+- Agregado archivo .env.example para documentar variables requeridas
+- Usuario de prueba ahora debe recibir rol admin manualmente en Firestore Console
+
+**Uso correcto:**
+```bash
+TEST_USER_EMAIL=user@example.com TEST_USER_PASSWORD=secure123 node create-test-user.js
+```
 
 ### Firestore Rules
 ✅ **CORREGIDO** - Las reglas de seguridad han sido mejoradas:
 - Restringido acceso de lectura en colección users (solo owner o admin)
 - Implementada protección contra auto-modificación del campo 'role'
-- Añadidas verificaciones de pertenencia a equipo
+- Añadidas verificaciones de pertenencia a equipo para colección teams
+- Protección contra modificación de campos de autorización en teams (members, leaders, admins)
 - Mejores controles de escritura en todas las colecciones
+
+⚠️ **LIMITACIÓN DE DISEÑO**: Events, schedules y notifications mantienen acceso de lectura para usuarios autenticados porque:
+- Events usa `requiredTeams` (array) en lugar de un único `teamId`
+- Schedules se relaciona con eventos, no directamente con teams
+- Notifications puede ser global o por equipo (`targetTeamId`)
+- El esquema actual está diseñado para visibilidad global de eventos
+- Aplicar `hasTeamAccess` requeriría refactorización del esquema de datos
 
 ## Estado Actual
 
-- ✅ Firestore rules mejoradas
-- ✅ delete-account.html corregido (eliminadas instrucciones inexistentes)
-- ⚠️ Credenciales AÚN EXPUESTAS en documentación
-- ⚠️ create-test-user.js necesita refactorización completa
+- ✅ Firestore rules mejoradas (con limitaciones documentadas)
+- ✅ delete-account.html actualizado con verificación de propiedad
+- ✅ create-test-user.js refactorizado para usar variables de entorno
+- ⚠️ Credenciales AÚN EXPUESTAS en APPLE_REVIEW_ACCOUNT.md (requiere acción manual)
 - ⚠️ Contraseñas deben rotarse INMEDIATAMENTE
 
 ## Próximos Pasos Inmediatos
 
 1. **URGENTE**: Rotar todas las contraseñas de cuentas de prueba
-2. Eliminar credenciales de todos los archivos de documentación
-3. Actualizar create-test-user.js para usar variables de entorno
-4. Limpiar historial de Git si es posible
+2. **URGENTE**: Eliminar o mover APPLE_REVIEW_ACCOUNT.md fuera del repositorio
+3. Purgar credenciales del historial de Git usando git-filter-repo
+4. Crear archivo .env con credenciales de prueba (NO commitear)
 5. Implementar política de no commitear credenciales en el futuro
+6. Considerar refactorización de esquema para mejor aislamiento por equipo (opcional)
 
 ---
 
