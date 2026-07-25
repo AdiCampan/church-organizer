@@ -1,19 +1,14 @@
 {
   "projects": {
-    "default": "church-teams"
+    "default": "church-teams",
+    "ebenezer": "church-teams",
+    "beteldej": "beteldej-teams"
   },
   "targets": {
-    "church-teams-8ea48": {
+    "beteldej-teams": {
       "hosting": {
         "webapp": [
-          "teams-betel-dej"
-        ]
-      }
-    },
-    "church-teams": {
-      "hosting": {
-        "webapp": [
-          "church-teams"
+          "beteldej-teams"
         ]
       }
     }
