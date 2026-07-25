@@ -84,7 +84,17 @@
       "extends": "production"
     },
     "beteldej": {
-      "extends": "production"
+      "extends": "production",
+      "ios": {
+        "appleId": "victor.calatayud.espinosa@gmail.com",
+        "appleTeamId": "VVBV3CKVWZ",
+        "bundleIdentifier": "com.beteldej.teams",
+        "language": "RO",
+        "companyName": "Victor Calatayud"
+      },
+      "android": {
+        "track": "internal"
+      }
     }
   }
 }
