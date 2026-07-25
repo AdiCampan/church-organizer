@@ -4,32 +4,23 @@
 
 ### Pasos necesarios en la consola de Firebase:
 
-1. **Habilitar Firestore Database**
+1. **Habilitar Firestore Database** ✅ YA CONFIGURADO
    - Ir a: https://console.firebase.google.com/project/beteldej-teams/firestore
    - Hacer click en "Create database"
    - Seleccionar el modo "Production mode"
    - Elegir región: europe-west (o la más cercana)
+   - **Estado**: ✅ Reglas de seguridad desplegadas correctamente
 
-2. **Habilitar Firebase Storage**
-   - Ir a: https://console.firebase.google.com/project/beteldej-teams/storage
-   - Hacer click en "Get Started"
-   - Aceptar las reglas de seguridad por defecto
-   - Elegir la misma región que Firestore
-
-3. **Habilitar Firebase Authentication**
+2. **Habilitar Firebase Authentication**
    - Ir a: https://console.firebase.google.com/project/beteldej-teams/authentication
    - Hacer click en "Get Started"
-   - Habilitar el proveedor "Email/Password"
+   - En la pestaña "Sign-in method", habilitar el proveedor "Email/Password"
 
-4. **Habilitar Cloud Messaging (para notificaciones push)**
+3. **Verificar Cloud Messaging (para notificaciones push)**
    - Ir a: https://console.firebase.google.com/project/beteldej-teams/settings/cloudmessaging
-   - Verificar que FCM esté habilitado
+   - Verificar que FCM esté habilitado (debería estar por defecto)
 
-5. **Después de habilitar los servicios, ejecutar:**
-   ```bash
-   firebase use beteldej
-   firebase deploy --only firestore:rules,storage:rules
-   ```
+**Nota**: Firebase Storage NO se usa en este proyecto para evitar costos del plan Blaze. Todas las imágenes y archivos se manejan localmente o mediante URLs externas.
 
 ## Credenciales ya configuradas:
 

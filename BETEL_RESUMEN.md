@@ -26,18 +26,13 @@
 
 ## 📋 Próximos Pasos Manuales
 
-### 1. Habilitar servicios Firebase (5 minutos)
+### 1. Habilitar servicios Firebase (3 minutos)
 Ir a https://console.firebase.google.com/project/beteldej-teams y habilitar:
-- Firestore Database
-- Firebase Storage
-- Firebase Authentication (Email/Password)
-- Cloud Messaging
+- ✅ **Firestore Database** - YA CONFIGURADO (reglas desplegadas)
+- ⏳ **Firebase Authentication** - Habilitar proveedor Email/Password
+- ⏳ **Cloud Messaging** - Verificar que esté habilitado
 
-Luego ejecutar:
-```bash
-firebase use beteldej
-firebase deploy --only firestore:rules,storage:rules
-```
+**Nota**: Firebase Storage NO se usa para evitar costos del plan Blaze.
 
 ### 2. Crear cuenta Google Play Console (30 minutos)
 1. Ir a https://play.google.com/console
