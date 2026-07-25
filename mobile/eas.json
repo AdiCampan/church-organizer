@@ -54,18 +54,19 @@
     "beteldej": {
       "extends": "production",
       "env": {
-        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAnuqZ9u7Rvz7_ntMFDTZG0JSrIabyML8Q",
-        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "church-teams-8ea48.firebaseapp.com",
-        "EXPO_PUBLIC_FIREBASE_DATABASE_URL": "https://church-teams-8ea48-default-rtdb.firebaseio.com",
-        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "church-teams-8ea48",
-        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "church-teams-8ea48.firebasestorage.app",
-        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "757330565566",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:757330565566:web:1fdf17b7d0a724f9c8c1ef",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyCzfrftr6Ka6G-TR-o9r-oWbtWJdtpfnUk",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "beteldej-teams.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_DATABASE_URL": "https://beteldej-teams-default-rtdb.firebaseio.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "beteldej-teams",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "beteldej-teams.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "852946760638",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:852946760638:android:0161ddb349ba854c913fef",
         "EXPO_PUBLIC_APP_NAME": "Betel Dej Teams",
-        "EXPO_PUBLIC_APP_SLUG": "betel-dej-teams",
+        "EXPO_PUBLIC_APP_SLUG": "church-teams",
         "EXPO_PUBLIC_ANDROID_PACKAGE": "com.beteldej.teams",
         "EXPO_PUBLIC_IOS_BUNDLE_IDENTIFIER": "com.beteldej.teams",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "75d64b3b-31d1-4d5c-970b-533785e08e4f"
+        "EXPO_PUBLIC_EAS_PROJECT_ID": "75d64b3b-31d1-4d5c-970b-533785e08e4f",
+        "EXPO_PUBLIC_ANDROID_GOOGLE_SERVICES_FILE": "./google-services.json"
       }
     }
   },

@@ -4,11 +4,11 @@ export default {
         "slug": process.env.EXPO_PUBLIC_APP_SLUG || "church-teams",
         "version": "1.0.0",
         "orientation": "portrait",
-        "icon": "./assets/adaptive-icon.png",
+        "icon": process.env.EXPO_PUBLIC_ANDROID_PACKAGE === "com.beteldej.teams" ? "./assets-beteldej/adaptive-icon.png" : "./assets/adaptive-icon.png",
         "userInterfaceStyle": "light",
         "newArchEnabled": false,
         "splash": {
-            "image": "./assets/splash-icon.png",
+            "image": process.env.EXPO_PUBLIC_ANDROID_PACKAGE === "com.beteldej.teams" ? "./assets-beteldej/splash-icon.png" : "./assets/splash-icon.png",
             "resizeMode": "contain",
             "backgroundColor": "#ffffff"
         },
@@ -24,7 +24,7 @@ export default {
         },
         "android": {
             "adaptiveIcon": {
-                "foregroundImage": "./assets/adaptive-icon.png",
+                "foregroundImage": process.env.EXPO_PUBLIC_ANDROID_PACKAGE === "com.beteldej.teams" ? "./assets-beteldej/adaptive-icon.png" : "./assets/adaptive-icon.png",
                 "backgroundColor": "#ffffff"
             },
             "edgeToEdgeEnabled": true,
@@ -37,7 +37,7 @@ export default {
             "package": process.env.EXPO_PUBLIC_ANDROID_PACKAGE || "com.cds.churchteams"
         },
         "web": {
-            "favicon": "./assets/favicon.png"
+            "favicon": process.env.EXPO_PUBLIC_ANDROID_PACKAGE === "com.beteldej.teams" ? "./assets-beteldej/favicon.png" : "./assets/favicon.png"
         },
         "extra": {
             "eas": {
