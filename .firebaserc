@@ -3,5 +3,15 @@
     "default": "church-teams",
     "ebenezer": "church-teams",
     "beteldej": "beteldej-teams"
-  }
+  },
+  "targets": {
+    "beteldej-teams": {
+      "hosting": {
+        "webapp": [
+          "beteldej-teams"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
