@@ -1,0 +1,26 @@
+{
+  "name": "church-organizer-admin-scripts",
+  "version": "1.0.0",
+  "description": "Admin scripts for managing test users and reviewer accounts",
+  "private": true,
+  "scripts": {
+    "fix-reviewer": "node fix-google-play-reviewer.js",
+    "check-reviewer": "node check-reviewer-account.js",
+    "reset-reviewer": "node reset-reviewer-password.js",
+    "create-test-user": "node create-test-user.js",
+    "help": "echo '\n📋 Available scripts:\n  npm run fix-reviewer      - ⭐ AUTOMATED: Fix reviewer account (recommended)\n  npm run check-reviewer    - Check Google Play reviewer account status\n  npm run reset-reviewer    - Reset reviewer password and verify setup\n  npm run create-test-user  - Create new test user (requires .env)\n\n📖 Documentation:\n  QUICK_FIX_GOOGLE_PLAY.md         - Quick fix guide (manual)\n  GOOGLE_PLAY_REVIEWER_FIX.md      - Complete solution guide\n  REVIEWER_SCRIPTS_README.md       - Scripts documentation\n  GOOGLE_PLAY_REJECTION_SUMMARY.md - Executive summary\n'"
+  },
+  "keywords": [
+    "firebase",
+    "admin",
+    "testing",
+    "google-play",
+    "app-store"
+  ],
+  "author": "Calatayud Digital Solutions",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "firebase-admin": "^13.10.0"
+  }
+}
