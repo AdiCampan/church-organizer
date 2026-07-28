@@ -4,7 +4,14 @@ const path = require('path');
 require('dotenv').config();
 
 const REVIEWER_EMAIL = 'reviewer@googleplay.beteldej.com';
-const REVIEWER_PASSWORD = process.env.REVIEWER_PASSWORD || 'ReviewBetel2026!';
+const REVIEWER_PASSWORD = process.env.REVIEWER_PASSWORD;
+
+if (!REVIEWER_PASSWORD) {
+  console.error('\n❌ Error: REVIEWER_PASSWORD environment variable is required');
+  console.error('\n💡 Set it in your .env file:');
+  console.error('   REVIEWER_PASSWORD=your_secure_password\n');
+  process.exit(1);
+}
 
 const serviceAccountPath = path.join(__dirname, '../mobile/firebase-secrets/beteldej/service-account.json');
 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));

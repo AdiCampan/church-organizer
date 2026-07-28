@@ -193,13 +193,15 @@ Role: admin
 - [x] Actualización de .env.example
 - [x] Instrucciones para Play Console
 
-### ⏳ Pendiente (Acción del Usuario)
-- [ ] Obtener `service-account.json` de Firebase (si usa scripts)
-- [ ] Ejecutar script de verificación O seguir guía manual
-- [ ] Crear/Resetear cuenta de revisor
-- [ ] Probar credenciales en la app
-- [ ] Actualizar Google Play Console
-- [ ] Enviar app para revisión
+### ✅ Completado (Estado Final)
+- [x] Obtener `service-account.json` de Firebase
+- [x] Ejecutar script de verificación
+- [x] Crear/Resetear cuenta de revisor
+- [x] Probar credenciales en la app
+- [x] Actualizar Google Play Console con credenciales
+- [x] Enviar app para revisión a Google Play
+
+**Nota**: Esta checklist refleja el estado al momento de envío. La app está ahora en revisión por Google Play (1-3 días hábiles).
 
 ---
 

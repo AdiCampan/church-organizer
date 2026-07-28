@@ -41,7 +41,9 @@ async function checkReviewerAccount() {
   console.log('\n🔍 Checking Google Play reviewer account...\n');
   console.log(`Email: ${REVIEWER_EMAIL}`);
   if (REVIEWER_PASSWORD) {
-    console.log(`Password configured: ${REVIEWER_PASSWORD.substring(0, 4)}${'*'.repeat(REVIEWER_PASSWORD.length - 4)}\n`);
+    console.log('Password: Configured ✓\n');
+  } else {
+    console.log('Password: Not configured (set REVIEWER_PASSWORD in .env)\n');
   }
   console.log('─'.repeat(60) + '\n');
 
