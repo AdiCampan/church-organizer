@@ -1,0 +1,26 @@
+{
+  "name": "church-organizer-admin-scripts",
+  "version": "1.0.0",
+  "description": "Admin scripts for managing test users and reviewer accounts",
+  "private": true,
+  "scripts": {
+    "fix-reviewer": "node fix-google-play-reviewer.js",
+    "check-reviewer": "node check-reviewer-account.js",
+    "reset-reviewer": "node reset-reviewer-password.js",
+    "create-test-user": "node create-test-user.js",
+    "help": "node help.js"
+  },
+  "keywords": [
+    "firebase",
+    "admin",
+    "testing",
+    "google-play",
+    "app-store"
+  ],
+  "author": "Calatayud Digital Solutions",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "firebase-admin": "^13.10.0"
+  }
+}

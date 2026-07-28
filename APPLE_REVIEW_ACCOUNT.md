@@ -11,7 +11,7 @@ applereview@beteldej.teams
 
 **Contraseña:**
 ```
-AppleReview2026!Betel
+[SECURE_PASSWORD]
 ```
 
 ---
@@ -25,7 +25,7 @@ Login instructions:
 1. Launch Betel Dej Teams app
 2. Tap "Sign In" / "Conectare"
 3. Email: applereview@beteldej.teams
-4. Password: AppleReview2026!Betel
+4. Password: [SECURE_PASSWORD]
 5. Instant access to all features
 
 Features available:
@@ -53,7 +53,7 @@ applereview@beteldej.teams
 
 **Contraseña:**
 ```
-AppleReview2026!Betel
+[SECURE_PASSWORD]
 ```
 
 ---
@@ -68,7 +68,7 @@ Ejecuta estos pasos para crear la cuenta:
 
 3. Completa:
    - **Email**: applereview@beteldej.teams
-   - **Password**: AppleReview2026!Betel
+   - **Password**: [SECURE_PASSWORD]
    - **User UID**: (se genera automáticamente)
 
 4. Después de crear el usuario, añade su perfil en Firestore:
@@ -93,7 +93,7 @@ Ejecuta estos pasos para crear la cuenta:
 | Aspecto | Google Play | Apple App Store |
 |---------|-------------|-----------------|
 | Email | reviewer@googleplay.beteldej.com | applereview@beteldej.teams |
-| Password | ReviewBetel2026! | AppleReview2026!Betel |
+| Password | [SECURE_PASSWORD] | [SECURE_PASSWORD] |
 | Uso | Solo Google Play Store | Solo Apple App Store |
 
 ---

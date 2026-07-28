@@ -23,7 +23,7 @@ Google Play requiere capturas de pantalla REALES de la aplicación funcionando.
 
 ### Paso 2: Iniciar sesión con la cuenta de prueba
 - Email: `reviewer@googleplay.beteldej.com`
-- Password: `ReviewBetel2026!`
+- Password: `[SECURE_PASSWORD]`
 
 ### Paso 3: Tomar capturas de pantalla
 1. **Pantalla de inicio de sesión**
