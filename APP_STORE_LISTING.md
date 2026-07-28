@@ -195,7 +195,7 @@ Versiunea 1.0.0 - Lansare inițială
 
 ### Demo Account (cuenta de prueba)
 - **Username**: reviewer@googleplay.beteldej.com
-- **Password**: ReviewBetel2026!
+- **Password**: [SECURE_PASSWORD]
 - **Notes**: Cuenta de administrador con acceso completo a todas las funciones
 
 ### Notes for Review

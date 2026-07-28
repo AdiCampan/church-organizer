@@ -13,7 +13,7 @@ He terminado toda la configuración técnica:
 
 ```
 ✅ Email: reviewer@googleplay.beteldej.com
-✅ Password: ReviewBetel2026!
+✅ Password: [SECURE_PASSWORD]
 ✅ UID: xOK4F8XlkeX77GEOfGlXOiKUXCF3
 ✅ Role: admin
 ✅ Email verified: SÍ
@@ -58,13 +58,13 @@ Una vez dentro de tu app:
 
 ```
 Username: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 
 Login Instructions:
 1. Launch Betel Dej Teams app
 2. Tap "Entrar" (Sign In button)
 3. Enter email: reviewer@googleplay.beteldej.com
-4. Enter password: ReviewBetel2026!
+4. Enter password: [SECURE_PASSWORD]
 5. Tap "Entrar" to complete sign in
 
 The account has full administrator access to:
@@ -101,7 +101,7 @@ Account is ready to use immediately after login.
 
 ### Ahora:
 ✅ Usuario existe en Firebase
-✅ Password correcta: `ReviewBetel2026!`
+✅ Password correcta: `[SECURE_PASSWORD]`
 ✅ Email verificado
 ✅ Perfil admin configurado
 ✅ Todo listo para que el revisor de Google pruebe
@@ -120,7 +120,7 @@ Si quieres asegurarte de que funcionan antes de enviar a Google:
    
    # Prueba login:
    # Email: reviewer@googleplay.beteldej.com
-   # Password: ReviewBetel2026!
+   # Password: [SECURE_PASSWORD]
    ```
 
 2. **Si tienes un teléfono Android:**
@@ -137,7 +137,7 @@ Si quieres asegurarte de que funcionan antes de enviar a Google:
 | Crear usuario Firebase | ✅ Completado | UID: xOK4F8XlkeX77GEOfGlXOiKUXCF3 |
 | Configurar perfil Firestore | ✅ Completado | Role: admin |
 | Verificar email | ✅ Completado | Email verified: true |
-| Establecer contraseña | ✅ Completado | Password: ReviewBetel2026! |
+| Establecer contraseña | ✅ Completado | Password: [SECURE_PASSWORD] |
 | **Actualizar Play Console** | ⏳ **PENDIENTE** | **Requiere tu acción** |
 | **Enviar para revisión** | ⏳ **PENDIENTE** | **Requiere tu acción** |
 
@@ -149,7 +149,7 @@ Las credenciales que configuraste son:
 
 ```
 Email: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 ```
 
 **Estas credenciales son SOLO para:**

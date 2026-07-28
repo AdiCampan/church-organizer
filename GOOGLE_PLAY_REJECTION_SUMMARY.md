@@ -139,7 +139,7 @@ npm run check-reviewer
 2. Instala en emulador o dispositivo Android
 3. Intenta login con:
    - Email: `reviewer@googleplay.beteldej.com`
-   - Password: `ReviewBetel2026!`
+   - Password: `[SECURE_PASSWORD]`
 4. ✅ Debe funcionar y mostrar el dashboard
 
 ### Paso 4: Actualizar Google Play Console
@@ -158,7 +158,7 @@ Una vez verificado:
 
 ```
 Email: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 Role: admin
 ```
 

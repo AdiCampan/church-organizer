@@ -1,9 +1,10 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config();
 
 const REVIEWER_EMAIL = 'reviewer@googleplay.beteldej.com';
-const REVIEWER_PASSWORD = 'ReviewBetel2026!';
+const REVIEWER_PASSWORD = process.env.REVIEWER_PASSWORD || 'ReviewBetel2026!';
 
 const serviceAccountPath = path.join(__dirname, '../mobile/firebase-secrets/beteldej/service-account.json');
 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
@@ -71,7 +72,6 @@ async function main() {
     console.log('='.repeat(70));
     console.log('\n📋 Account details:');
     console.log('   Email:', REVIEWER_EMAIL);
-    console.log('   Password:', REVIEWER_PASSWORD);
     console.log('   UID:', userRecord.uid);
     console.log('   Role: admin');
     console.log('   Email verified: ✅\n');

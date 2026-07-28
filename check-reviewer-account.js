@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const REVIEWER_EMAIL = 'reviewer@googleplay.beteldej.com';
+const REVIEWER_PASSWORD = process.env.REVIEWER_PASSWORD;
 
 // Load service account
 const serviceAccountPath = process.env.SERVICE_ACCOUNT_PATH || path.join(__dirname, '../mobile/firebase-secrets/beteldej/service-account.json');
@@ -39,7 +40,9 @@ admin.initializeApp({
 async function checkReviewerAccount() {
   console.log('\n🔍 Checking Google Play reviewer account...\n');
   console.log(`Email: ${REVIEWER_EMAIL}`);
-  console.log('Expected password: ReviewBetel2026!\n');
+  if (REVIEWER_PASSWORD) {
+    console.log(`Password configured: ${REVIEWER_PASSWORD.substring(0, 4)}${'*'.repeat(REVIEWER_PASSWORD.length - 4)}\n`);
+  }
   console.log('─'.repeat(60) + '\n');
 
   let authUser = null;
@@ -103,7 +106,7 @@ async function checkReviewerAccount() {
       console.log('   - Go to: https://console.firebase.google.com/project/beteldej-teams/authentication/users');
       console.log('   - Click "Add user"');
       console.log(`   - Email: ${REVIEWER_EMAIL}`);
-      console.log('   - Password: ReviewBetel2026!');
+      console.log('   - Use a secure password');
       console.log('   - Then create Firestore profile manually');
       console.log('\nB. Use create-test-user.js script:');
       console.log('   - Configure .env file with credentials');
@@ -143,9 +146,8 @@ async function checkReviewerAccount() {
     } else {
       console.log('✅ Status: ACCOUNT IS READY');
       console.log('\n🧪 Next steps:');
-      console.log('1. Test login with these credentials:');
+      console.log('1. Test login with the configured credentials');
       console.log(`   Email: ${REVIEWER_EMAIL}`);
-      console.log('   Password: ReviewBetel2026!');
       console.log('\n2. If login works, update Google Play Console:');
       console.log('   - Go to: https://play.google.com/console');
       console.log('   - Select app: Betel Dej Teams');
@@ -162,9 +164,7 @@ async function checkReviewerAccount() {
     console.error('- Verify service account has correct permissions');
     console.error('- Check Firebase rules allow admin access');
     console.error('- Ensure project ID is correct: beteldej-teams');
-    process.exit(1);
-  } finally {
-    process.exit(0);
+    process.exitCode = 1;
   }
 }
 

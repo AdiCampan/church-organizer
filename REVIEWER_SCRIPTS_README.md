@@ -33,7 +33,7 @@ node reset-reviewer-password.js
 ```
 
 **Qué hace:**
-- 🔒 Resetea la contraseña a `ReviewBetel2026!`
+- 🔒 Resetea la contraseña a `[SECURE_PASSWORD]`
 - ✅ Marca el email como verificado
 - 👤 Crea el perfil de Firestore si no existe
 - 🔧 Actualiza el rol a `admin` si es necesario
@@ -150,7 +150,7 @@ node reset-reviewer-password.js
 # 3. Probar las credenciales en la app
 # Descarga el APK de EAS e instala en emulador
 # Email: reviewer@googleplay.beteldej.com
-# Password: ReviewBetel2026!
+# Password: [SECURE_PASSWORD]
 
 # 4. Una vez verificado que funciona, actualizar Google Play Console
 # Ver GOOGLE_PLAY_REVIEWER_FIX.md para instrucciones detalladas
@@ -172,7 +172,7 @@ adb install ruta/al/archivo.apk
 
 # 4. Abre la app e intenta login:
 #    Email: reviewer@googleplay.beteldej.com
-#    Password: ReviewBetel2026!
+#    Password: [SECURE_PASSWORD]
 ```
 
 ### Opción B: Dispositivo físico
@@ -243,7 +243,7 @@ adb install ruta/al/archivo.apk
 
 ```
 Email: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 ```
 
 **Dónde usar:**

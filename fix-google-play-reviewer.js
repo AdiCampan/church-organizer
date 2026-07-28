@@ -5,9 +5,16 @@ const readline = require('readline');
 require('dotenv').config();
 
 const REVIEWER_EMAIL = 'reviewer@googleplay.beteldej.com';
-const REVIEWER_PASSWORD = 'ReviewBetel2026!';
+const REVIEWER_PASSWORD = process.env.REVIEWER_PASSWORD;
 const REVIEWER_DISPLAY_NAME = 'Google Play Reviewer';
 const REVIEWER_PHONE = '+40700000002';
+
+if (!REVIEWER_PASSWORD) {
+  console.error('\n❌ Error: REVIEWER_PASSWORD environment variable is required');
+  console.error('\n💡 Set it in your .env file:');
+  console.error('   REVIEWER_PASSWORD=your_secure_password\n');
+  process.exit(1);
+}
 
 // Load service account
 const serviceAccountPath = process.env.SERVICE_ACCOUNT_PATH || path.join(__dirname, '../mobile/firebase-secrets/beteldej/service-account.json');
@@ -171,7 +178,7 @@ async function main() {
   
   console.log('Target account:');
   console.log(`  Email: ${REVIEWER_EMAIL}`);
-  console.log(`  Password: ${REVIEWER_PASSWORD}`);
+  console.log(`  Password: ${REVIEWER_PASSWORD.substring(0, 4)}${'*'.repeat(REVIEWER_PASSWORD.length - 4)}`);
   console.log(`  Role: admin\n`);
   
   console.log('─'.repeat(70) + '\n');
@@ -248,7 +255,6 @@ async function main() {
       console.log('✅ SUCCESS: Account is ready for Google Play review!\n');
       console.log('📋 Account credentials:');
       console.log(`   Email: ${REVIEWER_EMAIL}`);
-      console.log(`   Password: ${REVIEWER_PASSWORD}`);
       console.log(`   UID: ${finalState.uid}`);
       console.log('   Role: admin');
       console.log('   Email verified: ✅\n');
@@ -278,10 +284,9 @@ async function main() {
     console.error('   - Verify service account has correct permissions');
     console.error('   - Check Firebase rules allow admin access');
     console.error('   - Ensure project ID is correct\n');
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     rl.close();
-    process.exit(0);
   }
 }
 

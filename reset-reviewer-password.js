@@ -4,7 +4,14 @@ const path = require('path');
 require('dotenv').config();
 
 const REVIEWER_EMAIL = 'reviewer@googleplay.beteldej.com';
-const NEW_PASSWORD = 'ReviewBetel2026!';
+const NEW_PASSWORD = process.env.REVIEWER_PASSWORD;
+
+if (!NEW_PASSWORD) {
+  console.error('\n❌ Error: REVIEWER_PASSWORD environment variable is required');
+  console.error('\n💡 Set it in your .env file:');
+  console.error('   REVIEWER_PASSWORD=your_secure_password\n');
+  process.exit(1);
+}
 
 // Load service account
 const serviceAccountPath = process.env.SERVICE_ACCOUNT_PATH || path.join(__dirname, '../mobile/firebase-secrets/beteldej/service-account.json');
@@ -40,7 +47,6 @@ admin.initializeApp({
 async function resetReviewerPassword() {
   console.log('\n🔐 Resetting Google Play reviewer password...\n');
   console.log(`Email: ${REVIEWER_EMAIL}`);
-  console.log(`New password: ${NEW_PASSWORD}\n`);
   console.log('─'.repeat(60) + '\n');
 
   try {
@@ -96,7 +102,6 @@ async function resetReviewerPassword() {
     console.log('✅ SUCCESS: Account is ready for Google Play review\n');
     console.log('📋 Account details:');
     console.log(`   Email: ${REVIEWER_EMAIL}`);
-    console.log(`   Password: ${NEW_PASSWORD}`);
     console.log(`   UID: ${userRecord.uid}`);
     console.log('   Role: admin');
     console.log('   Email verified: ✅');

@@ -18,14 +18,14 @@ Google Play rechazó **Betel Dej Teams** porque las credenciales de login no fun
 **Si el usuario NO existe:**
 - Haz clic en **"Add user"**
 - Email: `reviewer@googleplay.beteldej.com`
-- Password: `ReviewBetel2026!`
+- Password: Use a secure password (configured in your .env file)
 - Marca "Email verified" ✅
 - Haz clic en **"Add user"** y copia el **UID** generado
 
 **Si el usuario ya existe:**
 - Haz clic en los tres puntos (⋮)
 - Selecciona **"Reset password"**
-- Password: `ReviewBetel2026!`
+- Password: Use the same secure password from your .env file
 - Copia el **UID** del usuario
 
 #### 3️⃣ Crear/Verificar perfil en Firestore
@@ -40,7 +40,7 @@ Google Play rechazó **Betel Dej Teams** porque las credenciales de login no fun
 | `displayName` | string | `Google Play Reviewer` |
 | `role` | string | `admin` |
 | `createdAt` | timestamp | *Timestamp actual* |
-| `phoneNumber` | string | `+40700000002` |
+| `phoneNumber` | string | `[PHONE_NUMBER]` |
 | `teams` | array | `[]` *(vacío)* |
 
 - Si existe, verifica que el campo `role` sea `admin`
@@ -61,7 +61,7 @@ Google Play rechazó **Betel Dej Teams** porque las credenciales de login no fun
    ```
 4. Abre la app e intenta login:
    - Email: `reviewer@googleplay.beteldej.com`
-   - Password: `ReviewBetel2026!`
+   - Password: `[SECURE_PASSWORD]`
 5. ✅ **Debe funcionar** - Deberías ver el dashboard
 
 ---
@@ -77,13 +77,13 @@ Una vez **verificado** que funciona:
 
 ```
 Username: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 
 Login Instructions:
 1. Launch Betel Dej Teams app
 2. Tap "Entrar"
 3. Email: reviewer@googleplay.beteldej.com
-4. Password: ReviewBetel2026!
+4. Password: [SECURE_PASSWORD]
 5. Full admin access granted
 
 No 2FA or additional setup required.
@@ -100,7 +100,7 @@ No 2FA or additional setup required.
 Antes de enviar a Google Play:
 
 - [ ] Usuario existe en Firebase Auth con email `reviewer@googleplay.beteldej.com`
-- [ ] Password es exactamente `ReviewBetel2026!`
+- [ ] Password es exactamente `[SECURE_PASSWORD]`
 - [ ] Email marcado como **"Verified"** ✅
 - [ ] Perfil existe en Firestore → colección `users`
 - [ ] Campo `role` es `admin` en Firestore

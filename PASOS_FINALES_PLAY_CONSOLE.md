@@ -3,7 +3,7 @@
 ## ✅ Ya Completado (Automático)
 - ✅ Cuenta de revisor creada en Firebase
 - ✅ Email verificado: `reviewer@googleplay.beteldej.com`
-- ✅ Contraseña configurada: `ReviewBetel2026!`
+- ✅ Contraseña configurada: `[SECURE_PASSWORD]`
 - ✅ Rol de admin asignado en Firestore
 - ✅ Cuenta lista para usar en la app
 
@@ -38,7 +38,7 @@ Cuando encuentres "App access" o "Acceso a la app":
    
    ```
    📧 Email: reviewer@googleplay.beteldej.com
-   🔐 Contraseña: ReviewBetel2026!
+   🔐 Contraseña: [SECURE_PASSWORD]
    ```
 
 4. **Añade instrucciones** (opcional pero recomendado):

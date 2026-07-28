@@ -110,7 +110,7 @@ Esta solución incluye los siguientes archivos organizados por categoría:
 **Descripción:** Resetear contraseña y configuración  
 **Comando:** `npm run reset-reviewer`  
 **Qué hace:**
-- Resetea password a `ReviewBetel2026!`
+- Resetea password a `[SECURE_PASSWORD]`
 - Marca email como verificado
 - Crea/actualiza perfil de Firestore
 - Establece rol admin

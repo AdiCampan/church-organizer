@@ -32,14 +32,14 @@ Your provided login information does not allow us to access your app.
 1. Haz clic en los tres puntos (⋮) junto al usuario
 2. Selecciona **"Reset password"**
 3. **IMPORTANTE**: No uses el reset por email, establece la contraseña manualmente
-4. Nueva contraseña: `ReviewBetel2026!`
+4. Nueva contraseña: `[SECURE_PASSWORD]`
 5. Guarda y verifica que el estado sea **"Verified"**
 
 #### Paso 4: Crear nuevo usuario (si no existe)
 1. Haz clic en **"Add user"**
 2. Completa:
    - **Email**: `reviewer@googleplay.beteldej.com`
-   - **Password**: `ReviewBetel2026!`
+   - **Password**: `[SECURE_PASSWORD]`
    - **User ID**: (se genera automáticamente, cópialo)
 3. Marca **"Email verified"** como **true**
 4. Haz clic en **"Add user"**
@@ -57,7 +57,7 @@ Your provided login information does not allow us to access your app.
   "displayName": "Google Play Reviewer",
   "role": "admin",
   "createdAt": [Timestamp actual - usa el botón del calendario],
-  "phoneNumber": "+40700000002",
+  "phoneNumber": "[PHONE_NUMBER]",
   "teams": []
 }
 ```
@@ -96,7 +96,7 @@ cp .env.example .env
 
 ```bash
 TEST_USER_EMAIL=reviewer@googleplay.beteldej.com
-TEST_USER_PASSWORD=ReviewBetel2026!
+TEST_USER_PASSWORD=[SECURE_PASSWORD]
 TEST_USER_DISPLAY_NAME=Google Play Reviewer
 TEST_USER_ROLE=admin
 SERVICE_ACCOUNT_PATH=../mobile/firebase-secrets/beteldej/service-account.json
@@ -143,7 +143,7 @@ adb install ruta/al/archivo.apk
 
 3. Abre la app e intenta iniciar sesión:
    - **Email**: `reviewer@googleplay.beteldej.com`
-   - **Password**: `ReviewBetel2026!`
+   - **Password**: `[SECURE_PASSWORD]`
 
 4. ✅ **Debe funcionar**: Deberías ver el dashboard principal con acceso a todos los equipos
 
@@ -172,13 +172,13 @@ Una vez **verificado** que las credenciales funcionan:
 
 ```
 Username: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 
 Login Instructions:
 1. Launch Betel Dej Teams app
 2. Tap "Entrar" / "Sign In"
 3. Enter email: reviewer@googleplay.beteldej.com
-4. Enter password: ReviewBetel2026!
+4. Enter password: [SECURE_PASSWORD]
 5. Tap "Entrar" to sign in
 6. You will have full admin access to all features
 
@@ -206,7 +206,7 @@ No additional setup, 2FA, or verification required.
 Antes de enviar a Google Play, verifica:
 
 - [ ] Usuario `reviewer@googleplay.beteldej.com` existe en Firebase Authentication
-- [ ] Password es exactamente: `ReviewBetel2026!`
+- [ ] Password es exactamente: `[SECURE_PASSWORD]`
 - [ ] Email está marcado como "Verified" en Firebase Auth
 - [ ] Perfil existe en Firestore colección `users`
 - [ ] Rol del usuario es `admin` en Firestore
@@ -251,7 +251,7 @@ Si tienes problemas:
 1. **Error de autenticación en la app:**
    - Verifica que el usuario existe en Firebase Auth
    - Confirma que el email está verificado
-   - Revisa que la contraseña sea exactamente `ReviewBetel2026!`
+   - Revisa que la contraseña sea exactamente `[SECURE_PASSWORD]`
 
 2. **Usuario no puede acceder a funciones:**
    - Verifica en Firestore que el campo `role` sea `admin`

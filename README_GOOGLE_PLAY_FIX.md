@@ -42,7 +42,7 @@ Este script detectará automáticamente el problema y lo corregirá.
 
 1. Abre Firebase Console: https://console.firebase.google.com/project/beteldej-teams/authentication/users
 2. Busca o crea el usuario: `reviewer@googleplay.beteldej.com`
-3. Password: `ReviewBetel2026!`
+3. Password: `[SECURE_PASSWORD]`
 4. Crea el perfil en Firestore con rol `admin`
 
 📖 **Ver guía detallada:** [QUICK_FIX_GOOGLE_PLAY.md](./QUICK_FIX_GOOGLE_PLAY.md)
@@ -118,7 +118,7 @@ npm run reset-reviewer
 ```
 
 **Qué hace:**
-- 🔒 Resetea password a `ReviewBetel2026!`
+- 🔒 Resetea password a `[SECURE_PASSWORD]`
 - ✅ Marca email como verificado
 - 👤 Crea perfil si no existe
 - 🔧 Actualiza rol a admin
@@ -251,7 +251,7 @@ adb install ruta/al/archivo.apk
 
 # 4. Intenta login
 # Email: reviewer@googleplay.beteldej.com
-# Password: ReviewBetel2026!
+# Password: [SECURE_PASSWORD]
 
 # ✅ Debe mostrar el dashboard principal
 ```
@@ -273,7 +273,7 @@ Una vez **verificado** que las credenciales funcionan:
 3. Ve a: **App access** → **Sign-in details**
 4. Actualiza con:
    - Username: `reviewer@googleplay.beteldej.com`
-   - Password: `ReviewBetel2026!`
+   - Password: `[SECURE_PASSWORD]`
    - Instrucciones de login (ver [QUICK_FIX_GOOGLE_PLAY.md](./QUICK_FIX_GOOGLE_PLAY.md))
 5. Guarda y envía para revisión
 
@@ -284,7 +284,7 @@ Una vez **verificado** que las credenciales funcionan:
 Antes de enviar a Google Play:
 
 - [ ] Usuario existe en Firebase Auth
-- [ ] Password es `ReviewBetel2026!`
+- [ ] Password es `[SECURE_PASSWORD]`
 - [ ] Email marcado como "Verified" ✅
 - [ ] Perfil existe en Firestore
 - [ ] Campo `role` es `admin`
@@ -325,7 +325,7 @@ Si tienes problemas que no puedes resolver:
 
 ```
 Email: reviewer@googleplay.beteldej.com
-Password: ReviewBetel2026!
+Password: [SECURE_PASSWORD]
 ```
 
 **Usar SOLO para:**
