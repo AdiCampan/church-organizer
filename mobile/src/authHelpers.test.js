@@ -16,7 +16,7 @@ function t(key) {
 
 assert.deepStrictEqual(
   normalizeLoginCredentials('  Adi@Example.com ', '  Secret123!  '),
-  { email: 'adi@example.com', password: 'Secret123!' }
+  { email: 'adi@example.com', password: '  Secret123!  ' }
 );
 
 assert.strictEqual(

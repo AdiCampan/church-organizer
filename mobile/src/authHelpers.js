@@ -4,7 +4,7 @@
 function normalizeLoginCredentials(email, password) {
   return {
     email: String(email ?? '').trim().toLowerCase(),
-    password: String(password ?? '').trim(),
+    password: String(password ?? ''),
   };
 }
 

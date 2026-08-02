@@ -1150,6 +1150,8 @@ export default function App() {
   const t = (key) => {
     return translations[language][key] || key;
   };
+  const tRef = useRef(t);
+  tRef.current = t;
 
   // Load language preference
   useEffect(() => {
@@ -1169,6 +1171,7 @@ export default function App() {
 
   // Keep track of event listeners to clean them up
   const eventListeners = useRef({});
+  const userProfileUnsubRef = useRef(null);
   const notificationListener = useRef();
   const responseListener = useRef();
 
@@ -1178,8 +1181,16 @@ export default function App() {
   }, [blockoutDates]);
 
   useEffect(() => {
+    const clearUserProfileListener = () => {
+      if (userProfileUnsubRef.current) {
+        userProfileUnsubRef.current();
+        userProfileUnsubRef.current = null;
+      }
+    };
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      clearUserProfileListener();
       if (!user) {
         // Clear all data on logout
         setAssignments([]);
@@ -1194,24 +1205,24 @@ export default function App() {
         }
       } else {
         // Fetch user data including blockout dates
-        const unsubUser = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+        userProfileUnsubRef.current = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
             setBlockoutDates(userData.blockoutDates || []);
             setUserName(userData.name || '');
           } else {
             console.warn('User profile not found. Logging out...');
-            Alert.alert(t('profileMissingTitle'), t('profileMissingBody'));
+            Alert.alert(tRef.current('profileMissingTitle'), tRef.current('profileMissingBody'));
             signOut(auth);
           }
         });
-        // Note: We can't easily return unsubUser from here to cleanup inside this callback,
-        // but passing user as dependency to another useEffect helps.
-        // For simplicity, we'll let the separate useEffect handle other data.
       }
       if (initializing) setInitializing(false);
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      clearUserProfileListener();
+    };
   }, []);
 
   // Register for push notifications
