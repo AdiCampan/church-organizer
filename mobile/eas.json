@@ -95,7 +95,9 @@
         "companyName": "Victor Calatayud"
       },
       "android": {
-        "track": "internal"
+        "applicationId": "com.beteldej.teams",
+        "track": "internal",
+        "serviceAccountKeyPath": "../../google-play-service-account.json"
       }
     }
   }
