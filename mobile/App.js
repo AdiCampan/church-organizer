@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
+import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import * as Linking from 'expo-linking';
@@ -21,6 +22,22 @@ const translations = {
     password: 'Contraseña',
     enter: 'Entrar',
     forgotPassword: '¿Olvidaste tu contraseña?',
+    loginErrorTitle: 'Error de inicio de sesión',
+    fillAllFields: 'Por favor completa todos los campos',
+    emailRequiredTitle: 'Email requerido',
+    emailRequiredBody: 'Por favor escribe tu email en el campo de arriba para enviarte el enlace de recuperación.',
+    resetEmailSentTitle: 'Email enviado',
+    resetEmailSentBody: 'Se ha enviado un correo a {email} para restablecer tu contraseña.',
+    resetEmailError: 'No pudimos enviar el correo de recuperación. Verifica que el email sea correcto.',
+    authInvalidEmail: 'El email no es válido.',
+    authInvalidCredential: 'Email o contraseña incorrectos.',
+    authUserDisabled: 'Esta cuenta está deshabilitada.',
+    authTooManyRequests: 'Demasiados intentos. Espera un momento e inténtalo de nuevo.',
+    authNetworkError: 'Error de red. Comprueba tu conexión a internet.',
+    authEmailRequired: 'El email es obligatorio.',
+    authGenericError: 'No se pudo iniciar sesión.',
+    profileMissingTitle: 'Perfil no encontrado',
+    profileMissingBody: 'Tu cuenta existe en Authentication, pero no hay perfil en la base de datos. Contacta con el administrador.',
     loading: 'Cargando...',
     agenda: 'Agenda',
     teams: 'Equipos',
@@ -80,6 +97,22 @@ const translations = {
     password: 'Parolă',
     enter: 'Intră',
     forgotPassword: 'Ai uitat parola?',
+    loginErrorTitle: 'Eroare de autentificare',
+    fillAllFields: 'Te rugăm să completezi toate câmpurile',
+    emailRequiredTitle: 'Email necesar',
+    emailRequiredBody: 'Te rugăm să scrii emailul în câmpul de mai sus pentru a-ți trimite linkul de recuperare.',
+    resetEmailSentTitle: 'Email trimis',
+    resetEmailSentBody: 'Am trimis un email la {email} pentru a-ți reseta parola.',
+    resetEmailError: 'Nu am putut trimite emailul de recuperare. Verifică dacă emailul este corect.',
+    authInvalidEmail: 'Emailul nu este valid.',
+    authInvalidCredential: 'Email sau parolă incorectă.',
+    authUserDisabled: 'Acest cont este dezactivat.',
+    authTooManyRequests: 'Prea multe încercări. Așteaptă un moment și încearcă din nou.',
+    authNetworkError: 'Eroare de rețea. Verifică conexiunea la internet.',
+    authEmailRequired: 'Emailul este obligatoriu.',
+    authGenericError: 'Nu s-a putut face autentificarea.',
+    profileMissingTitle: 'Profil negăsit',
+    profileMissingBody: 'Contul există în Authentication, dar nu există profil în baza de date. Contactează administratorul.',
     loading: 'Se încarcă...',
     agenda: 'Agendă',
     teams: 'Echipe',
@@ -139,6 +172,22 @@ const translations = {
     password: 'Password',
     enter: 'Enter',
     forgotPassword: 'Forgot password?',
+    loginErrorTitle: 'Sign-in error',
+    fillAllFields: 'Please fill in all fields',
+    emailRequiredTitle: 'Email required',
+    emailRequiredBody: 'Please enter your email above so we can send you a password reset link.',
+    resetEmailSentTitle: 'Email sent',
+    resetEmailSentBody: 'A password reset email has been sent to {email}.',
+    resetEmailError: 'We could not send the recovery email. Check that the email is correct.',
+    authInvalidEmail: 'The email is not valid.',
+    authInvalidCredential: 'Incorrect email or password.',
+    authUserDisabled: 'This account is disabled.',
+    authTooManyRequests: 'Too many attempts. Wait a moment and try again.',
+    authNetworkError: 'Network error. Check your internet connection.',
+    authEmailRequired: 'Email is required.',
+    authGenericError: 'Could not sign in.',
+    profileMissingTitle: 'Profile not found',
+    profileMissingBody: 'Your account exists in Authentication, but there is no profile in the database. Contact the administrator.',
     loading: 'Loading...',
     agenda: 'Agenda',
     teams: 'Teams',
@@ -304,35 +353,36 @@ const LoginScreen = ({ t }) => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) return Alert.alert("Error", "Por favor completa todos los campos");
+    const credentials = normalizeLoginCredentials(email, password);
+    if (!credentials.email || !credentials.password) {
+      return Alert.alert(t('loginErrorTitle'), t('fillAllFields'));
+    }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
     } catch (error) {
-      Alert.alert("Error de Inicio de Sesión", "Email o contraseña incorrectos");
-      console.error(error);
+      console.error('Login error:', error?.code, error?.message);
+      Alert.alert(t('loginErrorTitle'), getAuthErrorMessage(error, t));
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!email) {
-      return Alert.alert(
-        "Email Requerido",
-        "Por favor escribe tu email en el campo de arriba para enviarte el enlace de recuperación."
-      );
+    const { email: normalizedEmail } = normalizeLoginCredentials(email, '');
+    if (!normalizedEmail) {
+      return Alert.alert(t('emailRequiredTitle'), t('emailRequiredBody'));
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      await sendPasswordResetEmail(auth, normalizedEmail);
       Alert.alert(
-        "Email Enviado",
-        `Se ha enviado un correo a ${email} para restablecer tu contraseña.`
+        t('resetEmailSentTitle'),
+        t('resetEmailSentBody').replace('{email}', normalizedEmail)
       );
     } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "No pudimos enviar el correo de recuperación. Verifica que el email sea correcto.");
+      console.error('Password reset error:', error?.code, error?.message);
+      Alert.alert(t('loginErrorTitle'), getAuthErrorMessage(error, t) || t('resetEmailError'));
     }
   };
 
@@ -355,6 +405,9 @@ const LoginScreen = ({ t }) => {
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="username"
               keyboardType="email-address"
             />
           </View>
@@ -368,6 +421,9 @@ const LoginScreen = ({ t }) => {
               onChangeText={setPassword}
               secureTextEntry
               autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="password"
+              textContentType="password"
             />
           </View>
 
@@ -1144,7 +1200,8 @@ export default function App() {
             setBlockoutDates(userData.blockoutDates || []);
             setUserName(userData.name || '');
           } else {
-            console.warn("User profile not found. Logging out...");
+            console.warn('User profile not found. Logging out...');
+            Alert.alert(t('profileMissingTitle'), t('profileMissingBody'));
             signOut(auth);
           }
         });
