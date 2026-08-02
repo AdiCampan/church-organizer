@@ -38,6 +38,8 @@ const translations = {
     authGenericError: 'No se pudo iniciar sesión.',
     profileMissingTitle: 'Perfil no encontrado',
     profileMissingBody: 'Tu cuenta existe en Authentication, pero no hay perfil en la base de datos. Contacta con el administrador.',
+    profileLoadErrorTitle: 'Error al cargar el perfil',
+    profileLoadErrorBody: 'No se pudo leer tu perfil. Comprueba tu conexión e inténtalo de nuevo.',
     loading: 'Cargando...',
     agenda: 'Agenda',
     teams: 'Equipos',
@@ -113,6 +115,8 @@ const translations = {
     authGenericError: 'Nu s-a putut face autentificarea.',
     profileMissingTitle: 'Profil negăsit',
     profileMissingBody: 'Contul există în Authentication, dar nu există profil în baza de date. Contactează administratorul.',
+    profileLoadErrorTitle: 'Eroare la încărcarea profilului',
+    profileLoadErrorBody: 'Nu s-a putut citi profilul. Verifică conexiunea și încearcă din nou.',
     loading: 'Se încarcă...',
     agenda: 'Agendă',
     teams: 'Echipe',
@@ -188,6 +192,8 @@ const translations = {
     authGenericError: 'Could not sign in.',
     profileMissingTitle: 'Profile not found',
     profileMissingBody: 'Your account exists in Authentication, but there is no profile in the database. Contact the administrator.',
+    profileLoadErrorTitle: 'Profile load error',
+    profileLoadErrorBody: 'Could not read your profile. Check your connection and try again.',
     loading: 'Loading...',
     agenda: 'Agenda',
     teams: 'Teams',
@@ -1204,18 +1210,32 @@ export default function App() {
           eventListeners.current = {};
         }
       } else {
+        const signOutSafely = () => {
+          signOut(auth).catch((signOutError) => {
+            console.error('Sign out error:', signOutError);
+          });
+        };
+
         // Fetch user data including blockout dates
-        userProfileUnsubRef.current = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
-          if (docSnap.exists()) {
-            const userData = docSnap.data();
-            setBlockoutDates(userData.blockoutDates || []);
-            setUserName(userData.name || '');
-          } else {
-            console.warn('User profile not found. Logging out...');
-            Alert.alert(tRef.current('profileMissingTitle'), tRef.current('profileMissingBody'));
-            signOut(auth);
+        userProfileUnsubRef.current = onSnapshot(
+          doc(db, 'users', user.uid),
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const userData = docSnap.data();
+              setBlockoutDates(userData.blockoutDates || []);
+              setUserName(userData.name || '');
+            } else {
+              console.warn('User profile not found. Logging out...');
+              Alert.alert(tRef.current('profileMissingTitle'), tRef.current('profileMissingBody'));
+              signOutSafely();
+            }
+          },
+          (profileError) => {
+            console.error('User profile listener error:', profileError);
+            Alert.alert(tRef.current('profileLoadErrorTitle'), tRef.current('profileLoadErrorBody'));
+            signOutSafely();
           }
-        });
+        );
       }
       if (initializing) setInitializing(false);
     });
