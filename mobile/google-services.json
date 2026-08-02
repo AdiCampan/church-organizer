@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "852946760638",
-    "project_id": "beteldej-teams",
-    "storage_bucket": "beteldej-teams.firebasestorage.app"
+    "project_number": "757330565566",
+    "project_id": "church-teams-8ea48",
+    "storage_bucket": "church-teams-8ea48.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:852946760638:android:0161ddb349ba854c913fef",
+        "mobilesdk_app_id": "1:757330565566:android:ff32b9d31df70928c8c1ef",
         "android_client_info": {
           "package_name": "com.beteldej.teams"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCzfrftr6Ka6G-TR-o9r-oWbtWJdtpfnUk"
+          "current_key": "AIzaSyAsd-FF3iR22VdCsWMexRf_hRZWwuS0BBg"
         }
       ],
       "services": {

@@ -8,6 +8,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "doctor": "npx expo-doctor",
+    "test": "node src/authHelpers.test.js",
     "build:android": "npx eas-cli@latest build --platform android --profile churchteams",
     "build:ios": "npx eas-cli@latest build --platform ios --profile churchteams",
     "build:all": "npx eas-cli@latest build --platform all --profile churchteams",
