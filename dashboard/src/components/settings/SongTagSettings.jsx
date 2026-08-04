@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit2, Trash2, Plus, Tag } from 'lucide-react';
@@ -12,44 +12,44 @@ const SongTagSettings = () => {
     const [showForm, setShowForm] = useState(false);
     const [editingTag, setEditingTag] = useState(null);
     const [newTag, setNewTag] = useState({ name: '', color: '#3b82f6' });
+    const isMountedRef = useRef(false);
 
     const colors = [
         '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981',
         '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#64748b'
     ];
 
-    const loadTagsData = async () => {
+    const loadTagsData = useCallback(async () => {
         const querySnapshot = await getDocs(collection(db, 'song_tags'));
         return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    };
+    }, []);
 
-    const fetchTags = async () => {
+    const loadTags = useCallback(async (applyTags) => {
         try {
-            setTags(await loadTagsData());
+            const tagsData = await loadTagsData();
+            applyTags(tagsData);
         } catch (err) {
             console.error("Error fetching tags:", err);
         }
-    };
+    }, [loadTagsData]);
+
+    const fetchTags = useCallback(() => loadTags((tagsData) => {
+        if (isMountedRef.current) {
+            setTags(tagsData);
+        }
+    }), [loadTags]);
 
     useEffect(() => {
-        let isMounted = true;
-
-        const loadTags = async () => {
-            try {
-                const tagsData = await loadTagsData();
-                if (isMounted) {
-                    setTags(tagsData);
-                }
-            } catch (err) {
-                console.error("Error fetching tags:", err);
+        isMountedRef.current = true;
+        loadTags((tagsData) => {
+            if (isMountedRef.current) {
+                setTags(tagsData);
             }
-        };
-
-        loadTags();
+        });
         return () => {
-            isMounted = false;
+            isMountedRef.current = false;
         };
-    }, []);
+    }, [loadTags]);
 
     const handleAddTag = async (e) => {
         e.preventDefault();

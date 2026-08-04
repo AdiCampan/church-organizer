@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../../firebase';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { Edit2, Trash2, Plus } from 'lucide-react';
@@ -13,38 +13,34 @@ const RoleSettings = () => {
     const [editingRole, setEditingRole] = useState(null);
     const [newRole, setNewRole] = useState({ name: '', permissions: '' }); // permissions as comma‑separated string
 
-    const loadRolesData = async () => {
+    const loadRolesData = useCallback(async () => {
         const querySnapshot = await getDocs(collection(db, 'roles'));
         return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    };
+    }, []);
 
-    const fetchRoles = async () => {
+    const loadRoles = useCallback(async (applyRoles) => {
         try {
-            setRoles(await loadRolesData());
+            const rolesData = await loadRolesData();
+            applyRoles(rolesData);
         } catch (err) {
             console.error('Error fetching roles:', err);
         }
-    };
+    }, [loadRolesData]);
+
+    const fetchRoles = useCallback(() => loadRoles(setRoles), [loadRoles]);
 
     useEffect(() => {
         let isMounted = true;
 
-        const loadRoles = async () => {
-            try {
-                const rolesData = await loadRolesData();
-                if (isMounted) {
-                    setRoles(rolesData);
-                }
-            } catch (err) {
-                console.error('Error fetching roles:', err);
+        loadRoles((rolesData) => {
+            if (isMounted) {
+                setRoles(rolesData);
             }
-        };
-
-        loadRoles();
+        });
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [loadRoles]);
 
     const handleAddRole = async e => {
         e.preventDefault();

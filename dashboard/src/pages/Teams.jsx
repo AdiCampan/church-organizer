@@ -5,6 +5,41 @@ import { Users, Plus, Search, Info, X, Check, UserPlus, Pencil, Trash2 } from 'l
 import { useLanguage } from '../useLanguage';
 
 
+const LeaderSelector = ({ leaders, candidates, onChange, t }) => (
+    <div style={styles.inputGroup}>
+        <label>{t('teamLeaders')}</label>
+        {candidates.length === 0 ? (
+            <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{t('noLeaderCandidates')}</p>
+        ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {candidates.map(candidate => {
+                    const currentLeaders = leaders || [];
+                    const isSelected = currentLeaders.includes(candidate.id);
+                    return (
+                        <button
+                            type="button"
+                            key={candidate.id}
+                            onClick={() => {
+                                const newLeaders = isSelected
+                                    ? currentLeaders.filter(id => id !== candidate.id)
+                                    : [...currentLeaders, candidate.id];
+                                onChange(newLeaders);
+                            }}
+                            aria-pressed={isSelected}
+                            style={{
+                                padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600', border: 'none',
+                                backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
+                                color: isSelected ? 'white' : '#475569'
+                            }}>
+                            {candidate.name}
+                        </button>
+                    );
+                })}
+            </div>
+        )}
+    </div>
+);
+
 const Teams = () => {
     const { t } = useLanguage();
     const editFormRef = useRef(null);
@@ -203,38 +238,12 @@ const Teams = () => {
                                 style={styles.input}
                             />
                         </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('teamLeaders')}</label>
-                            {leaderCandidates.length === 0 ? (
-                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{t('noLeaderCandidates')}</p>
-                            ) : (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {leaderCandidates.map(candidate => {
-                                        const isSelected = newTeam.leaders?.includes(candidate.id);
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={candidate.id}
-                                                onClick={() => {
-                                                    const currentLeaders = newTeam.leaders || [];
-                                                    const newLeaders = isSelected 
-                                                        ? currentLeaders.filter(id => id !== candidate.id)
-                                                        : [...currentLeaders, candidate.id];
-                                                    setNewTeam({ ...newTeam, leaders: newLeaders });
-                                                }}
-                                                aria-pressed={isSelected}
-                                                style={{ 
-                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600', border: 'none',
-                                                    backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
-                                                    color: isSelected ? 'white' : '#475569'
-                                                }}>
-                                                {candidate.name}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                        <LeaderSelector
+                            leaders={newTeam.leaders}
+                            candidates={leaderCandidates}
+                            onChange={leaders => setNewTeam({ ...newTeam, leaders })}
+                            t={t}
+                        />
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>{t('create')}</button>
                             <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnSecondary}>{t('cancel')}</button>
@@ -274,38 +283,12 @@ const Teams = () => {
                                 style={styles.input}
                             />
                         </div>
-                        <div style={styles.inputGroup}>
-                            <label>{t('teamLeaders')}</label>
-                            {leaderCandidates.length === 0 ? (
-                                <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{t('noLeaderCandidates')}</p>
-                            ) : (
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {leaderCandidates.map(candidate => {
-                                        const isSelected = editingTeamData.leaders?.includes(candidate.id);
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={candidate.id}
-                                                onClick={() => {
-                                                    const currentLeaders = editingTeamData.leaders || [];
-                                                    const newLeaders = isSelected 
-                                                        ? currentLeaders.filter(id => id !== candidate.id)
-                                                        : [...currentLeaders, candidate.id];
-                                                    setEditingTeamData({ ...editingTeamData, leaders: newLeaders });
-                                                }}
-                                                aria-pressed={isSelected}
-                                                style={{ 
-                                                    padding: '6px 12px', borderRadius: '16px', fontSize: '12px', cursor: 'pointer', fontWeight: '600', border: 'none',
-                                                    backgroundColor: isSelected ? '#007bff' : '#e2e8f0',
-                                                    color: isSelected ? 'white' : '#475569'
-                                                }}>
-                                                {candidate.name}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                        <LeaderSelector
+                            leaders={editingTeamData.leaders}
+                            candidates={leaderCandidates}
+                            onChange={leaders => setEditingTeamData({ ...editingTeamData, leaders })}
+                            t={t}
+                        />
                         <div style={{ display: 'flex', gap: '12px' }}>
                             <button type="submit" className="btn-primary" disabled={loading}>{t('save_changes')}</button>
                             <button type="button" onClick={() => setEditingTeamData(null)} style={styles.btnSecondary}>{t('cancel')}</button>

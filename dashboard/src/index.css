@@ -167,7 +167,7 @@ h1 {
 /* Weekly Grid Layout */
 .events-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(260px, 1fr));
   gap: 16px;
   align-items: start;
   margin-top: 20px;

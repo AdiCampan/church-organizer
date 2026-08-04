@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, getDocs, deleteDoc, doc, runTransaction } from 'firebase/firestore';
 import { Plus, Trash2, Edit2, Check, X, MapPin } from 'lucide-react';
 import { useLanguage } from '../../useLanguage';
 
@@ -11,7 +11,7 @@ const ServiceTypeSettings = () => {
 
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
-    const [newType, setNewType] = useState({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', isRehearsal: false, requiredTeams: [] });
+    const [newType, setNewType] = useState({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', location: '', isRehearsal: false, requiredTeams: [] });
     const [editingId, setEditingId] = useState(null);
     const [editType, setEditType] = useState(null);
     const [teams, setTeams] = useState([]);
@@ -72,29 +72,75 @@ const ServiceTypeSettings = () => {
         }
     };
 
+    const saveRehearsalType = async (serviceTypeRef, data, isNew) => {
+        const configRef = doc(db, 'settings', 'serviceTypes');
+        await runTransaction(db, async (transaction) => {
+            const configSnap = await transaction.get(configRef);
+            const currentRehearsalId = configSnap.exists() ? configSnap.data().rehearsalTypeId : null;
+
+            if (data.isRehearsal) {
+                const currentRehearsalRef = currentRehearsalId && currentRehearsalId !== serviceTypeRef.id
+                    ? doc(db, 'service_types', currentRehearsalId)
+                    : null;
+                const currentRehearsalSnap = currentRehearsalRef
+                    ? await transaction.get(currentRehearsalRef)
+                    : null;
+                const loadedRehearsalRefs = types
+                    .filter(type => type.id !== serviceTypeRef.id && type.isRehearsal && type.id !== currentRehearsalId)
+                    .map(type => doc(db, 'service_types', type.id));
+                const loadedRehearsalSnaps = await Promise.all(
+                    loadedRehearsalRefs.map(typeRef => transaction.get(typeRef))
+                );
+
+                if (isNew) {
+                    transaction.set(serviceTypeRef, data);
+                } else {
+                    transaction.update(serviceTypeRef, data);
+                }
+                if (currentRehearsalSnap?.exists()) {
+                    transaction.update(currentRehearsalRef, { isRehearsal: false });
+                }
+                loadedRehearsalSnaps.forEach((typeSnap, index) => {
+                    if (typeSnap.exists()) {
+                        transaction.update(loadedRehearsalRefs[index], { isRehearsal: false });
+                    }
+                });
+                transaction.set(configRef, { rehearsalTypeId: serviceTypeRef.id }, { merge: true });
+                return;
+            }
+
+            if (isNew) {
+                transaction.set(serviceTypeRef, data);
+            } else {
+                transaction.update(serviceTypeRef, data);
+            }
+
+            if (currentRehearsalId === serviceTypeRef.id) {
+                transaction.set(configRef, { rehearsalTypeId: null }, { merge: true });
+            }
+        });
+    };
+
+    const getLocationName = (locationId) => {
+        return locations.find(location => location.id === locationId)?.name || '';
+    };
+
     const handleAdd = async () => {
         if (!newType.name.trim()) return;
         try {
             if (newType.isRehearsal) {
-                const batch = writeBatch(db);
-                types.forEach(type => {
-                    if (type.isRehearsal) {
-                        batch.update(doc(db, 'service_types', type.id), { isRehearsal: false });
-                    }
-                });
                 const serviceTypeRef = doc(collection(db, 'service_types'));
-                batch.set(serviceTypeRef, {
+                await saveRehearsalType(serviceTypeRef, {
                     ...newType,
                     createdAt: new Date()
-                });
-                await batch.commit();
+                }, true);
             } else {
                 await addDoc(collection(db, 'service_types'), {
                     ...newType,
                     createdAt: new Date()
                 });
             }
-            setNewType({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', isRehearsal: false, requiredTeams: [] });
+            setNewType({ name: '', color: '#3b82f6', defaultStartTime: '', dayOfWeek: '', locationId: '', location: '', isRehearsal: false, requiredTeams: [] });
             setIsAdding(false);
             fetchTypes();
         } catch (error) {
@@ -104,18 +150,7 @@ const ServiceTypeSettings = () => {
 
     const handleUpdate = async (id, data) => {
         try {
-            if (data.isRehearsal) {
-                const batch = writeBatch(db);
-                types.forEach(type => {
-                    if (type.id !== id && type.isRehearsal) {
-                        batch.update(doc(db, 'service_types', type.id), { isRehearsal: false });
-                    }
-                });
-                batch.update(doc(db, 'service_types', id), data);
-                await batch.commit();
-            } else {
-                await updateDoc(doc(db, 'service_types', id), data);
-            }
+            await saveRehearsalType(doc(db, 'service_types', id), data, false);
             setEditingId(null);
             setEditType(null);
             fetchTypes();
@@ -235,7 +270,7 @@ const ServiceTypeSettings = () => {
                                 <label style={{ fontSize: '12px', color: '#64748b' }}>{t('location')}:</label>
                                 <select
                                     value={newType.locationId || ''}
-                                    onChange={e => setNewType({ ...newType, locationId: e.target.value })}
+                                    onChange={e => setNewType({ ...newType, locationId: e.target.value, location: getLocationName(e.target.value) })}
                                     style={{ ...styles.input, flex: 'none', width: '150px' }}
                                 >
                                     <option value="">{t('noLocation')}</option>
@@ -348,7 +383,7 @@ const ServiceTypeSettings = () => {
                                 <label style={{ fontSize: '12px', color: '#64748b' }}>{t('location')}:</label>
                                 <select
                                     value={editType.locationId || ''}
-                                    onChange={e => setEditType({ ...editType, locationId: e.target.value })}
+                                    onChange={e => setEditType({ ...editType, locationId: e.target.value, location: getLocationName(e.target.value) })}
                                     style={{ ...styles.input, flex: 'none', width: '150px' }}
                                 >
                                     <option value="">{t('noLocation')}</option>
@@ -435,7 +470,7 @@ const ServiceTypeSettings = () => {
                                     )}
                                 </div>
                                 <div style={styles.actions}>
-                                    <button onClick={() => { setEditingId(type.id); setEditType({ ...type, defaultStartTime: type.defaultStartTime || '', dayOfWeek: type.dayOfWeek || '', locationId: type.locationId || '', isRehearsal: Boolean(type.isRehearsal), requiredTeams: type.requiredTeams || [] }); }} style={styles.actionBtn}><Edit2 size={16} /></button>
+                                    <button onClick={() => { setEditingId(type.id); setEditType({ ...type, defaultStartTime: type.defaultStartTime || '', dayOfWeek: type.dayOfWeek || '', locationId: type.locationId || '', location: type.location || getLocationName(type.locationId), isRehearsal: Boolean(type.isRehearsal), requiredTeams: type.requiredTeams || [] }); }} style={styles.actionBtn}><Edit2 size={16} /></button>
                                     <button onClick={() => handleDelete(type.id)} style={{ ...styles.actionBtn, color: '#ef4444' }}><Trash2 size={16} /></button>
                                 </div>
                             </>

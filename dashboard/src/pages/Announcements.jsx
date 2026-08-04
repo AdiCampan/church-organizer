@@ -67,27 +67,23 @@ const Announcements = () => {
 
     };
 
-    const handleEdit = (post) => {
-        setEditingId(post.id);
-        setFormData({
+    const buildPostFormData = (post) => ({
             title: post.title,
             content: post.content,
             details: post.details || '',
             targetTeamId: post.targetTeamId || 'all',
             type: post.type || 'announcement'
-        });
+    });
+
+    const handleEdit = (post) => {
+        setEditingId(post.id);
+        setFormData(buildPostFormData(post));
         setShowAddModal(true);
     };
 
     const handleForward = (post) => {
         setEditingId(null); // Ensure it's a new post
-        setFormData({
-            title: post.title,
-            content: post.content,
-            details: post.details || '',
-            targetTeamId: post.targetTeamId || 'all',
-            type: post.type || 'announcement'
-        });
+        setFormData(buildPostFormData(post));
         setShowAddModal(true);
     };
 

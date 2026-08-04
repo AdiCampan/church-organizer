@@ -8,6 +8,7 @@ on:
 
 jobs:
   sync:
+    if: github.repository == 'Calatayud-Digital-Solutions/church-organizer'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -36,6 +37,25 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          git remote add upstream-sync "https://oauth2:${UPSTREAM_TOKEN}@github.com/${UPSTREAM_REPO}.git"
+          git fetch upstream-sync "+refs/heads/${UPSTREAM_BRANCH}:refs/remotes/upstream-sync/${UPSTREAM_BRANCH}"
+
+          upstream_ref="refs/remotes/upstream-sync/${UPSTREAM_BRANCH}"
+
+          if git merge-base --is-ancestor "${upstream_ref}" HEAD; then
+            echo "Upstream ${UPSTREAM_BRANCH} can be fast-forwarded safely."
+          elif git merge-base --is-ancestor HEAD "${upstream_ref}"; then
+            echo "Upstream ${UPSTREAM_BRANCH} already contains commits that are not in origin/master."
+            echo "Open a pull request or merge those commits first to preserve author traceability."
+            git log --oneline --decorate "HEAD..${upstream_ref}"
+            exit 1
+          else
+            echo "Origin master and upstream ${UPSTREAM_BRANCH} have diverged."
+            echo "Resolve the divergence with a pull request or merge commit before syncing."
+            git log --oneline --decorate --left-right --cherry-pick "HEAD...${upstream_ref}"
+            exit 1
+          fi
+
           git push \
-            "https://oauth2:${UPSTREAM_TOKEN}@github.com/${UPSTREAM_REPO}.git" \
+            upstream-sync \
             "HEAD:refs/heads/${UPSTREAM_BRANCH}"
