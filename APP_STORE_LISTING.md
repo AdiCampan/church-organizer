@@ -121,7 +121,7 @@ biserică,echipe,evenimente,organizare,programare,slujire,comunitate,notificări
 
 ### URL de soporte
 ```
-https://beteldej-teams.web.app
+https://beteldej-teams.web.app/support.html
 ```
 
 ### URL de marketing (opcional)
@@ -194,9 +194,9 @@ Versiunea 1.0.0 - Lansare inițială
 - **Email**: adicampan1974@gmail.com
 
 ### Demo Account (cuenta de prueba)
-- **Username**: reviewer@googleplay.beteldej.com
-- **Password**: [SECURE_PASSWORD]
-- **Notes**: Cuenta de administrador con acceso completo a todas las funciones
+- **Username**: applereview@beteldej.teams
+- **Password**: (configure in App Store Connect; recreate with `npm run fix-apple-reviewer`)
+- **Notes**: Cuenta de administrador con acceso completo a todas las funciones (Firebase project: church-teams-8ea48)
 
 ### Notes for Review
 ```
