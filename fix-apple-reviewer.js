@@ -16,13 +16,13 @@ require('dotenv').config();
 const PROJECT_ID = 'church-teams-8ea48';
 const API_KEY = process.env.BETEL_FIREBASE_API_KEY || 'AIzaSyAnuqZ9u7Rvz7_ntMFDTZG0JSrIabyML8Q';
 const REVIEWER_EMAIL = 'applereview@beteldej.teams';
-const REVIEWER_PASSWORD = process.env.APPLE_REVIEW_PASSWORD;
 const REVIEWER_DISPLAY_NAME = 'Apple Review Team';
 const REVIEWER_PHONE = '+40700000001';
+const REQUEST_INACTIVITY_TIMEOUT_MS = 30000;
+const INVALID_CREDENTIAL_CODES = new Set(['INVALID_PASSWORD', 'INVALID_LOGIN_CREDENTIALS']);
 
-if (!REVIEWER_PASSWORD) {
-  console.error('\nError: APPLE_REVIEW_PASSWORD environment variable is required\n');
-  process.exit(1);
+function getReviewerPassword() {
+  return process.env.APPLE_REVIEW_PASSWORD;
 }
 
 function loadAccessToken() {
@@ -33,6 +33,10 @@ function loadAccessToken() {
     throw new Error('Firebase CLI access token not found. Run: firebase login');
   }
   return token;
+}
+
+function getAuthErrorMessage(error) {
+  return (error && error.body && error.body.error && error.body.error.message) || '';
 }
 
 function requestJson(url, options, body) {
@@ -59,7 +63,12 @@ function requestJson(url, options, body) {
         resolve(parsed);
       });
     });
+
+    req.setTimeout(REQUEST_INACTIVITY_TIMEOUT_MS, () => {
+      req.destroy(new Error(`Request inactivity timeout after ${REQUEST_INACTIVITY_TIMEOUT_MS}ms`));
+    });
     req.on('error', reject);
+
     if (body) {
       req.write(body);
     }
@@ -67,16 +76,23 @@ function requestJson(url, options, body) {
   });
 }
 
-async function ensureAuthUser() {
+async function ensureAuthUser(deps = {}) {
+  const request = deps.requestJson || requestJson;
+  const loadToken = deps.loadAccessToken || loadAccessToken;
+  const password = deps.password || getReviewerPassword();
+  if (!password) {
+    throw new Error('APPLE_REVIEW_PASSWORD environment variable is required');
+  }
+
   const signUpBody = JSON.stringify({
     email: REVIEWER_EMAIL,
-    password: REVIEWER_PASSWORD,
+    password,
     displayName: REVIEWER_DISPLAY_NAME,
     returnSecureToken: true
   });
 
   try {
-    const created = await requestJson(
+    const created = await request(
       `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
       {
         method: 'POST',
@@ -87,7 +103,7 @@ async function ensureAuthUser() {
     console.log('Auth user created:', created.localId);
     return created.localId;
   } catch (error) {
-    const message = error.body && error.body.error && error.body.error.message;
+    const message = getAuthErrorMessage(error);
     if (message !== 'EMAIL_EXISTS') {
       throw error;
     }
@@ -95,12 +111,12 @@ async function ensureAuthUser() {
 
   const signInBody = JSON.stringify({
     email: REVIEWER_EMAIL,
-    password: REVIEWER_PASSWORD,
+    password,
     returnSecureToken: true
   });
 
   try {
-    const signedIn = await requestJson(
+    const signedIn = await request(
       `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
       {
         method: 'POST',
@@ -110,13 +126,17 @@ async function ensureAuthUser() {
     );
     console.log('Auth user exists and password works:', signedIn.localId);
     return signedIn.localId;
-  } catch {
+  } catch (error) {
+    const message = getAuthErrorMessage(error);
+    if (!INVALID_CREDENTIAL_CODES.has(message)) {
+      throw error;
+    }
     console.log('Auth user exists but password mismatch. Updating password...');
   }
 
-  const accessToken = loadAccessToken();
+  const accessToken = loadToken();
   const lookupBody = JSON.stringify({ email: [REVIEWER_EMAIL] });
-  const lookup = await requestJson(
+  const lookup = await request(
     `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`,
     {
       method: 'POST',
@@ -136,11 +156,11 @@ async function ensureAuthUser() {
 
   const updateBody = JSON.stringify({
     localId: uid,
-    password: REVIEWER_PASSWORD,
+    password,
     emailVerified: true,
     displayName: REVIEWER_DISPLAY_NAME
   });
-  await requestJson(
+  await request(
     `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:update`,
     {
       method: 'POST',
@@ -156,8 +176,10 @@ async function ensureAuthUser() {
   return uid;
 }
 
-async function ensureProfile(uid) {
-  const accessToken = loadAccessToken();
+async function ensureProfile(uid, deps = {}) {
+  const request = deps.requestJson || requestJson;
+  const loadToken = deps.loadAccessToken || loadAccessToken;
+  const accessToken = loadToken();
   const doc = {
     fields: {
       email: { stringValue: REVIEWER_EMAIL },
@@ -171,7 +193,7 @@ async function ensureProfile(uid) {
   const body = JSON.stringify(doc);
 
   try {
-    await requestJson(
+    await request(
       `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users?documentId=${uid}`,
       {
         method: 'POST',
@@ -191,7 +213,7 @@ async function ensureProfile(uid) {
     const patchUrl =
       `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${uid}` +
       '?updateMask.fieldPaths=email&updateMask.fieldPaths=displayName&updateMask.fieldPaths=role&updateMask.fieldPaths=phoneNumber&updateMask.fieldPaths=teams';
-    await requestJson(
+    await request(
       patchUrl,
       {
         method: 'PATCH',
@@ -207,14 +229,16 @@ async function ensureProfile(uid) {
   }
 }
 
-async function verifyEmail(uid) {
-  const accessToken = loadAccessToken();
+async function verifyEmail(uid, deps = {}) {
+  const request = deps.requestJson || requestJson;
+  const loadToken = deps.loadAccessToken || loadAccessToken;
+  const accessToken = loadToken();
   const body = JSON.stringify({
     localId: uid,
     emailVerified: true,
     displayName: REVIEWER_DISPLAY_NAME
   });
-  await requestJson(
+  await request(
     `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:update`,
     {
       method: 'POST',
@@ -229,13 +253,18 @@ async function verifyEmail(uid) {
   console.log('Email marked as verified');
 }
 
-async function verifyLogin() {
+async function verifyLogin(deps = {}) {
+  const request = deps.requestJson || requestJson;
+  const password = deps.password || getReviewerPassword();
+  if (!password) {
+    throw new Error('APPLE_REVIEW_PASSWORD environment variable is required');
+  }
   const body = JSON.stringify({
     email: REVIEWER_EMAIL,
-    password: REVIEWER_PASSWORD,
+    password,
     returnSecureToken: true
   });
-  const result = await requestJson(
+  const result = await request(
     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
     {
       method: 'POST',
@@ -244,9 +273,15 @@ async function verifyLogin() {
     body
   );
   console.log('Login verification OK:', result.localId);
+  return result.localId;
 }
 
 async function main() {
+  if (!getReviewerPassword()) {
+    console.error('\nError: APPLE_REVIEW_PASSWORD environment variable is required\n');
+    process.exit(1);
+  }
+
   console.log('\nApple App Review account fix');
   console.log('Project:', PROJECT_ID);
   console.log('Email:', REVIEWER_EMAIL);
@@ -262,7 +297,25 @@ async function main() {
   console.log('');
 }
 
-main().catch((error) => {
-  console.error('\nFailed:', error.message);
-  process.exit(1);
-});
+module.exports = {
+  PROJECT_ID,
+  REVIEWER_EMAIL,
+  REVIEWER_DISPLAY_NAME,
+  REQUEST_INACTIVITY_TIMEOUT_MS,
+  INVALID_CREDENTIAL_CODES,
+  getAuthErrorMessage,
+  requestJson,
+  loadAccessToken,
+  ensureAuthUser,
+  ensureProfile,
+  verifyEmail,
+  verifyLogin,
+  main
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('\nFailed:', error.message);
+    process.exit(1);
+  });
+}
