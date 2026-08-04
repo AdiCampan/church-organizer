@@ -20,6 +20,7 @@ const Songs = () => {
         mp3Url: '',
         bpm: '',
         meter: '',
+        duration: '',
         tags: []
     };
     const [songs, setSongs] = useState([]);
@@ -308,6 +309,7 @@ const Songs = () => {
                                         {song.artist && `${song.artist} • `}{song.key} 
                                         {song.bpm && ` • BPM: ${song.bpm}`} 
                                         {song.meter && ` • ${song.meter}`}
+                                        {song.duration && ` • ⏱ ${song.duration} min`}
                                     </p>
                                     {song.tags?.length > 0 && (
                                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -432,6 +434,18 @@ const Songs = () => {
                                     <label>{t('meter')}</label>
                                     <input type="text" placeholder="4/4" value={formData.meter} onChange={e => setFormData({ ...formData, meter: e.target.value })} style={styles.input} />
                                 </div>
+                            </div>
+
+                            <div style={styles.inputGroup}>
+                                <label>Duración (min)</label>
+                                <input
+                                    type="number"
+                                    placeholder="Ej: 4"
+                                    min="0"
+                                    value={formData.duration}
+                                    onChange={e => setFormData({ ...formData, duration: e.target.value })}
+                                    style={{ ...styles.input, width: '120px' }}
+                                />
                             </div>
 
                              <div style={styles.inputGroup}>
