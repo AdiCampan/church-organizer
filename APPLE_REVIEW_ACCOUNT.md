@@ -11,7 +11,12 @@ applereview@beteldej.teams
 
 **Contraseña:**
 ```
-[SECURE_PASSWORD]
+Set APPLE_REVIEW_PASSWORD in your local environment (do not commit the password).
+```
+
+**Firebase project (el que usa el build iOS):**
+```
+church-teams-8ea48
 ```
 
 ---
@@ -25,7 +30,7 @@ Login instructions:
 1. Launch Betel Dej Teams app
 2. Tap "Sign In" / "Conectare"
 3. Email: applereview@beteldej.teams
-4. Password: [SECURE_PASSWORD]
+4. Password: (value configured in App Store Connect Review Information)
 5. Instant access to all features
 
 Features available:
@@ -53,38 +58,24 @@ applereview@beteldej.teams
 
 **Contraseña:**
 ```
-[SECURE_PASSWORD]
+Use the current APPLE_REVIEW_PASSWORD value in App Store Connect only.
+```
+
+**Support URL:**
+```
+https://beteldej-teams.web.app/support.html
 ```
 
 ---
 
-## 🔧 Instrucciones para crear la cuenta en Firebase
+## 🔧 Recrear / verificar la cuenta
 
-Ejecuta estos pasos para crear la cuenta:
+```bash
+cd church-organizer
+APPLE_REVIEW_PASSWORD='your_secure_password' npm run fix-apple-reviewer
+```
 
-1. Ve a Firebase Console: https://console.firebase.google.com/project/beteldej-teams/authentication/users
-
-2. Haz clic en "Add user"
-
-3. Completa:
-   - **Email**: applereview@beteldej.teams
-   - **Password**: [SECURE_PASSWORD]
-   - **User UID**: (se genera automáticamente)
-
-4. Después de crear el usuario, añade su perfil en Firestore:
-   - Collection: `users`
-   - Document ID: (el UID generado)
-   - Campos:
-     ```json
-     {
-       "email": "applereview@beteldej.teams",
-       "displayName": "Apple Review Team",
-       "role": "admin",
-       "createdAt": (timestamp actual),
-       "phoneNumber": "+40700000001",
-       "teams": []
-     }
-     ```
+La cuenta debe existir en el proyecto **church-teams-8ea48** (no en beteldej-teams).
 
 ---
 
@@ -93,10 +84,11 @@ Ejecuta estos pasos para crear la cuenta:
 | Aspecto | Google Play | Apple App Store |
 |---------|-------------|-----------------|
 | Email | reviewer@googleplay.beteldej.com | applereview@beteldej.teams |
-| Password | [SECURE_PASSWORD] | [SECURE_PASSWORD] |
+| Firebase project | church-teams-8ea48 | church-teams-8ea48 |
 | Uso | Solo Google Play Store | Solo Apple App Store |
 
 ---
 
-**Fecha de creación**: 25 julio 2026
+**Fecha de creación**: 25 julio 2026  
+**Última verificación**: 4 agosto 2026  
 **Propósito**: Revisión de Apple App Store exclusivamente

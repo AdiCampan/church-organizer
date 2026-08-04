@@ -5,9 +5,11 @@
   "private": true,
   "scripts": {
     "fix-reviewer": "node fix-google-play-reviewer.js",
+    "fix-apple-reviewer": "node fix-apple-reviewer.js",
     "check-reviewer": "node check-reviewer-account.js",
     "reset-reviewer": "node reset-reviewer-password.js",
     "create-test-user": "node create-test-user.js",
+    "test": "node fix-apple-reviewer.test.js",
     "help": "node help.js"
   },
   "keywords": [

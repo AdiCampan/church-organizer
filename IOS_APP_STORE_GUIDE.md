@@ -89,7 +89,7 @@ Recibirás:
 
 ✅ **Política de privacidad**: https://beteldej-teams.web.app/privacy-policy.html
 
-✅ **URL de soporte**: https://beteldej-teams.web.app
+✅ **URL de soporte**: https://beteldej-teams.web.app/support.html
 
 ---
 
