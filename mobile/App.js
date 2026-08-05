@@ -6,7 +6,16 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
 import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { deleteUserAccount, getAccountDeletionErrorKey } from './src/accountDeletion';
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  deleteUser,
+} from 'firebase/auth';
 import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
@@ -90,7 +99,23 @@ const translations = {
     declineReasonPlaceholder: 'Escribe el motivo aquí...',
     cancel: 'Cancelar',
     submitDecline: 'Enviar rechazo',
-    declineAssignmentError: 'No se pudo rechazar la asignación'
+    declineAssignmentError: 'No se pudo rechazar la asignación',
+    accountSection: 'Cuenta',
+    deleteAccount: 'Eliminar cuenta',
+    deleteAccountWarning: 'Esta acción es permanente. Se eliminará tu perfil y no podrás iniciar sesión con estas credenciales.',
+    deleteAccountConfirmTitle: '¿Eliminar cuenta?',
+    deleteAccountConfirmMessage: '¿Seguro que quieres eliminar tu cuenta de forma permanente? Esta acción no se puede deshacer.',
+    deleteAccountPasswordTitle: 'Confirma tu contraseña',
+    deleteAccountPasswordMessage: 'Introduce tu contraseña para confirmar la eliminación de la cuenta.',
+    deleteAccountPasswordPlaceholder: 'Contraseña',
+    deleteAccountConfirmButton: 'Eliminar definitivamente',
+    deleteAccountSuccessTitle: 'Cuenta eliminada',
+    deleteAccountSuccessBody: 'Tu cuenta se ha eliminado correctamente.',
+    deleteAccountWrongPassword: 'La contraseña no es correcta.',
+    deleteAccountPasswordRequired: 'La contraseña es obligatoria.',
+    deleteAccountRequiresRecentLogin: 'Por seguridad, vuelve a iniciar sesión e inténtalo de nuevo.',
+    deleteAccountError: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
+    deletingAccount: 'Eliminando cuenta...',
   },
   ro: {
     loginTitle: 'ChurchOrg Mobile',
@@ -167,7 +192,23 @@ const translations = {
     declineReasonPlaceholder: 'Scrie motivul aici...',
     cancel: 'Anulează',
     submitDecline: 'Trimite refuzul',
-    declineAssignmentError: 'Nu s-a putut refuza alocarea'
+    declineAssignmentError: 'Nu s-a putut refuza alocarea',
+    accountSection: 'Cont',
+    deleteAccount: 'Șterge contul',
+    deleteAccountWarning: 'Această acțiune este permanentă. Profilul tău va fi șters și nu vei mai putea te autentifica cu aceste date.',
+    deleteAccountConfirmTitle: 'Ștergi contul?',
+    deleteAccountConfirmMessage: 'Ești sigur că vrei să îți ștergi contul definitiv? Această acțiune nu poate fi anulată.',
+    deleteAccountPasswordTitle: 'Confirmă parola',
+    deleteAccountPasswordMessage: 'Introdu parola pentru a confirma ștergerea contului.',
+    deleteAccountPasswordPlaceholder: 'Parolă',
+    deleteAccountConfirmButton: 'Șterge definitiv',
+    deleteAccountSuccessTitle: 'Cont șters',
+    deleteAccountSuccessBody: 'Contul tău a fost șters cu succes.',
+    deleteAccountWrongPassword: 'Parola nu este corectă.',
+    deleteAccountPasswordRequired: 'Parola este obligatorie.',
+    deleteAccountRequiresRecentLogin: 'Din motive de securitate, autentifică-te din nou și încearcă din nou.',
+    deleteAccountError: 'Nu s-a putut șterge contul. Încearcă din nou.',
+    deletingAccount: 'Se șterge contul...',
   },
   en: {
     loginTitle: 'ChurchOrg Mobile',
@@ -244,7 +285,23 @@ const translations = {
     declineReasonPlaceholder: 'Write the reason here...',
     cancel: 'Cancel',
     submitDecline: 'Submit decline',
-    declineAssignmentError: 'Could not decline the assignment'
+    declineAssignmentError: 'Could not decline the assignment',
+    accountSection: 'Account',
+    deleteAccount: 'Delete account',
+    deleteAccountWarning: 'This action is permanent. Your profile will be removed and you will no longer be able to sign in with these credentials.',
+    deleteAccountConfirmTitle: 'Delete account?',
+    deleteAccountConfirmMessage: 'Are you sure you want to permanently delete your account? This cannot be undone.',
+    deleteAccountPasswordTitle: 'Confirm your password',
+    deleteAccountPasswordMessage: 'Enter your password to confirm account deletion.',
+    deleteAccountPasswordPlaceholder: 'Password',
+    deleteAccountConfirmButton: 'Delete permanently',
+    deleteAccountSuccessTitle: 'Account deleted',
+    deleteAccountSuccessBody: 'Your account has been deleted successfully.',
+    deleteAccountWrongPassword: 'The password is incorrect.',
+    deleteAccountPasswordRequired: 'Password is required.',
+    deleteAccountRequiresRecentLogin: 'For security, sign in again and try once more.',
+    deleteAccountError: 'Could not delete the account. Please try again.',
+    deletingAccount: 'Deleting account...',
   }
 };
 
@@ -455,6 +512,9 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [pickerMode, setPickerMode] = useState(null); // 'start', 'end' or null
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleAdd = () => {
     if (!startDate || !endDate) return Alert.alert("Error", "Fechas requeridas");
@@ -479,6 +539,53 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
       } else if (currentMode === 'end') {
         setEndDate(dateStr);
       }
+    }
+  };
+
+  const resetDeleteFlow = () => {
+    setShowDeletePassword(false);
+    setDeletePassword('');
+    setDeletingAccount(false);
+  };
+
+  const handleRequestDeleteAccount = () => {
+    Alert.alert(
+      t('deleteAccountConfirmTitle'),
+      t('deleteAccountConfirmMessage'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('deleteAccount'),
+          style: 'destructive',
+          onPress: () => setShowDeletePassword(true),
+        },
+      ]
+    );
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    if (deletingAccount) return;
+
+    setDeletingAccount(true);
+    try {
+      await deleteUserAccount({
+        authUser: user,
+        password: deletePassword,
+        db,
+        deleteDoc,
+        doc,
+        EmailAuthProvider,
+        reauthenticateWithCredential,
+        deleteUser,
+      });
+      resetDeleteFlow();
+      onClose();
+      Alert.alert(t('deleteAccountSuccessTitle'), t('deleteAccountSuccessBody'));
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      Alert.alert(t('deleteAccountConfirmTitle'), t(getAccountDeletionErrorKey(error)));
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -596,9 +703,65 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
                 <Text style={styles.emptyText}>No tienes fechas bloqueadas.</Text>
               )}
             </View>
+
+            <Text style={[styles.sectionHeader, { marginTop: 28 }]}>{t('accountSection')}</Text>
+            <Text style={styles.sectionSub}>{t('deleteAccountWarning')}</Text>
+            <TouchableOpacity
+              style={styles.deleteAccountButton}
+              onPress={handleRequestDeleteAccount}
+              disabled={deletingAccount}
+            >
+              <Text style={styles.deleteAccountButtonText}>{t('deleteAccount')}</Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
+
+      <Modal
+        transparent
+        visible={showDeletePassword}
+        animationType="fade"
+        onRequestClose={() => !deletingAccount && resetDeleteFlow()}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: 'auto', maxHeight: '70%', justifyContent: 'flex-start' }]}>
+            <Text style={styles.modalTitle}>{t('deleteAccountPasswordTitle')}</Text>
+            <Text style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>
+              {t('deleteAccountPasswordMessage')}
+            </Text>
+            <TextInput
+              style={styles.inputSmall}
+              placeholder={t('deleteAccountPasswordPlaceholder')}
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              editable={!deletingAccount}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+              <TouchableOpacity
+                style={[styles.addButton, { flex: 1, backgroundColor: '#e2e8f0' }]}
+                onPress={resetDeleteFlow}
+                disabled={deletingAccount}
+              >
+                <Text style={[styles.addButtonText, { color: '#475569' }]}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteAccountButton, { flex: 1, marginBottom: 0 }]}
+                onPress={handleConfirmDeleteAccount}
+                disabled={deletingAccount}
+              >
+                {deletingAccount ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.deleteAccountButtonText}>{t('deleteAccountConfirmButton')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -1959,6 +2122,14 @@ const styles = StyleSheet.create({
   blockoutDates: { fontSize: 14, fontWeight: '700', color: '#1e293b' },
   blockoutReason: { fontSize: 13, color: '#64748b' },
   emptyText: { textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', marginTop: 20 },
+  deleteAccountButton: {
+    backgroundColor: '#ef4444',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  deleteAccountButtonText: { color: 'white', fontWeight: '700', fontSize: 14 },
   settingsBtn: { padding: 4 },
   statusBadgeAvailable: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 100 },
   statusTextAvailable: { fontSize: 11, fontWeight: '700', color: '#166534' },
