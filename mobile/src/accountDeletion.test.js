@@ -1,14 +1,14 @@
 const assert = require('assert');
 const { deleteUserAccount, getAccountDeletionErrorKey } = require('./accountDeletion');
 
-function createMocks({ reauthReject, deleteUserReject, fcmReject } = {}) {
+function createMocks({ reauthReject, deleteUserReject, fcmReject, password = 'Secret123!' } = {}) {
   const calls = [];
   const authUser = { uid: 'user-1', email: 'demo@example.com' };
 
   const EmailAuthProvider = {
-    credential: (email, password) => {
-      calls.push({ type: 'credential', email, password });
-      return { email, password };
+    credential: (email, nextPassword) => {
+      calls.push({ type: 'credential', email, password: nextPassword });
+      return { email, password: nextPassword };
     },
   };
 
@@ -36,7 +36,7 @@ function createMocks({ reauthReject, deleteUserReject, fcmReject } = {}) {
     calls,
     deps: {
       authUser,
-      password: 'Secret123!',
+      password,
       db: {},
       deleteDoc,
       doc,
@@ -77,6 +77,14 @@ async function run() {
   }
 
   {
+    const passwordWithSpaces = '  Secret123!  ';
+    const { deps, calls } = createMocks({ password: passwordWithSpaces });
+    await deleteUserAccount(deps);
+    assert.strictEqual(calls[0].password, passwordWithSpaces);
+    assert.strictEqual(calls[1].credential.password, passwordWithSpaces);
+  }
+
+  {
     const { deps, calls } = createMocks({
       fcmReject: Object.assign(new Error('permission-denied'), { code: 'permission-denied' }),
     });
@@ -95,9 +103,9 @@ async function run() {
   }
 
   {
-    const { deps, calls } = createMocks();
+    const { deps, calls } = createMocks({ password: '' });
     await assert.rejects(
-      () => deleteUserAccount({ ...deps, password: '   ' }),
+      () => deleteUserAccount(deps),
       (err) => err.code === 'auth/missing-password'
     );
     assert.strictEqual(calls.length, 0);
@@ -110,6 +118,29 @@ async function run() {
       (err) => err.code === 'auth/no-current-user'
     );
     assert.strictEqual(calls.length, 0);
+  }
+
+  {
+    const authDeleteError = Object.assign(new Error('auth delete failed'), {
+      code: 'auth/internal-error',
+    });
+    const { deps } = createMocks({ deleteUserReject: authDeleteError });
+    await assert.rejects(
+      () => deleteUserAccount(deps),
+      (err) => err === authDeleteError && err.code === 'auth/internal-error'
+    );
+  }
+
+  {
+    const fcmReject = Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    const authDeleteError = Object.assign(new Error('auth delete failed'), {
+      code: 'auth/internal-error',
+    });
+    const { deps } = createMocks({ fcmReject, deleteUserReject: authDeleteError });
+    await assert.rejects(
+      () => deleteUserAccount(deps),
+      (err) => err === authDeleteError && err.fcmCleanupError === fcmReject
+    );
   }
 
   console.log('accountDeletion.test.js passed');

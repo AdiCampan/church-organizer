@@ -18,25 +18,38 @@ async function deleteUserAccount({
     throw error;
   }
 
-  const trimmedPassword = String(password ?? '').trim();
-  if (!trimmedPassword) {
+  const rawPassword = String(password ?? '');
+  if (!rawPassword) {
     const error = new Error('Password required');
     error.code = 'auth/missing-password';
     throw error;
   }
 
-  const credential = EmailAuthProvider.credential(authUser.email, trimmedPassword);
+  const credential = EmailAuthProvider.credential(authUser.email, rawPassword);
   await reauthenticateWithCredential(authUser, credential);
 
   await deleteDoc(doc(db, 'users', authUser.uid));
 
+  let fcmCleanupError = null;
   try {
     await deleteDoc(doc(db, 'fcmTokens', authUser.uid));
-  } catch {
-    // Token doc may be missing or blocked by rules; Auth deletion still proceeds.
+  } catch (error) {
+    fcmCleanupError = error;
+    console.warn('FCM token cleanup failed during account deletion:', error);
   }
 
-  await deleteUser(authUser);
+  try {
+    await deleteUser(authUser);
+  } catch (authDeleteError) {
+    if (fcmCleanupError) {
+      authDeleteError.fcmCleanupError = fcmCleanupError;
+      console.error('Auth delete failed after FCM cleanup error:', {
+        authDeleteError,
+        fcmCleanupError,
+      });
+    }
+    throw authDeleteError;
+  }
 }
 
 /**
