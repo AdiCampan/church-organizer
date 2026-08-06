@@ -69,6 +69,13 @@
         "EXPO_PUBLIC_ANDROID_GOOGLE_SERVICES_FILE": "./google-services.json",
         "EXPO_PUBLIC_IOS_GOOGLE_SERVICES_FILE": "./GoogleService-Info.plist"
       }
+    },
+    "beteldej-simulator": {
+      "extends": "beteldej",
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {
