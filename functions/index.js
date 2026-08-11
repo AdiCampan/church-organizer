@@ -55,6 +55,12 @@ function hasAcceptedTicket(tickets) {
     return tickets.some((ticket) => ticket?.status === 'ok');
 }
 
+function getRetriableExpoFailure(tickets) {
+    return tickets.find((ticket) => (
+        ticket?.status === 'error' && ticket.details?.error !== 'DeviceNotRegistered'
+    ));
+}
+
 function toEventDate(eventDate) {
     if (!eventDate || typeof eventDate.toDate !== 'function') {
         return null;
@@ -74,7 +80,38 @@ async function claimNotificationField(docRef, fieldName) {
 }
 
 async function releaseNotificationField(docRef, fieldName) {
-    await docRef.update({ [fieldName]: FieldValue.delete() });
+    try {
+        await docRef.update({ [fieldName]: FieldValue.delete() });
+    } catch (error) {
+        console.warn(`[CLAIM] Failed to release ${fieldName} on ${docRef.path}:`, error);
+    }
+}
+
+/**
+ * Keep claim on success. On total failure, release for non-retriable cases and
+ * release+throw for retriable Expo errors so failurePolicy can retry.
+ */
+async function finalizeExpoTickets(docRef, fieldName, tickets) {
+    if (hasAcceptedTicket(tickets)) {
+        return tickets;
+    }
+
+    await releaseNotificationField(docRef, fieldName);
+
+    const failedTicket = getRetriableExpoFailure(tickets);
+    if (failedTicket) {
+        throw new Error(`Expo push failed: ${failedTicket.message || failedTicket.details?.error || 'unknown'}`);
+    }
+
+    return tickets;
+}
+
+async function safeCleanupUnregisteredTokens(messages, tickets) {
+    try {
+        await cleanupUnregisteredTokens(messages, tickets);
+    } catch (error) {
+        console.warn('[CLEANUP] Token cleanup failed after successful push:', error);
+    }
 }
 
 async function readTokenDocsInBatches(userIds) {
@@ -82,9 +119,8 @@ async function readTokenDocsInBatches(userIds) {
 
     for (let index = 0; index < userIds.length; index += TOKEN_READ_BATCH_SIZE) {
         const batchIds = userIds.slice(index, index + TOKEN_READ_BATCH_SIZE);
-        const batchDocs = await Promise.all(
-            batchIds.map((userId) => db.collection('fcmTokens').doc(userId).get())
-        );
+        const refs = batchIds.map((userId) => db.collection('fcmTokens').doc(userId));
+        const batchDocs = await db.getAll(...refs);
         tokenDocs.push(...batchDocs);
     }
 
@@ -149,18 +185,12 @@ exports.onScheduleCreated = firestoreFunction.firestore
             console.log(`[EXPO] Sending assignment notification to ${pushTokenData.token.substring(0, 15)}...`);
             const tickets = await sendExpoMessages(expo, [message]);
             console.log('[RESULT] Expo Ticket:', JSON.stringify(tickets));
-            await cleanupUnregisteredTokens([message], tickets);
 
-            if (!hasAcceptedTicket(tickets)) {
-                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
-                const failedTicket = tickets.find((ticket) => ticket.status === 'error' && ticket.details?.error !== 'DeviceNotRegistered');
-                if (failedTicket) {
-                    throw new Error(`Expo push failed: ${failedTicket.message || failedTicket.details?.error || 'unknown'}`);
-                }
-                return tickets;
+            const finalized = await finalizeExpoTickets(snap.ref, 'pushNotifiedAt', tickets);
+            if (hasAcceptedTicket(finalized)) {
+                await safeCleanupUnregisteredTokens([message], finalized);
             }
-
-            return tickets;
+            return finalized;
         } catch (error) {
             await releaseNotificationField(snap.ref, 'pushNotifiedAt');
             throw error;
@@ -179,68 +209,85 @@ exports.onAnnouncementCreated = firestoreFunction.firestore
 
         console.log(`[TRIGGER] New announcement detected: ${announcement.title} (${announcementId})`);
 
-        let tokenDocs = [];
-        let titlePrefix = '';
-
-        if (announcement.targetTeamId === 'all') {
-            console.log('[AUDIENCE] Targeting ALL users');
-            const tokensSnapshot = await db.collection('fcmTokens').get();
-            tokenDocs = tokensSnapshot.docs;
-        } else {
-            console.log(`[AUDIENCE] Targeting team: ${announcement.targetTeamId}`);
-            const teamDoc = await db.collection('teams').doc(announcement.targetTeamId).get();
-
-            if (teamDoc.exists) {
-                const teamData = teamDoc.data();
-                const targetUserIds = teamData.members || [];
-                titlePrefix = `[${teamData.name}] `;
-                tokenDocs = await readTokenDocsInBatches(targetUserIds);
-            }
-        }
-
-        console.log(`[AUDIENCE] Found ${tokenDocs.length} potential users`);
-
-        if (tokenDocs.length === 0) {
-            console.warn('[AUDIENCE] No target users found');
+        const claimed = await claimNotificationField(snap.ref, 'pushNotifiedAt');
+        if (!claimed) {
+            console.log(`[INFO] Announcement push already claimed/sent for ${announcementId}. Skipping.`);
             return null;
         }
 
-        const messages = [];
+        try {
+            let tokenDocs = [];
+            let titlePrefix = '';
 
-        for (const tokenDoc of tokenDocs) {
-            const pushTokenData = readValidPushToken(tokenDoc);
-            if (!pushTokenData) {
-                console.log(`[DB] No valid token found for user ${tokenDoc.id}`);
-                continue;
+            if (announcement.targetTeamId === 'all') {
+                console.log('[AUDIENCE] Targeting ALL users');
+                const tokensSnapshot = await db.collection('fcmTokens').get();
+                tokenDocs = tokensSnapshot.docs;
+            } else {
+                console.log(`[AUDIENCE] Targeting team: ${announcement.targetTeamId}`);
+                const teamDoc = await db.collection('teams').doc(announcement.targetTeamId).get();
+
+                if (teamDoc.exists) {
+                    const teamData = teamDoc.data();
+                    const targetUserIds = teamData.members || [];
+                    titlePrefix = `[${teamData.name}] `;
+                    tokenDocs = await readTokenDocsInBatches(targetUserIds);
+                }
             }
 
-            messages.push({
-                to: pushTokenData.token,
-                sound: 'default',
-                title: `📢 ${titlePrefix}${announcement.title}`,
-                body: announcement.content.substring(0, 100) + (announcement.content.length > 100 ? '...' : ''),
-                data: {
-                    type: 'announcement',
-                    announcementId,
-                    targetTeamId: announcement.targetTeamId,
-                    userId: tokenDoc.id,
-                },
-                priority: 'high',
-                channelId: 'default',
-                badge: 1,
-            });
-        }
+            console.log(`[AUDIENCE] Found ${tokenDocs.length} potential users`);
 
-        if (messages.length === 0) {
-            console.warn('[EXPO] No valid push tokens to send to');
-            return null;
-        }
+            if (tokenDocs.length === 0) {
+                console.warn('[AUDIENCE] No target users found');
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
+                return null;
+            }
 
-        console.log(`[EXPO] Sending ${messages.length} notifications...`);
-        const tickets = await sendExpoMessages(expo, messages);
-        console.log(`[RESULT] Sent ${tickets.length} notifications. Tickets:`, JSON.stringify(tickets));
-        await cleanupUnregisteredTokens(messages, tickets);
-        return tickets;
+            const messages = [];
+
+            for (const tokenDoc of tokenDocs) {
+                const pushTokenData = readValidPushToken(tokenDoc);
+                if (!pushTokenData) {
+                    console.log(`[DB] No valid token found for user ${tokenDoc.id}`);
+                    continue;
+                }
+
+                messages.push({
+                    to: pushTokenData.token,
+                    sound: 'default',
+                    title: `📢 ${titlePrefix}${announcement.title}`,
+                    body: announcement.content.substring(0, 100) + (announcement.content.length > 100 ? '...' : ''),
+                    data: {
+                        type: 'announcement',
+                        announcementId,
+                        targetTeamId: announcement.targetTeamId,
+                        userId: tokenDoc.id,
+                    },
+                    priority: 'high',
+                    channelId: 'default',
+                    badge: 1,
+                });
+            }
+
+            if (messages.length === 0) {
+                console.warn('[EXPO] No valid push tokens to send to');
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
+                return null;
+            }
+
+            console.log(`[EXPO] Sending ${messages.length} notifications...`);
+            const tickets = await sendExpoMessages(expo, messages);
+            console.log(`[RESULT] Sent ${tickets.length} notifications. Tickets:`, JSON.stringify(tickets));
+
+            const finalized = await finalizeExpoTickets(snap.ref, 'pushNotifiedAt', tickets);
+            if (hasAcceptedTicket(finalized)) {
+                await safeCleanupUnregisteredTokens(messages, finalized);
+            }
+            return finalized;
+        } catch (error) {
+            await releaseNotificationField(snap.ref, 'pushNotifiedAt');
+            throw error;
+        }
     });
 
 /**
@@ -329,14 +376,12 @@ exports.onScheduleUpdated = firestoreFunction.firestore
             console.log(`[EXPO] Sending ${messages.length} decline notifications...`);
             const tickets = await sendExpoMessages(expo, messages);
             console.log('[RESULT] Decline notifications sent. Tickets:', JSON.stringify(tickets));
-            await cleanupUnregisteredTokens(messages, tickets);
 
-            if (!hasAcceptedTicket(tickets)) {
-                await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
-                return tickets;
+            const finalized = await finalizeExpoTickets(change.after.ref, 'declineNotifiedAt', tickets);
+            if (hasAcceptedTicket(finalized)) {
+                await safeCleanupUnregisteredTokens(messages, finalized);
             }
-
-            return tickets;
+            return finalized;
         } catch (error) {
             await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
             throw error;
