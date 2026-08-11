@@ -49,7 +49,13 @@ export default {
         },
         "owner": process.env.EXPO_PUBLIC_EAS_OWNER || "calaespi",
         "plugins": [
-            "@react-native-community/datetimepicker"
+            "@react-native-community/datetimepicker",
+            [
+                "expo-notifications",
+                {
+                    "color": "#0f766e"
+                }
+            ]
         ]
     }
 }

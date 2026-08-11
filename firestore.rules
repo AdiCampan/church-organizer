@@ -68,6 +68,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Push tokens - each user manages only their own device token
+    match /fcmTokens/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == userId
+        && request.resource.data.keys().hasAll(['userId', 'token', 'platform', 'updatedAt']);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
     // Settings collection (admin only)
     match /settings/{document=**} {
       allow read: if isAuthenticated();

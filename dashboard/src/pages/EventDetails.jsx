@@ -5,6 +5,7 @@ import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSn
 import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music, Eye } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
+import { sendAssignmentPushNotification } from '../services/assignmentPush';
 
 
 const EventDetails = () => {
@@ -88,12 +89,12 @@ const EventDetails = () => {
     }, [eventId, navigate]);
 
     const handleAssign = async (teamId) => {
-        if (!selectedUser || !selectedPosition) return;
+        if (!selectedUser || !selectedPosition || !event) return;
 
         const user = availablePeople.find(p => p.id === selectedUser);
 
         try {
-            await addDoc(collection(db, 'schedules'), {
+            const scheduleRef = await addDoc(collection(db, 'schedules'), {
                 eventId,
                 teamId,
                 userId: selectedUser,
@@ -103,6 +104,29 @@ const EventDetails = () => {
                 status: 'pending',
                 assignedAt: serverTimestamp(),
             });
+
+            try {
+                const tokenSnap = await getDoc(doc(db, 'fcmTokens', selectedUser));
+                if (tokenSnap.exists()) {
+                    const tokenData = tokenSnap.data();
+                    const eventDate = event.date?.toDate ? event.date.toDate() : new Date(event.date);
+                    const sent = await sendAssignmentPushNotification({
+                        pushToken: tokenData.token,
+                        language: tokenData.language || language || 'es',
+                        eventTitle: event.title,
+                        eventDate,
+                        position: selectedPosition,
+                        eventId,
+                        scheduleId: scheduleRef.id,
+                        userId: selectedUser,
+                    });
+                    if (sent) {
+                        await updateDoc(scheduleRef, { pushNotifiedAt: serverTimestamp() });
+                    }
+                }
+            } catch (pushError) {
+                console.warn('Assignment push notification failed:', pushError);
+            }
 
             setSelectedUser('');
             setSelectedPosition('');
