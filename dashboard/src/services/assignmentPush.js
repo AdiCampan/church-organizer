@@ -6,9 +6,15 @@ const assignmentCopy = {
     en: { title: '🔔 New Assignment', position: 'Position' },
 };
 
+const EXPO_PUSH_UUID_PATTERN = /^[a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12}$/i;
+
 export function isExpoPushToken(token) {
     return typeof token === 'string'
-        && (token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['));
+        && (
+            ((token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken['))
+                && token.endsWith(']'))
+            || EXPO_PUSH_UUID_PATTERN.test(token)
+        );
 }
 
 export function buildAssignmentPushMessage({

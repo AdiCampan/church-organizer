@@ -104,9 +104,15 @@ function collectUnregisteredUserIds(messages, tickets) {
  * @param {string[]} userIds
  */
 async function deleteStalePushTokens(db, userIds) {
-    await Promise.all(
+    const results = await Promise.allSettled(
         userIds.map((userId) => db.collection('fcmTokens').doc(userId).delete())
     );
+
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.warn(`[CLEANUP] Failed to delete fcmTokens/${userIds[index]}:`, result.reason);
+        }
+    });
 }
 
 /**

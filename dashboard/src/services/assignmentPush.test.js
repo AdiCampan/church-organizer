@@ -8,6 +8,10 @@ import {
 function testIsExpoPushToken() {
     assert.equal(isExpoPushToken('ExponentPushToken[abc]'), true);
     assert.equal(isExpoPushToken('ExpoPushToken[abc]'), true);
+    assert.equal(isExpoPushToken('550e8400-e29b-41d4-a716-446655440000'), true);
+    assert.equal(isExpoPushToken('ExponentPushToken[abc'), false);
+    assert.equal(isExpoPushToken('ExponentPushToken[abc]x'), false);
+    assert.equal(isExpoPushToken('ExpoPushToken[abc'), false);
     assert.equal(isExpoPushToken('invalid'), false);
 }
 
@@ -66,7 +70,7 @@ async function testSendAssignmentPushNotificationSuccess() {
 
 async function testSendAssignmentPushNotificationRejectsInvalidToken() {
     const sent = await sendAssignmentPushNotification({
-        pushToken: 'bad-token',
+        pushToken: 'ExponentPushToken[abc',
         language: 'es',
         eventTitle: 'Culto',
         eventDate: new Date('2026-08-16T10:00:00.000Z'),
