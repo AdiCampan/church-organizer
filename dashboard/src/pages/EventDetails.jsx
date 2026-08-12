@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, setDoc, runTransaction, deleteField } from 'firebase/firestore';
 import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music, Eye } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
+import { sendAssignmentPushNotification } from '../services/assignmentPush';
 
 
 const EventDetails = () => {
@@ -88,12 +89,12 @@ const EventDetails = () => {
     }, [eventId, navigate]);
 
     const handleAssign = async (teamId) => {
-        if (!selectedUser || !selectedPosition) return;
+        if (!selectedUser || !selectedPosition || !event) return;
 
         const user = availablePeople.find(p => p.id === selectedUser);
 
         try {
-            await addDoc(collection(db, 'schedules'), {
+            const scheduleRef = await addDoc(collection(db, 'schedules'), {
                 eventId,
                 teamId,
                 userId: selectedUser,
@@ -103,6 +104,52 @@ const EventDetails = () => {
                 status: 'pending',
                 assignedAt: serverTimestamp(),
             });
+
+            try {
+                const tokenSnap = await getDoc(doc(db, 'fcmTokens', selectedUser));
+                if (tokenSnap.exists()) {
+                    let claimed = false;
+                    try {
+                        claimed = await runTransaction(db, async (transaction) => {
+                            const freshSnap = await transaction.get(scheduleRef);
+                            if (!freshSnap.exists() || freshSnap.data().pushNotifiedAt) {
+                                return false;
+                            }
+                            transaction.update(scheduleRef, { pushNotifiedAt: serverTimestamp() });
+                            return true;
+                        });
+
+                        if (claimed) {
+                            const tokenData = tokenSnap.data();
+                            const eventDate = event.date?.toDate ? event.date.toDate() : new Date(event.date);
+                            const sent = await sendAssignmentPushNotification({
+                                pushToken: tokenData.token,
+                                language: tokenData.language || language || 'es',
+                                eventTitle: event.title,
+                                eventDate,
+                                position: selectedPosition,
+                                eventId,
+                                scheduleId: scheduleRef.id,
+                                userId: selectedUser,
+                            });
+                            if (!sent) {
+                                await updateDoc(scheduleRef, { pushNotifiedAt: deleteField() });
+                            }
+                        }
+                    } catch (pushError) {
+                        console.warn('Assignment push notification failed:', pushError);
+                        if (claimed) {
+                            try {
+                                await updateDoc(scheduleRef, { pushNotifiedAt: deleteField() });
+                            } catch (releaseError) {
+                                console.warn('Failed to release push notification claim:', releaseError);
+                            }
+                        }
+                    }
+                }
+            } catch (tokenError) {
+                console.warn('Assignment push token lookup failed:', tokenError);
+            }
 
             setSelectedUser('');
             setSelectedPosition('');

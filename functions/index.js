@@ -1,9 +1,20 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+const functions = require('firebase-functions/v1');
+const { initializeApp } = require('firebase-admin/app');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { Expo } = require('expo-server-sdk');
+const {
+    buildAssignmentMessage,
+    sendExpoMessages,
+    collectUnregisteredUserIds,
+    deleteStalePushTokens,
+    readValidPushToken,
+} = require('./pushNotifications');
 
-admin.initializeApp();
+initializeApp();
 const expo = new Expo();
+const db = getFirestore();
+
+const TOKEN_READ_BATCH_SIZE = 25;
 
 const declineNotificationText = {
     es: {
@@ -24,11 +35,103 @@ const getDeclineNotificationText = (language) => {
     return declineNotificationText[language] || declineNotificationText.es;
 };
 
+const firestoreFunction = functions.runWith({
+    failurePolicy: true,
+    timeoutSeconds: 60,
+    memory: '256MB',
+});
+
+async function cleanupUnregisteredTokens(messages, tickets) {
+    const staleUserIds = collectUnregisteredUserIds(messages, tickets);
+    if (staleUserIds.length === 0) {
+        return;
+    }
+
+    console.warn(`[CLEANUP] Removing stale push tokens for users: ${staleUserIds.join(', ')}`);
+    await deleteStalePushTokens(db, staleUserIds);
+}
+
+function hasAcceptedTicket(tickets) {
+    return tickets.some((ticket) => ticket?.status === 'ok');
+}
+
+function getRetriableExpoFailure(tickets) {
+    return tickets.find((ticket) => (
+        ticket?.status === 'error' && ticket.details?.error !== 'DeviceNotRegistered'
+    ));
+}
+
+function toEventDate(eventDate) {
+    if (!eventDate || typeof eventDate.toDate !== 'function') {
+        return null;
+    }
+    return eventDate.toDate();
+}
+
+async function claimNotificationField(docRef, fieldName) {
+    return db.runTransaction(async (transaction) => {
+        const freshSnap = await transaction.get(docRef);
+        if (!freshSnap.exists || freshSnap.get(fieldName)) {
+            return false;
+        }
+        transaction.update(docRef, { [fieldName]: FieldValue.serverTimestamp() });
+        return true;
+    });
+}
+
+async function releaseNotificationField(docRef, fieldName) {
+    try {
+        await docRef.update({ [fieldName]: FieldValue.delete() });
+    } catch (error) {
+        console.warn(`[CLAIM] Failed to release ${fieldName} on ${docRef.path}:`, error);
+    }
+}
+
+/**
+ * Keep claim on success. On total failure, release for non-retriable cases and
+ * release+throw for retriable Expo errors so failurePolicy can retry.
+ */
+async function finalizeExpoTickets(docRef, fieldName, tickets) {
+    if (hasAcceptedTicket(tickets)) {
+        return tickets;
+    }
+
+    await releaseNotificationField(docRef, fieldName);
+
+    const failedTicket = getRetriableExpoFailure(tickets);
+    if (failedTicket) {
+        throw new Error(`Expo push failed: ${failedTicket.message || failedTicket.details?.error || 'unknown'}`);
+    }
+
+    return tickets;
+}
+
+async function safeCleanupUnregisteredTokens(messages, tickets) {
+    try {
+        await cleanupUnregisteredTokens(messages, tickets);
+    } catch (error) {
+        console.warn('[CLEANUP] Token cleanup failed after successful push:', error);
+    }
+}
+
+async function readTokenDocsInBatches(userIds) {
+    const tokenDocs = [];
+
+    for (let index = 0; index < userIds.length; index += TOKEN_READ_BATCH_SIZE) {
+        const batchIds = userIds.slice(index, index + TOKEN_READ_BATCH_SIZE);
+        const refs = batchIds.map((userId) => db.collection('fcmTokens').doc(userId));
+        const batchDocs = await db.getAll(...refs);
+        tokenDocs.push(...batchDocs);
+    }
+
+    return tokenDocs;
+}
+
 /**
  * Trigger: When a new schedule (assignment) is created
  * Action: Send push notification to the assigned volunteer
  */
-exports.onScheduleCreated = functions.firestore
+exports.onScheduleCreated = firestoreFunction.firestore
     .document('schedules/{scheduleId}')
     .onCreate(async (snap, context) => {
         const schedule = snap.data();
@@ -37,83 +140,60 @@ exports.onScheduleCreated = functions.firestore
 
         console.log(`[TRIGGER] New assignment detected. scheduleId: ${scheduleId}, userId: ${userId}`);
 
+        const claimed = await claimNotificationField(snap.ref, 'pushNotifiedAt');
+        if (!claimed) {
+            console.log(`[INFO] Assignment push already claimed/sent for schedule ${scheduleId}. Skipping.`);
+            return null;
+        }
+
         try {
-            // Get user's push token
-            console.log(`[DB] Fetching token for user: ${userId}`);
-            const tokenDoc = await admin.firestore()
-                .collection('fcmTokens')
-                .doc(userId)
-                .get();
+            const tokenDoc = await db.collection('fcmTokens').doc(userId).get();
+            const pushTokenData = readValidPushToken(tokenDoc);
 
-            if (!tokenDoc.exists) {
-                console.warn(`[NOT-FOUND] No push token found in 'fcmTokens' collection for user: ${userId}`);
+            if (!pushTokenData) {
+                console.warn(`[NOT-FOUND] No valid push token for user: ${userId}`);
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
                 return null;
             }
 
-            const pushToken = tokenDoc.data().token;
-            const userLang = tokenDoc.data().language || 'es';
-            console.log(`[TOKEN] Found token: ${pushToken.substring(0, 20)}... Language: ${userLang}`);
-
-            // Localized messages
-            const localizedMsg = {
-                es: { title: '🔔 Nueva Asignación', position: 'Posición' },
-                ro: { title: '🔔 Alocare Nouă', position: 'Poziție' },
-                en: { title: '🔔 New Assignment', position: 'Position' }
-            };
-            const strings = localizedMsg[userLang] || localizedMsg.es;
-
-            // Validate Expo push token
-            if (!Expo.isExpoPushToken(pushToken)) {
-                console.error(`[INVALID-TOKEN] The token is not a valid ExpoPushToken: ${pushToken}`);
-                return null;
-            }
-
-            // Get event details
-            console.log(`[DB] Fetching event details: ${schedule.eventId}`);
-            const eventDoc = await admin.firestore()
-                .collection('events')
-                .doc(schedule.eventId)
-                .get();
-
+            const eventDoc = await db.collection('events').doc(schedule.eventId).get();
             if (!eventDoc.exists) {
                 console.warn(`[NOT-FOUND] Event ${schedule.eventId} not found`);
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
                 return null;
             }
 
             const event = eventDoc.data();
-            const eventDate = event.date.toDate();
+            const eventDate = toEventDate(event.date);
+            if (!eventDate) {
+                console.warn(`[INVALID-EVENT] Event ${schedule.eventId} has invalid date`);
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
+                return null;
+            }
 
-            const dateLocale = userLang === 'ro' ? 'ro-RO' : (userLang === 'en' ? 'en-US' : 'es-ES');
-            const formattedDate = eventDate.toLocaleDateString(dateLocale, {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short'
+            const message = buildAssignmentMessage({
+                pushToken: pushTokenData.token,
+                language: pushTokenData.language,
+                eventTitle: event.title,
+                eventDate,
+                position: schedule.position,
+                eventId: schedule.eventId,
+                scheduleId,
             });
+            message.data.userId = userId;
 
-            // Send notification
-            console.log(`[EXPO] Preparing to send notification to ${pushToken.substring(0, 15)}...`);
-            const message = {
-                to: pushToken,
-                sound: 'default',
-                title: strings.title,
-                body: `${event.title} - ${formattedDate}\n${strings.position}: ${schedule.position}`,
-                data: {
-                    type: 'assignment',
-                    eventId: schedule.eventId,
-                    scheduleId: scheduleId
-                },
-                priority: 'high',
-                channelId: 'default',
-                badge: 1,
-            };
+            console.log(`[EXPO] Sending assignment notification to ${pushTokenData.token.substring(0, 15)}...`);
+            const tickets = await sendExpoMessages(expo, [message]);
+            console.log('[RESULT] Expo Ticket:', JSON.stringify(tickets));
 
-            const ticket = await expo.sendPushNotificationsAsync([message]);
-            console.log('[RESULT] Expo Ticket:', JSON.stringify(ticket));
-
-            return ticket;
+            const finalized = await finalizeExpoTickets(snap.ref, 'pushNotifiedAt', tickets);
+            if (hasAcceptedTicket(finalized)) {
+                await safeCleanupUnregisteredTokens([message], finalized);
+            }
+            return finalized;
         } catch (error) {
-            console.error('[ERROR] Failure in onScheduleCreated:', error);
-            return null;
+            await releaseNotificationField(snap.ref, 'pushNotifiedAt');
+            throw error;
         }
     });
 
@@ -121,7 +201,7 @@ exports.onScheduleCreated = functions.firestore
  * Trigger: When a new announcement is created
  * Action: Send push notification to all users or specific team
  */
-exports.onAnnouncementCreated = functions.firestore
+exports.onAnnouncementCreated = firestoreFunction.firestore
     .document('announcements/{announcementId}')
     .onCreate(async (snap, context) => {
         const announcement = snap.data();
@@ -129,97 +209,84 @@ exports.onAnnouncementCreated = functions.firestore
 
         console.log(`[TRIGGER] New announcement detected: ${announcement.title} (${announcementId})`);
 
-        try {
-            let targetUserIds = [];
+        const claimed = await claimNotificationField(snap.ref, 'pushNotifiedAt');
+        if (!claimed) {
+            console.log(`[INFO] Announcement push already claimed/sent for ${announcementId}. Skipping.`);
+            return null;
+        }
 
+        try {
+            let tokenDocs = [];
             let titlePrefix = '';
 
-            // Determine target audience
             if (announcement.targetTeamId === 'all') {
                 console.log('[AUDIENCE] Targeting ALL users');
-                const tokensSnapshot = await admin.firestore()
-                    .collection('fcmTokens')
-                    .get();
-
-                targetUserIds = tokensSnapshot.docs.map(doc => doc.id);
+                const tokensSnapshot = await db.collection('fcmTokens').get();
+                tokenDocs = tokensSnapshot.docs;
             } else {
                 console.log(`[AUDIENCE] Targeting team: ${announcement.targetTeamId}`);
-                const teamDoc = await admin.firestore()
-                    .collection('teams')
-                    .doc(announcement.targetTeamId)
-                    .get();
+                const teamDoc = await db.collection('teams').doc(announcement.targetTeamId).get();
 
                 if (teamDoc.exists) {
                     const teamData = teamDoc.data();
-                    targetUserIds = teamData.members || [];
-                    // Add Team Name to prefix
+                    const targetUserIds = teamData.members || [];
                     titlePrefix = `[${teamData.name}] `;
+                    tokenDocs = await readTokenDocsInBatches(targetUserIds);
                 }
             }
 
-            console.log(`[AUDIENCE] Found ${targetUserIds.length} potential users`);
+            console.log(`[AUDIENCE] Found ${tokenDocs.length} potential users`);
 
-            if (targetUserIds.length === 0) {
+            if (tokenDocs.length === 0) {
                 console.warn('[AUDIENCE] No target users found');
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
                 return null;
             }
 
-            // Get push tokens for target users
             const messages = [];
 
-            for (const userId of targetUserIds) {
-                const tokenDoc = await admin.firestore()
-                    .collection('fcmTokens')
-                    .doc(userId)
-                    .get();
-
-                if (tokenDoc.exists) {
-                    const pushToken = tokenDoc.data().token;
-
-                    if (Expo.isExpoPushToken(pushToken)) {
-                        messages.push({
-                            to: pushToken,
-                            sound: 'default',
-                            title: `📢 ${titlePrefix}${announcement.title}`,
-                            body: announcement.content.substring(0, 100) + (announcement.content.length > 100 ? '...' : ''),
-                            data: {
-                                type: 'announcement',
-                                announcementId: announcementId,
-                                targetTeamId: announcement.targetTeamId // Useful for client-side filtering if needed
-                            },
-                            priority: 'high',
-                            channelId: 'default',
-                            badge: 1,
-                        });
-                    } else {
-                        console.warn(`[INVALID-TOKEN] Skipping invalid token for user ${userId}`);
-                    }
-                } else {
-                    console.log(`[DB] No token found for user ${userId}`);
+            for (const tokenDoc of tokenDocs) {
+                const pushTokenData = readValidPushToken(tokenDoc);
+                if (!pushTokenData) {
+                    console.log(`[DB] No valid token found for user ${tokenDoc.id}`);
+                    continue;
                 }
+
+                messages.push({
+                    to: pushTokenData.token,
+                    sound: 'default',
+                    title: `📢 ${titlePrefix}${announcement.title}`,
+                    body: announcement.content.substring(0, 100) + (announcement.content.length > 100 ? '...' : ''),
+                    data: {
+                        type: 'announcement',
+                        announcementId,
+                        targetTeamId: announcement.targetTeamId,
+                        userId: tokenDoc.id,
+                    },
+                    priority: 'high',
+                    channelId: 'default',
+                    badge: 1,
+                });
             }
 
             if (messages.length === 0) {
                 console.warn('[EXPO] No valid push tokens to send to');
+                await releaseNotificationField(snap.ref, 'pushNotifiedAt');
                 return null;
             }
 
             console.log(`[EXPO] Sending ${messages.length} notifications...`);
-
-            // Send notifications in chunks
-            const chunks = expo.chunkPushNotifications(messages);
-            const tickets = [];
-
-            for (const chunk of chunks) {
-                const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-                tickets.push(...ticketChunk);
-            }
-
+            const tickets = await sendExpoMessages(expo, messages);
             console.log(`[RESULT] Sent ${tickets.length} notifications. Tickets:`, JSON.stringify(tickets));
-            return tickets;
+
+            const finalized = await finalizeExpoTickets(snap.ref, 'pushNotifiedAt', tickets);
+            if (hasAcceptedTicket(finalized)) {
+                await safeCleanupUnregisteredTokens(messages, finalized);
+            }
+            return finalized;
         } catch (error) {
-            console.error('[ERROR] Failure in onAnnouncementCreated:', error);
-            return null;
+            await releaseNotificationField(snap.ref, 'pushNotifiedAt');
+            throw error;
         }
     });
 
@@ -227,104 +294,96 @@ exports.onAnnouncementCreated = functions.firestore
  * Trigger: When a schedule is updated (e.g. status changes to declined)
  * Action: Send push notification to team leaders (or all admins if no leaders)
  */
-exports.onScheduleUpdated = functions.firestore
+exports.onScheduleUpdated = firestoreFunction.firestore
     .document('schedules/{scheduleId}')
     .onUpdate(async (change, context) => {
         const before = change.before.data();
         const after = change.after.data();
 
-        // Check if status changed to 'declined'
-        if (before.status !== 'declined' && after.status === 'declined') {
-            console.log(`[TRIGGER] Assignment declined. scheduleId: ${context.params.scheduleId}, userId: ${after.userId}`);
+        if (before.status === 'declined' || after.status !== 'declined') {
+            return null;
+        }
 
-            try {
-                if (after.declineNotifiedAt) {
-                    console.log(`[INFO] Decline notification already sent for schedule ${context.params.scheduleId}.`);
-                    return null;
-                }
+        console.log(`[TRIGGER] Assignment declined. scheduleId: ${context.params.scheduleId}, userId: ${after.userId}`);
 
-                // Get team details to find leaders
-                const teamDoc = await admin.firestore().collection('teams').doc(after.teamId).get();
-                let leaderIds = [];
+        const claimed = await claimNotificationField(change.after.ref, 'declineNotifiedAt');
+        if (!claimed) {
+            console.log(`[INFO] Decline notification already claimed/sent for schedule ${context.params.scheduleId}.`);
+            return null;
+        }
 
-                if (teamDoc.exists) {
-                    const teamData = teamDoc.data();
-                    leaderIds = teamData.leaders || [];
-                }
+        try {
+            const teamDoc = await db.collection('teams').doc(after.teamId).get();
+            let leaderIds = [];
 
-                leaderIds = leaderIds.filter(leaderId => leaderId && leaderId !== after.userId);
+            if (teamDoc.exists) {
+                leaderIds = teamDoc.data().leaders || [];
+            }
 
-                // If no leaders, fallback to all admins
-                if (leaderIds.length === 0) {
-                    console.log(`[INFO] No leaders assigned to team ${after.teamId}. Falling back to all admins.`);
-                    const adminsSnap = await admin.firestore().collection('users').where('role', '==', 'admin').get();
-                    leaderIds = adminsSnap.docs
-                        .map(doc => doc.id)
-                        .filter(adminId => adminId !== after.userId);
-                }
+            leaderIds = leaderIds.filter((leaderId) => leaderId && leaderId !== after.userId);
 
-                if (leaderIds.length === 0) {
-                    console.warn(`[WARN] No leaders or admins found to notify for decline.`);
-                    return null;
-                }
+            if (leaderIds.length === 0) {
+                console.log(`[INFO] No leaders assigned to team ${after.teamId}. Falling back to all admins.`);
+                const adminsSnap = await db.collection('users').where('role', '==', 'admin').get();
+                leaderIds = adminsSnap.docs
+                    .map((doc) => doc.id)
+                    .filter((adminId) => adminId !== after.userId);
+            }
 
-                // Get event details
-                const eventDoc = await admin.firestore().collection('events').doc(after.eventId).get();
-                const eventTitle = eventDoc.exists ? eventDoc.data().title : 'Evento Desconocido';
-
-                // Get tokens for leaders
-                const messages = [];
-                const tokenDocs = await Promise.all(
-                    leaderIds.map(leaderId => admin.firestore().collection('fcmTokens').doc(leaderId).get())
-                );
-
-                tokenDocs.forEach((tokenDoc) => {
-                    if (tokenDoc.exists) {
-                        const tokenData = tokenDoc.data();
-                        const pushToken = tokenData.token;
-                        const strings = getDeclineNotificationText(tokenData.language || 'es');
-                        if (Expo.isExpoPushToken(pushToken)) {
-                            messages.push({
-                                to: pushToken,
-                                sound: 'default',
-                                title: strings.title,
-                                body: strings.body(eventTitle),
-                                data: {
-                                    type: 'assignment_declined',
-                                    eventId: after.eventId,
-                                    scheduleId: context.params.scheduleId,
-                                    userName: after.userName || null,
-                                    declineReason: after.declineReason || null
-                                },
-                                priority: 'high',
-                                channelId: 'default'
-                            });
-                        }
-                    }
-                });
-
-                if (messages.length === 0) {
-                    console.log(`[INFO] No valid push tokens found for leaders/admins.`);
-                    return null;
-                }
-
-                console.log(`[EXPO] Sending ${messages.length} decline notifications...`);
-                const chunks = expo.chunkPushNotifications(messages);
-                const tickets = [];
-                for (const chunk of chunks) {
-                    const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-                    tickets.push(...ticketChunk);
-                }
-
-                console.log(`[RESULT] Decline notifications sent. Tickets:`, JSON.stringify(tickets));
-                await change.after.ref.update({
-                    declineNotifiedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-                return tickets;
-            } catch (error) {
-                console.error('[ERROR] Failure in onScheduleUpdated:', error);
+            if (leaderIds.length === 0) {
+                console.warn('[WARN] No leaders or admins found to notify for decline.');
+                await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
                 return null;
             }
+
+            const eventDoc = await db.collection('events').doc(after.eventId).get();
+            const eventTitle = eventDoc.exists ? eventDoc.data().title : 'Evento Desconocido';
+
+            const messages = [];
+            const tokenDocs = await readTokenDocsInBatches(leaderIds);
+
+            tokenDocs.forEach((tokenDoc) => {
+                const pushTokenData = readValidPushToken(tokenDoc);
+                if (!pushTokenData) {
+                    return;
+                }
+
+                const strings = getDeclineNotificationText(pushTokenData.language);
+                messages.push({
+                    to: pushTokenData.token,
+                    sound: 'default',
+                    title: strings.title,
+                    body: strings.body(eventTitle),
+                    data: {
+                        type: 'assignment_declined',
+                        eventId: after.eventId,
+                        scheduleId: context.params.scheduleId,
+                        userName: after.userName || null,
+                        declineReason: after.declineReason || null,
+                        userId: tokenDoc.id,
+                    },
+                    priority: 'high',
+                    channelId: 'default',
+                });
+            });
+
+            if (messages.length === 0) {
+                console.log('[INFO] No valid push tokens found for leaders/admins.');
+                await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
+                return null;
+            }
+
+            console.log(`[EXPO] Sending ${messages.length} decline notifications...`);
+            const tickets = await sendExpoMessages(expo, messages);
+            console.log('[RESULT] Decline notifications sent. Tickets:', JSON.stringify(tickets));
+
+            const finalized = await finalizeExpoTickets(change.after.ref, 'declineNotifiedAt', tickets);
+            if (hasAcceptedTicket(finalized)) {
+                await safeCleanupUnregisteredTokens(messages, finalized);
+            }
+            return finalized;
+        } catch (error) {
+            await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
+            throw error;
         }
-        return null;
     });
