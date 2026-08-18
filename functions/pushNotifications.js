@@ -51,6 +51,81 @@ function buildAssignmentMessage({
 }
 
 /**
+ * Build a localized decline push message for team leaders.
+ * @param {object} params
+ * @param {string} params.pushToken
+ * @param {string} params.language
+ * @param {string} params.eventTitle
+ * @param {string} params.userName
+ * @param {string} params.declineReason
+ * @param {string} params.eventId
+ * @param {string} params.scheduleId
+ * @param {string} params.recipientUserId
+ */
+function buildDeclineMessage({
+    pushToken,
+    language,
+    eventTitle,
+    userName,
+    declineReason,
+    eventId,
+    scheduleId,
+    recipientUserId,
+}) {
+    const localizedMsg = {
+        es: {
+            title: '⚠️ Asignación rechazada',
+            unknownUser: 'Un voluntario',
+            unknownReason: 'Sin motivo indicado',
+            body: (name, title, reason) =>
+                `${name} rechazó la asignación de "${title}". Motivo: ${reason}`,
+        },
+        ro: {
+            title: '⚠️ Alocare refuzată',
+            unknownUser: 'Un voluntar',
+            unknownReason: 'Fără motiv indicat',
+            body: (name, title, reason) =>
+                `${name} a refuzat alocarea pentru "${title}". Motiv: ${reason}`,
+        },
+        en: {
+            title: '⚠️ Assignment declined',
+            unknownUser: 'A volunteer',
+            unknownReason: 'No reason provided',
+            body: (name, title, reason) =>
+                `${name} declined the assignment for "${title}". Reason: ${reason}`,
+        },
+    };
+    const userLang = localizedMsg[language] ? language : 'es';
+    const strings = localizedMsg[userLang];
+    const safeName = typeof userName === 'string' && userName.trim()
+        ? userName.trim()
+        : strings.unknownUser;
+    const safeReason = typeof declineReason === 'string' && declineReason.trim()
+        ? declineReason.trim()
+        : strings.unknownReason;
+    const safeTitle = typeof eventTitle === 'string' && eventTitle.trim()
+        ? eventTitle.trim()
+        : 'Event';
+
+    return {
+        to: pushToken,
+        sound: 'default',
+        title: strings.title,
+        body: strings.body(safeName, safeTitle, safeReason),
+        data: {
+            type: 'assignment_declined',
+            eventId,
+            scheduleId,
+            userName: safeName,
+            declineReason: safeReason,
+            userId: recipientUserId,
+        },
+        priority: 'high',
+        channelId: 'default',
+    };
+}
+
+/**
  * Send Expo push messages and collect tickets.
  * @param {Expo} expo
  * @param {Array<object>} messages
@@ -139,6 +214,7 @@ function readValidPushToken(tokenDoc) {
 
 module.exports = {
     buildAssignmentMessage,
+    buildDeclineMessage,
     sendExpoMessages,
     collectUnregisteredUserIds,
     deleteStalePushTokens,

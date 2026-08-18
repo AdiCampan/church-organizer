@@ -4,6 +4,7 @@ const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { Expo } = require('expo-server-sdk');
 const {
     buildAssignmentMessage,
+    buildDeclineMessage,
     sendExpoMessages,
     collectUnregisteredUserIds,
     deleteStalePushTokens,
@@ -15,25 +16,6 @@ const expo = new Expo();
 const db = getFirestore();
 
 const TOKEN_READ_BATCH_SIZE = 25;
-
-const declineNotificationText = {
-    es: {
-        title: '⚠️ Asignación rechazada',
-        body: (eventTitle) => `Se ha rechazado una asignación para "${eventTitle}". Abre la app para ver el detalle.`
-    },
-    ro: {
-        title: '⚠️ Alocare refuzată',
-        body: (eventTitle) => `O alocare pentru "${eventTitle}" a fost refuzată. Deschide aplicația pentru detalii.`
-    },
-    en: {
-        title: '⚠️ Assignment declined',
-        body: (eventTitle) => `An assignment for "${eventTitle}" was declined. Open the app to view details.`
-    }
-};
-
-const getDeclineNotificationText = (language) => {
-    return declineNotificationText[language] || declineNotificationText.es;
-};
 
 const firestoreFunction = functions.runWith({
     failurePolicy: true,
@@ -292,7 +274,7 @@ exports.onAnnouncementCreated = firestoreFunction.firestore
 
 /**
  * Trigger: When a schedule is updated (e.g. status changes to declined)
- * Action: Send push notification to team leaders (or all admins if no leaders)
+ * Action: Send push notification to leaders of the declined assignment's team
  */
 exports.onScheduleUpdated = firestoreFunction.firestore
     .document('schedules/{scheduleId}')
@@ -313,6 +295,12 @@ exports.onScheduleUpdated = firestoreFunction.firestore
         }
 
         try {
+            if (!after.teamId) {
+                console.warn('[WARN] Declined schedule has no teamId. Skipping leader notification.');
+                await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
+                return null;
+            }
+
             const teamDoc = await db.collection('teams').doc(after.teamId).get();
             let leaderIds = [];
 
@@ -323,15 +311,7 @@ exports.onScheduleUpdated = firestoreFunction.firestore
             leaderIds = leaderIds.filter((leaderId) => leaderId && leaderId !== after.userId);
 
             if (leaderIds.length === 0) {
-                console.log(`[INFO] No leaders assigned to team ${after.teamId}. Falling back to all admins.`);
-                const adminsSnap = await db.collection('users').where('role', '==', 'admin').get();
-                leaderIds = adminsSnap.docs
-                    .map((doc) => doc.id)
-                    .filter((adminId) => adminId !== after.userId);
-            }
-
-            if (leaderIds.length === 0) {
-                console.warn('[WARN] No leaders or admins found to notify for decline.');
+                console.warn(`[WARN] No leaders found for team ${after.teamId}. Skipping decline notification.`);
                 await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
                 return null;
             }
@@ -348,27 +328,20 @@ exports.onScheduleUpdated = firestoreFunction.firestore
                     return;
                 }
 
-                const strings = getDeclineNotificationText(pushTokenData.language);
-                messages.push({
-                    to: pushTokenData.token,
-                    sound: 'default',
-                    title: strings.title,
-                    body: strings.body(eventTitle),
-                    data: {
-                        type: 'assignment_declined',
-                        eventId: after.eventId,
-                        scheduleId: context.params.scheduleId,
-                        userName: after.userName || null,
-                        declineReason: after.declineReason || null,
-                        userId: tokenDoc.id,
-                    },
-                    priority: 'high',
-                    channelId: 'default',
-                });
+                messages.push(buildDeclineMessage({
+                    pushToken: pushTokenData.token,
+                    language: pushTokenData.language,
+                    eventTitle,
+                    userName: after.userName || '',
+                    declineReason: after.declineReason || '',
+                    eventId: after.eventId,
+                    scheduleId: context.params.scheduleId,
+                    recipientUserId: tokenDoc.id,
+                }));
             });
 
             if (messages.length === 0) {
-                console.log('[INFO] No valid push tokens found for leaders/admins.');
+                console.log('[INFO] No valid push tokens found for team leaders.');
                 await releaseNotificationField(change.after.ref, 'declineNotifiedAt');
                 return null;
             }

@@ -2,6 +2,7 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
     buildAssignmentMessage,
+    buildDeclineMessage,
     collectUnregisteredUserIds,
     readValidPushToken,
 } = require('./pushNotifications');
@@ -43,6 +44,89 @@ describe('buildAssignmentMessage', () => {
 
         assert.equal(message.title, '🔔 Nueva Asignación');
         assert.ok(message.body.includes('Posición: Voz'));
+    });
+});
+
+describe('buildDeclineMessage', () => {
+    test('includes who declined and the reason in Spanish', () => {
+        const message = buildDeclineMessage({
+            pushToken: 'ExponentPushToken[leader]',
+            language: 'es',
+            eventTitle: 'Culto domingo',
+            userName: 'María López',
+            declineReason: 'No puedo asistir',
+            eventId: 'event-3',
+            scheduleId: 'schedule-3',
+            recipientUserId: 'leader-1',
+        });
+
+        assert.equal(message.title, '⚠️ Asignación rechazada');
+        assert.equal(
+            message.body,
+            'María López rechazó la asignación de "Culto domingo". Motivo: No puedo asistir'
+        );
+        assert.deepEqual(message.data, {
+            type: 'assignment_declined',
+            eventId: 'event-3',
+            scheduleId: 'schedule-3',
+            userName: 'María López',
+            declineReason: 'No puedo asistir',
+            userId: 'leader-1',
+        });
+    });
+
+    test('localizes Romanian and English bodies', () => {
+        const roMessage = buildDeclineMessage({
+            pushToken: 'ExponentPushToken[leader]',
+            language: 'ro',
+            eventTitle: 'Serviciu',
+            userName: 'Ion',
+            declineReason: 'Nu pot veni',
+            eventId: 'event-4',
+            scheduleId: 'schedule-4',
+            recipientUserId: 'leader-2',
+        });
+        const enMessage = buildDeclineMessage({
+            pushToken: 'ExponentPushToken[leader]',
+            language: 'en',
+            eventTitle: 'Sunday Service',
+            userName: 'John',
+            declineReason: 'I am sick',
+            eventId: 'event-5',
+            scheduleId: 'schedule-5',
+            recipientUserId: 'leader-3',
+        });
+
+        assert.equal(roMessage.title, '⚠️ Alocare refuzată');
+        assert.equal(
+            roMessage.body,
+            'Ion a refuzat alocarea pentru "Serviciu". Motiv: Nu pot veni'
+        );
+        assert.equal(enMessage.title, '⚠️ Assignment declined');
+        assert.equal(
+            enMessage.body,
+            'John declined the assignment for "Sunday Service". Reason: I am sick'
+        );
+    });
+
+    test('falls back when name or reason is missing', () => {
+        const message = buildDeclineMessage({
+            pushToken: 'ExponentPushToken[leader]',
+            language: 'es',
+            eventTitle: 'Ensayo',
+            userName: '   ',
+            declineReason: '',
+            eventId: 'event-6',
+            scheduleId: 'schedule-6',
+            recipientUserId: 'leader-4',
+        });
+
+        assert.equal(
+            message.body,
+            'Un voluntario rechazó la asignación de "Ensayo". Motivo: Sin motivo indicado'
+        );
+        assert.equal(message.data.userName, 'Un voluntario');
+        assert.equal(message.data.declineReason, 'Sin motivo indicado');
     });
 });
 
