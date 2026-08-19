@@ -19,6 +19,13 @@
           "beteldej-teams"
         ]
       }
+    },
+    "church-teams": {
+      "hosting": {
+        "webapp": [
+          "church-teams"
+        ]
+      }
     }
   },
   "etags": {}
