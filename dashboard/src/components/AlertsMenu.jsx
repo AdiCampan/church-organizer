@@ -3,6 +3,7 @@ import { db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { Bell, X, Calendar, UserX, Info } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
+import { getDeclineNotificationReason } from '../utils/declineNotificationReason';
 
 const AlertsMenu = () => {
     const { t } = useLanguage();
@@ -79,11 +80,13 @@ const AlertsMenu = () => {
 
     const renderContent = (n) => {
         if (n.type === 'assignment_declined') {
+            const declineReason = getDeclineNotificationReason(n);
             return (
                 <div style={styles.notifContent}>
                     <p style={styles.notifText}>
                         <strong>{n.userName}</strong> {t('declinedToServe')} <strong>{n.eventTitle}</strong>.
                     </p>
+                    {declineReason && <p style={styles.notifSubtext}>"{declineReason}"</p>}
                 </div>
             );
         }
