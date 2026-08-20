@@ -2,7 +2,7 @@ export default {
     "expo": {
         "name": process.env.EXPO_PUBLIC_APP_NAME || "Church Teams",
         "slug": process.env.EXPO_PUBLIC_APP_SLUG || "church-teams",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "orientation": "portrait",
         "icon": process.env.EXPO_PUBLIC_ANDROID_PACKAGE === "com.beteldej.teams" ? "./assets-beteldej/icon.png" : "./assets/icon.png",
         "userInterfaceStyle": "light",
