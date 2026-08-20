@@ -86,7 +86,19 @@
       "ios": {}
     },
     "churchteams": {
-      "extends": "production"
+      "extends": "production",
+      "ios": {
+        "appleId": "victor.calatayud.espinosa@gmail.com",
+        "appleTeamId": "VVBV3CKVWZ",
+        "ascAppId": "6791256313",
+        "bundleIdentifier": "com.cds.churchteams",
+        "companyName": "Victor Calatayud"
+      },
+      "android": {
+        "applicationId": "com.cds.churchteams",
+        "track": "internal",
+        "serviceAccountKeyPath": "../../google-play-service-account.json"
+      }
     },
     "ebenezer": {
       "extends": "production"
