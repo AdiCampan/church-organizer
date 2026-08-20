@@ -7,6 +7,7 @@ import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown,
 import { auth, db } from './src/firebase';
 import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
 import { deleteUserAccount, getAccountDeletionErrorKey } from './src/accountDeletion';
+import { resolveAgendaItemInteraction } from './src/agendaItemInteraction';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -69,15 +70,10 @@ const translations = {
     confirmed: 'Confirmado',
     declined: 'Rechazado',
     myTeam: 'MI EQUIPO',
-    orderOfService: 'ORDEN DEL SERVICIO',
     noOrder: 'No hay orden de servicio detallada aún',
     members: 'integrantes',
     description: 'Descripción',
     language: 'Idioma',
-    showOtherTeams: 'Ver otros equipos',
-    hideOtherTeams: 'Ocultar otros equipos',
-    noOneElseInYourTeam: 'Nadie más de tu equipo en este evento.',
-    noOneElseAssigned: 'Solo tú estás asignado por ahora.',
     chords: 'Acordes',
     lyrics: 'Letras',
     audio: 'Audio',
@@ -87,7 +83,6 @@ const translations = {
     teamsTab: 'Equipos',
     scheduleTab: 'Horario',
     noTeamsAssigned: 'No hay equipos asignados.',
-    viewOrderOfService: 'Ver orden de servicio',
     dateAndTime: 'Fecha y hora',
     location: 'Ubicación',
     dateTimeSeparator: 'a las',
@@ -162,15 +157,10 @@ const translations = {
     confirmed: 'Confirmat',
     declined: 'Refuzat',
     myTeam: 'ECHIPA MEA',
-    orderOfService: 'ORDINEA SERVICIULUI',
     noOrder: 'Nu există o ordine de serviciu detaliată încă',
     members: 'membri',
     description: 'Descriere',
     language: 'Limbă',
-    showOtherTeams: 'Vezi alte echipe',
-    hideOtherTeams: 'Ascunde alte echipe',
-    noOneElseInYourTeam: 'Nimeni altcineva din echipa ta la acest eveniment.',
-    noOneElseAssigned: 'Doar tu ești alocat deocamdată.',
     chords: 'Acorduri',
     lyrics: 'Versuri',
     audio: 'Audio',
@@ -180,7 +170,6 @@ const translations = {
     teamsTab: 'Echipe',
     scheduleTab: 'Program',
     noTeamsAssigned: 'Nu sunt echipe alocate.',
-    viewOrderOfService: 'Vezi ordinea serviciului',
     dateAndTime: 'Data și ora',
     location: 'Locație',
     dateTimeSeparator: 'la',
@@ -255,15 +244,10 @@ const translations = {
     confirmed: 'Confirmed',
     declined: 'Declined',
     myTeam: 'MY TEAM',
-    orderOfService: 'ORDER OF SERVICE',
     noOrder: 'No detailed order of service yet',
     members: 'members',
     description: 'Description',
     language: 'Language',
-    showOtherTeams: 'Show other teams',
-    hideOtherTeams: 'Hide other teams',
-    noOneElseInYourTeam: 'No one else from your team on this event.',
-    noOneElseAssigned: 'Only you are assigned for now.',
     chords: 'Chords',
     lyrics: 'Lyrics',
     audio: 'Audio',
@@ -273,7 +257,6 @@ const translations = {
     teamsTab: 'Teams',
     scheduleTab: 'Schedule',
     noTeamsAssigned: 'No teams assigned.',
-    viewOrderOfService: 'View order of service',
     dateAndTime: 'Date and time',
     location: 'Location',
     dateTimeSeparator: 'at',
@@ -922,79 +905,11 @@ const OrderOfServiceList = ({ event, globalSongsMap, teammates, user, t, expande
   });
 };
 
-// --- Order of Service Modal ---
-const OrderOfServiceModal = ({ visible, onClose, event, globalSongsMap, t, teammates, user }) => {
-  const [expandedItemIndex, setExpandedItemIndex] = useState(null);
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [selectedSongForLyrics, setSelectedSongForLyrics] = useState(null);
-
+// --- Assignment Card (Agenda) ---
+const AssignmentCard = ({ assignment, event, onAccept, onDecline, t, language, onPress }) => {
   if (!event) return null;
 
-  return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={onClose}><View style={{ flex: 1, width: '100%' }} /></TouchableWithoutFeedback>
-        <View style={[styles.modalContent, { maxHeight: '90%', paddingBottom: 32 }]}>
-          
-          {showLyrics && selectedSongForLyrics ? (
-            <View style={{ flex: 1 }}>
-              <View style={styles.modalHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>{selectedSongForLyrics.title}</Text>
-                  <Text style={{ fontSize: 14, color: '#64748b' }}>{selectedSongForLyrics.artist}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setShowLyrics(false)}>
-                  <X size={24} color="#64748b" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={true}>
-                <Text style={{ fontSize: 16, lineHeight: 24, color: '#1e293b', paddingVertical: 10 }}>
-                  {selectedSongForLyrics.lyrics || t('noLyrics')}
-                </Text>
-              </ScrollView>
-            </View>
-          ) : (
-            <View style={{ flex: 1 }}>
-              <View style={styles.modalHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.modalTitle}>{t('orderOfService')}</Text>
-                  <Text style={{ fontSize: 14, color: '#64748b' }}>{event.title}</Text>
-                </View>
-                <TouchableOpacity onPress={onClose}>
-                  <X size={24} color="#64748b" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={true}>
-                <OrderOfServiceList
-                  event={event}
-                  globalSongsMap={globalSongsMap}
-                  teammates={teammates}
-                  user={user}
-                  t={t}
-                  expandedItemIndex={expandedItemIndex}
-                  onToggleItem={setExpandedItemIndex}
-                  onSelectLyrics={(song) => {
-                    setSelectedSongForLyrics(song);
-                    setShowLyrics(true);
-                  }}
-                />
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-// --- Assignment Card ---
-const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap, teammates, eventSchedules, t, teams, user, language }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [expandedOthers, setExpandedOthers] = useState(false);
-  const [showOrderModal, setShowOrderModal] = useState(false);
-
-  if (!event) return null;
-
+  const interaction = resolveAgendaItemInteraction(assignment);
   const locale = getDateLocale(language);
   const formattedDate = event.date ? event.date.toDate().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : '';
   const formattedTime = event.date ? event.date.toDate().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
@@ -1003,7 +918,7 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
     <View style={styles.card}>
       <TouchableOpacity
         style={styles.cardMain}
-        onPress={() => setExpanded(!expanded)}
+        onPress={interaction.opensDetailOnPress ? onPress : undefined}
         activeOpacity={0.7}
       >
         <View style={styles.cardInfo}>
@@ -1026,135 +941,38 @@ const AssignmentCard = ({ assignment, event, onAccept, onDecline, globalSongsMap
         </View>
 
         <View style={styles.cardActions}>
-          {assignment ? (
-            assignment.status === 'pending' ? (
-              <View style={{ flexDirection: 'column', gap: 12 }}>
-                <TouchableOpacity style={styles.acceptButton} onPress={() => onAccept(assignment.id)}>
-                  <Text style={styles.acceptButtonText}>{t('confirm')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{ ...styles.acceptButton, backgroundColor: '#fee2e2', borderColor: '#fee2e2' }} onPress={() => onDecline(assignment.id, event.title)}>
-                  <Text style={{ ...styles.acceptButtonText, color: '#991b1b' }}>{t('decline')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.confirmedBadge}>
-                {assignment.status === 'confirmed' ? (
-                  <>
-                    <CheckCircle size={14} color="#166534" />
-                    <Text style={styles.confirmedText}>{t('confirmed')}</Text>
-                  </>
-                ) : (
-                  <>
-                    <MinusCircle size={14} color="#991b1b" />
-                    <Text style={{ ...styles.confirmedText, color: '#991b1b' }}>{t('declined')}</Text>
-                  </>
-                )}
-              </View>
-            )
+          {interaction.showStatusBadgeOnList ? (
+            <View style={styles.confirmedBadge}>
+              {assignment.status === 'confirmed' ? (
+                <>
+                  <CheckCircle size={14} color="#166534" />
+                  <Text style={styles.confirmedText}>{t('confirmed')}</Text>
+                </>
+              ) : (
+                <>
+                  <MinusCircle size={14} color="#991b1b" />
+                  <Text style={{ ...styles.confirmedText, color: '#991b1b' }}>{t('declined')}</Text>
+                </>
+              )}
+            </View>
           ) : null}
-          <View style={{ marginTop: 8 }}>
-            {expanded ? <ChevronUp size={20} color="#cbd5e1" /> : <ChevronDown size={20} color="#cbd5e1" />}
-          </View>
+          <ChevronRight size={20} color="#cbd5e1" />
         </View>
       </TouchableOpacity>
 
-      {expanded && (
-        <View style={styles.oosSection}>
-          <View style={{ marginBottom: 20 }}>
-            <Text style={styles.oosHeader}>{t('myTeam')}</Text>
-            {(() => {
-              // 1. Filter teammates into "My Team" vs "Others"
-              const myTeamIds = new Set();
-              if (user && teams) {
-                teams.forEach(team => {
-                  if (team.members && team.members.includes(user.uid)) {
-                    team.members.forEach(m => myTeamIds.add(m));
-                  }
-                });
-              }
-
-              const myTeam = [];
-              const others = [];
-
-              if (teammates) {
-                teammates.forEach(tm => {
-                  if (myTeamIds.has(tm.userId)) {
-                    myTeam.push(tm);
-                  } else {
-                    others.push(tm);
-                  }
-                });
-              }
-
-              const renderTeammate = (tm) => (
-                <View key={tm.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: tm.status === 'confirmed' ? '#22c55e' : '#cbd5e1' }} />
-                    <Text style={{ fontSize: 14, color: '#1e293b' }}>{tm.userName || tm.userEmail?.split('@')[0]}</Text>
-                  </View>
-                  <Text style={{ fontSize: 12, color: '#64748b', backgroundColor: '#f1f5f9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>{tm.position}</Text>
-                </View>
-              );
-
-              return (
-                <>
-                  {/* My Team List */}
-                  {myTeam.length > 0 ? (
-                    myTeam.map(renderTeammate)
-                  ) : (
-                    <Text style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', marginBottom: 8 }}>
-                      {others.length > 0 ? t('noOneElseInYourTeam') || 'Nadie más de tu equipo en este evento.' : t('noOneElseAssigned') || 'Solo tú estás asignado por ahora.'}
-                    </Text>
-                  )}
-
-                  {/* Others Toggle */}
-                  {others.length > 0 && (
-                    <View style={{ marginTop: 12 }}>
-                      <TouchableOpacity
-                        onPress={() => setExpandedOthers(!expandedOthers)}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}
-                      >
-                        <Users size={14} color="#64748b" />
-                        <Text style={{ fontSize: 13, color: '#64748b', fontWeight: '600' }}>
-                          {expandedOthers ? (t('hideOtherTeams') || 'Ocultar otros equipos') : (t('showOtherTeams') || 'Ver otros equipos')}
-                        </Text>
-                        {expandedOthers ? <ChevronUp size={14} color="#64748b" /> : <ChevronDown size={14} color="#64748b" />}
-                      </TouchableOpacity>
-
-                      {expandedOthers && (
-                        <View style={{ paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#f1f5f9' }}>
-                          {others.map(renderTeammate)}
-                        </View>
-                      )}
-                    </View>
-                  )}
-                </>
-              );
-            })()}
-          </View>
-
-          {event.orderOfService && event.orderOfService.length > 0 ? (
-            <TouchableOpacity 
-              style={{ backgroundColor: '#eff6ff', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 16 }}
-              onPress={() => setShowOrderModal(true)}
-            >
-              <Text style={{ color: '#007bff', fontWeight: '700', fontSize: 14 }}>{t('viewOrderOfService')}</Text>
-            </TouchableOpacity>
-          ) : (
-            <Text style={[styles.oosEmpty, { marginTop: 16 }]}>{t('noOrder')}</Text>
-          )}
-
-          <OrderOfServiceModal
-            visible={showOrderModal}
-            onClose={() => setShowOrderModal(false)}
-            event={event}
-            globalSongsMap={globalSongsMap}
-            t={t}
-            teammates={eventSchedules}
-            user={user}
-          />
+      {interaction.showConfirmDeclineOnList ? (
+        <View style={styles.agendaActionsRow}>
+          <TouchableOpacity style={[styles.acceptButton, styles.agendaActionButton]} onPress={() => onAccept(assignment.id)}>
+            <Text style={styles.acceptButtonText}>{t('confirm')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.acceptButton, styles.agendaActionButton, styles.agendaDeclineButton]}
+            onPress={() => onDecline(assignment.id, event.title)}
+          >
+            <Text style={{ ...styles.acceptButtonText, color: '#991b1b' }}>{t('decline')}</Text>
+          </TouchableOpacity>
         </View>
-      )}
+      ) : null}
     </View>
   );
 };
@@ -1913,13 +1731,9 @@ export default function App() {
                       event={event}
                       onAccept={handleAccept}
                       onDecline={handleDecline}
-                      globalSongsMap={songsMap}
-                      teammates={allSchedules.filter(s => s.eventId === event.id && s.userId !== user.uid)}
-                      eventSchedules={allSchedules.filter(s => s.eventId === event.id)}
                       t={t}
-                      teams={teams}
-                      user={user}
                       language={language}
+                      onPress={() => setSelectedServiceEvent(event)}
                     />
                   );
                 });
@@ -2071,6 +1885,17 @@ const styles = StyleSheet.create({
   cardActions: { marginLeft: 16, alignItems: 'flex-end' },
   acceptButton: { backgroundColor: '#007bff', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 10 },
   acceptButtonText: { color: 'white', fontSize: 14, fontWeight: '700' },
+  agendaActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 12,
+  },
+  agendaActionButton: { flex: 1, alignItems: 'center' },
+  agendaDeclineButton: { backgroundColor: '#fee2e2', borderColor: '#fee2e2' },
   confirmedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#dcfce7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   confirmedText: { color: '#166534', fontSize: 12, fontWeight: '600' },
   oosSection: { backgroundColor: '#f8fafc', padding: 16, borderTopWidth: 1, borderTopColor: '#f1f5f9' },
