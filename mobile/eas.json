@@ -86,7 +86,12 @@
       "ios": {}
     },
     "churchteams": {
-      "extends": "production"
+      "extends": "production",
+      "android": {
+        "applicationId": "com.cds.churchteams",
+        "track": "internal",
+        "serviceAccountKeyPath": "../../google-play-service-account.json"
+      }
     },
     "ebenezer": {
       "extends": "production"
