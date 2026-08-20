@@ -88,7 +88,6 @@
     "churchteams": {
       "extends": "production",
       "ios": {
-        "appleId": "victor.calatayud.espinosa@gmail.com",
         "appleTeamId": "VVBV3CKVWZ",
         "ascAppId": "6791256313",
         "bundleIdentifier": "com.cds.churchteams",
@@ -106,7 +105,6 @@
     "beteldej": {
       "extends": "production",
       "ios": {
-        "appleId": "victor.calatayud.espinosa@gmail.com",
         "appleTeamId": "VVBV3CKVWZ",
         "ascAppId": "6794708788",
         "bundleIdentifier": "com.beteldej.teams",
