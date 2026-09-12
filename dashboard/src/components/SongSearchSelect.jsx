@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Music, Search, X } from 'lucide-react';
 import { filterSongsBySearch } from '../utils/songSearch';
 
@@ -11,10 +11,15 @@ const SongSearchSelect = ({
     noResultsLabel,
     clearLabel,
 }) => {
+    const instanceId = useId();
+    const listboxId = `song-search-listbox-${instanceId}`;
+    const getOptionId = (index) => `song-search-option-${instanceId}-${index}`;
+
     const [query, setQuery] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef(null);
+    const optionRefs = useRef({});
 
     const selectedSong = songs.find((song) => song.id === value) || null;
     const filteredSongs = filterSongsBySearch(songs, query);
@@ -35,6 +40,18 @@ const SongSearchSelect = ({
         document.addEventListener('mousedown', handlePointerDown);
         return () => document.removeEventListener('mousedown', handlePointerDown);
     }, []);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        optionRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' });
+    }, [activeIndex, isOpen]);
+
+    const setOptionRef = (index) => (element) => {
+        optionRefs.current[index] = element;
+    };
 
     const selectSong = (songId) => {
         const song = songs.find((item) => item.id === songId) || null;
@@ -111,7 +128,8 @@ const SongSearchSelect = ({
                     style={styles.input}
                     aria-autocomplete="list"
                     aria-expanded={isOpen}
-                    aria-activedescendant={isOpen ? `song-option-${activeIndex}` : undefined}
+                    aria-controls={isOpen ? listboxId : undefined}
+                    aria-activedescendant={isOpen ? getOptionId(activeIndex) : undefined}
                     role="combobox"
                 />
                 {(value || query) && (
@@ -138,11 +156,14 @@ const SongSearchSelect = ({
             )}
 
             {isOpen && (
-                <ul style={styles.dropdown} role="listbox">
-                    <li>
+                <ul id={listboxId} style={styles.dropdown} role="listbox">
+                    <li role="presentation">
                         <button
                             type="button"
-                            id="song-option-0"
+                            id={getOptionId(0)}
+                            ref={setOptionRef(0)}
+                            role="option"
+                            aria-selected={value === ''}
                             style={{
                                 ...styles.option,
                                 ...(activeIndex === 0 ? styles.optionActive : {}),
@@ -159,10 +180,13 @@ const SongSearchSelect = ({
                         filteredSongs.map((song, index) => {
                             const optionIndex = index + 1;
                             return (
-                                <li key={song.id}>
+                                <li key={song.id} role="presentation">
                                     <button
                                         type="button"
-                                        id={`song-option-${optionIndex}`}
+                                        id={getOptionId(optionIndex)}
+                                        ref={setOptionRef(optionIndex)}
+                                        role="option"
+                                        aria-selected={value === song.id}
                                         style={{
                                             ...styles.option,
                                             ...(activeIndex === optionIndex ? styles.optionActive : {}),
