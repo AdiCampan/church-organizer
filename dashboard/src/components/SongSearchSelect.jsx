@@ -13,11 +13,16 @@ const SongSearchSelect = ({
 }) => {
     const [query, setQuery] = useState('');
     const [isOpen, setIsOpen] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(0);
     const containerRef = useRef(null);
 
     const selectedSong = songs.find((song) => song.id === value) || null;
     const filteredSongs = filterSongsBySearch(songs, query);
     const inputValue = isOpen ? query : (selectedSong?.title || '');
+    const selectableOptions = [
+        { id: '' },
+        ...filteredSongs.map((song) => ({ id: song.id })),
+    ];
 
     useEffect(() => {
         const handlePointerDown = (event) => {
@@ -36,12 +41,56 @@ const SongSearchSelect = ({
         onChange(songId, song);
         setQuery('');
         setIsOpen(false);
+        setActiveIndex(0);
     };
 
     const clearSelection = () => {
         onChange('', null);
         setQuery('');
         setIsOpen(true);
+        setActiveIndex(0);
+    };
+
+    const openDropdown = () => {
+        setQuery('');
+        setIsOpen(true);
+        setActiveIndex(0);
+    };
+
+    const handleKeyDown = (event) => {
+        if (!isOpen) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActiveIndex((current) => Math.min(current + 1, selectableOptions.length - 1));
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActiveIndex((current) => Math.max(current - 1, 0));
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopPropagation();
+            const safeIndex = Math.min(activeIndex, selectableOptions.length - 1);
+            const activeOption = selectableOptions[safeIndex];
+            if (activeOption) {
+                selectSong(activeOption.id);
+            }
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            setIsOpen(false);
+            setQuery('');
+            setActiveIndex(0);
+        }
     };
 
     return (
@@ -52,17 +101,17 @@ const SongSearchSelect = ({
                     type="text"
                     value={inputValue}
                     placeholder={searchPlaceholder}
-                    onFocus={() => {
-                        setQuery('');
-                        setIsOpen(true);
-                    }}
+                    onFocus={openDropdown}
                     onChange={(event) => {
                         setQuery(event.target.value);
                         setIsOpen(true);
+                        setActiveIndex(0);
                     }}
+                    onKeyDown={handleKeyDown}
                     style={styles.input}
                     aria-autocomplete="list"
                     aria-expanded={isOpen}
+                    aria-activedescendant={isOpen ? `song-option-${activeIndex}` : undefined}
                     role="combobox"
                 />
                 {(value || query) && (
@@ -93,11 +142,13 @@ const SongSearchSelect = ({
                     <li>
                         <button
                             type="button"
+                            id="song-option-0"
                             style={{
                                 ...styles.option,
-                                ...(value === '' ? styles.optionActive : {}),
+                                ...(activeIndex === 0 ? styles.optionActive : {}),
                             }}
                             onClick={() => selectSong('')}
+                            onMouseEnter={() => setActiveIndex(0)}
                         >
                             {noSongLabel}
                         </button>
@@ -105,23 +156,28 @@ const SongSearchSelect = ({
                     {filteredSongs.length === 0 ? (
                         <li style={styles.emptyState}>{noResultsLabel}</li>
                     ) : (
-                        filteredSongs.map((song) => (
-                            <li key={song.id}>
-                                <button
-                                    type="button"
-                                    style={{
-                                        ...styles.option,
-                                        ...(value === song.id ? styles.optionActive : {}),
-                                    }}
-                                    onClick={() => selectSong(song.id)}
-                                >
-                                    <span style={styles.optionTitle}>{song.title}</span>
-                                    {song.artist && (
-                                        <span style={styles.optionArtist}>{song.artist}</span>
-                                    )}
-                                </button>
-                            </li>
-                        ))
+                        filteredSongs.map((song, index) => {
+                            const optionIndex = index + 1;
+                            return (
+                                <li key={song.id}>
+                                    <button
+                                        type="button"
+                                        id={`song-option-${optionIndex}`}
+                                        style={{
+                                            ...styles.option,
+                                            ...(activeIndex === optionIndex ? styles.optionActive : {}),
+                                        }}
+                                        onClick={() => selectSong(song.id)}
+                                        onMouseEnter={() => setActiveIndex(optionIndex)}
+                                    >
+                                        <span style={styles.optionTitle}>{song.title}</span>
+                                        {song.artist && (
+                                            <span style={styles.optionArtist}>{song.artist}</span>
+                                        )}
+                                    </button>
+                                </li>
+                            );
+                        })
                     )}
                 </ul>
             )}

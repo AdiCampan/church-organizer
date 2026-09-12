@@ -607,7 +607,7 @@ const EventDetails = () => {
                             <SongSearchSelect
                                 songs={allSongs}
                                 value={newItem.songId}
-                                searchPlaceholder={t('searchByTitle')}
+                                searchPlaceholder={t('searchByTitleOrArtist')}
                                 noSongLabel={t('noSong')}
                                 noResultsLabel={t('noSongsFound')}
                                 clearLabel={t('clearSong')}
