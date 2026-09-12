@@ -8,6 +8,7 @@ import { auth, db } from './src/firebase';
 import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
 import { deleteUserAccount, getAccountDeletionErrorKey } from './src/accountDeletion';
 import { resolveAgendaItemInteraction } from './src/agendaItemInteraction';
+import { resolveSongWithArrangement } from './src/songArrangements';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -841,7 +842,8 @@ const OrderOfServiceList = ({ event, globalSongsMap, teammates, user, t, expande
 
   return event.orderOfService.map((item, index) => {
     const sid = item.songId || item.song;
-    const song = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(songItem => songItem.id === sid)) : null;
+    const baseSong = (sid && globalSongsMap) ? (globalSongsMap[sid] || Object.values(globalSongsMap).find(songItem => songItem.id === sid)) : null;
+    const song = baseSong ? resolveSongWithArrangement(baseSong, item.arrangementId) : null;
     const isItemExpanded = expandedItemIndex === index;
     const showNote = item.details && (!item.targetTeams || item.targetTeams.includes('all') || item.targetTeams.some(tid => userTeamIds.includes(tid)));
 
@@ -851,7 +853,13 @@ const OrderOfServiceList = ({ event, globalSongsMap, teammates, user, t, expande
           <View style={styles.oosDot} />
           <View style={{ flex: 1 }}>
             <Text style={styles.oosTitle}>{item.title}</Text>
-            {song && <Text style={styles.oosSongTitle}>{song.title} • {song.key}</Text>}
+            {song && (
+              <Text style={styles.oosSongTitle}>
+                {song.title}
+                {song.key ? ` • ${song.key}` : ''}
+                {song.arrangement?.name && song.arrangements?.length > 1 ? ` • ${song.arrangement.name}` : ''}
+              </Text>
+            )}
           </View>
           {showNote && (
             <View style={{ marginRight: 8, backgroundColor: '#fee2e2', padding: 4, borderRadius: 12 }}>

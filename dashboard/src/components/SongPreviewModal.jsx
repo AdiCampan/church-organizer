@@ -1,33 +1,80 @@
-import React from 'react';
-import { X, FileText, Play, Music, ExternalLink, Youtube } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, FileText, Play, Youtube, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
+import {
+    ensureSongArrangements,
+    resolveSongWithArrangement,
+} from '../utils/songArrangements';
 
-const SongPreviewModal = ({ song, onClose }) => {
+const getInitialArrangementId = (song, arrangementId, defaultName) => {
+    const arrangements = ensureSongArrangements(song, { defaultName });
+    if (arrangementId && arrangements.some((item) => item.id === arrangementId)) {
+        return arrangementId;
+    }
+    return arrangements.find((item) => item.isDefault)?.id || arrangements[0]?.id || '';
+};
+
+const SongPreviewModal = ({ song, arrangementId = null, onClose }) => {
     const { t } = useLanguage();
+    const arrangements = ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
+    const fallbackArrangementId = getInitialArrangementId(song, arrangementId, t('defaultArrangementName'));
+    const [selectedArrangementId, setSelectedArrangementId] = useState(fallbackArrangementId);
 
     if (!song) return null;
+
+    const activeArrangementId = arrangements.some((item) => item.id === selectedArrangementId)
+        ? selectedArrangementId
+        : fallbackArrangementId;
+
+    const resolved = resolveSongWithArrangement(song, activeArrangementId, {
+        defaultName: t('defaultArrangementName'),
+    });
+
+    if (!resolved) return null;
 
     return (
         <div style={styles.modalOverlay}>
             <div className="card" style={styles.modal}>
                 <div style={styles.modalHeader}>
                     <div>
-                        <h2 style={{ margin: 0 }}>{song.title}</h2>
-                        <p style={{ margin: '4px 0 0', color: '#64748b' }}>{song.artist} • {t('key')}: {song.key}</p>
+                        <h2 style={{ margin: 0 }}>{resolved.title}</h2>
+                        <p style={{ margin: '4px 0 0', color: '#64748b' }}>
+                            {resolved.artist}
+                            {resolved.key ? ` • ${t('key')}: ${resolved.key}` : ''}
+                            {resolved.arrangement?.name ? ` • ${resolved.arrangement.name}` : ''}
+                        </p>
                     </div>
                     <button onClick={onClose} style={styles.closeBtn}>
                         <X size={24} />
                     </button>
                 </div>
 
+                {arrangements.length > 1 && (
+                    <div style={styles.arrangementPicker}>
+                        <label style={styles.arrangementLabel}>{t('arrangement')}</label>
+                        <select
+                            value={activeArrangementId}
+                            onChange={(event) => setSelectedArrangementId(event.target.value)}
+                            style={styles.select}
+                        >
+                            {arrangements.map((arrangement) => (
+                                <option key={arrangement.id} value={arrangement.id}>
+                                    {arrangement.name || t('arrangement')}
+                                    {arrangement.isDefault ? ` (${t('defaultArrangement')})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
                 <div style={styles.modalBody}>
                     <div style={styles.lyricsSection}>
                         <h3 style={styles.sectionTitle}>{t('lyrics')}</h3>
                         <div style={styles.lyricsContainer}>
-                            {song.lyrics ? (
-                                <pre style={styles.lyricsText}>{song.lyrics}</pre>
+                            {resolved.lyrics ? (
+                                <pre style={styles.lyricsText}>{resolved.lyrics}</pre>
                             ) : (
-                                <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>No hay letra disponible.</p>
+                                <p style={{ color: '#94a3b8', fontStyle: 'italic' }}>{t('noLyricsAvailable')}</p>
                             )}
                         </div>
                     </div>
@@ -35,26 +82,26 @@ const SongPreviewModal = ({ song, onClose }) => {
                     <div style={styles.infoSection}>
                         <h3 style={styles.sectionTitle}>{t('files')} & Links</h3>
                         <div style={styles.linksGrid}>
-                            {song.pdfUrl && (
-                                <a href={song.pdfUrl} target="_blank" rel="noreferrer" style={styles.linkCard}>
+                            {resolved.pdfUrl && (
+                                <a href={resolved.pdfUrl} target="_blank" rel="noreferrer" style={styles.linkCard}>
                                     <FileText size={20} color="#007bff" />
                                     <span>{t('chords')} (PDF)</span>
                                 </a>
                             )}
-                            {song.mp3Url && (
-                                <a href={song.mp3Url} target="_blank" rel="noreferrer" style={styles.linkCard}>
+                            {resolved.mp3Url && (
+                                <a href={resolved.mp3Url} target="_blank" rel="noreferrer" style={styles.linkCard}>
                                     <Play size={20} color="#007bff" />
                                     <span>{t('audio')} (MP3)</span>
                                 </a>
                             )}
-                            {song.youtubeUrl && (
-                                <a href={song.youtubeUrl} target="_blank" rel="noreferrer" style={styles.linkCard}>
+                            {resolved.youtubeUrl && (
+                                <a href={resolved.youtubeUrl} target="_blank" rel="noreferrer" style={styles.linkCard}>
                                     <Youtube size={20} color="#ef4444" />
                                     <span>YouTube</span>
                                 </a>
                             )}
-                            {song.spotifyUrl && (
-                                <a href={song.spotifyUrl} target="_blank" rel="noreferrer" style={styles.linkCard}>
+                            {resolved.spotifyUrl && (
+                                <a href={resolved.spotifyUrl} target="_blank" rel="noreferrer" style={styles.linkCard}>
                                     <ExternalLink size={20} color="#1db954" />
                                     <span>Spotify</span>
                                 </a>
@@ -104,6 +151,26 @@ const styles = {
         border: 'none',
         cursor: 'pointer',
         color: '#64748b'
+    },
+    arrangementPicker: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        marginBottom: '16px',
+    },
+    arrangementLabel: {
+        fontSize: '12px',
+        fontWeight: '700',
+        color: '#94a3b8',
+        textTransform: 'uppercase',
+    },
+    select: {
+        padding: '10px 12px',
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        fontSize: '13px',
+        outline: 'none',
+        backgroundColor: 'white',
     },
     modalBody: {
         display: 'grid',
