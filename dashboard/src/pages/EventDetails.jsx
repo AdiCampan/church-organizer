@@ -5,6 +5,7 @@ import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, onSn
 import { Calendar, Users, Clock, MapPin, UserPlus, Trash2, Edit2, ArrowLeft, CheckCircle, Plus, Music, Eye } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
+import SongSearchSelect from '../components/SongSearchSelect';
 import { sendAssignmentPushNotification } from '../services/assignmentPush';
 
 
@@ -603,24 +604,21 @@ const EventDetails = () => {
                                 style={styles.oosInput}
                                 required
                             />
-                            <select
+                            <SongSearchSelect
+                                songs={allSongs}
                                 value={newItem.songId}
-                                onChange={e => {
-                                    const selectedSong = allSongs.find(s => s.id === e.target.value);
+                                searchPlaceholder={t('searchByTitleOrArtist')}
+                                noSongLabel={t('noSong')}
+                                noResultsLabel={t('noSongsFound')}
+                                clearLabel={t('clearSong')}
+                                onChange={(songId, selectedSong) => {
                                     setNewItem({
                                         ...newItem,
-                                        songId: e.target.value,
-                                        // Auto-fill duration from song if available and duration not already set manually
+                                        songId,
                                         duration: selectedSong?.duration || newItem.duration || ''
                                     });
                                 }}
-                                style={styles.oosInput}
-                            >
-                                <option value="">{t('noSong')}</option>
-                                {allSongs.map(s => (
-                                    <option key={s.id} value={s.id}>{s.title}</option>
-                                ))}
-                            </select>
+                            />
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '4px', marginTop: '4px' }}>
                                 <button
                                     type="button"
