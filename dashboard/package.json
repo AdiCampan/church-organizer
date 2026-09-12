@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node src/services/assignmentPush.test.js && node src/utils/declineNotificationReason.test.js"
+    "test": "node src/services/assignmentPush.test.js && node src/utils/declineNotificationReason.test.js && node src/utils/songSearch.test.js"
   },
   "dependencies": {
     "firebase": "^12.7.0",
