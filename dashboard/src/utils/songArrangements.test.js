@@ -135,6 +135,20 @@ async function testEnsureSongArrangementsMarksFirstWhenNoneDefault() {
     assert.equal(arrangements[1].isDefault, false);
 }
 
+async function testLegacyResolveKeepsArrangementIdInCollection() {
+    const resolved = resolveSongWithArrangement({
+        title: 'Legacy',
+        key: 'G',
+        pdfUrl: 'legacy.pdf',
+    }, null, { defaultName: 'Principal' });
+
+    assert.ok(resolved);
+    assert.equal(resolved.arrangements.length, 1);
+    assert.equal(resolved.arrangement.id, resolved.arrangements[0].id);
+    assert.equal(resolved.key, 'G');
+    assert.equal(resolved.pdfUrl, 'legacy.pdf');
+}
+
 async function run() {
     await testLegacySongBecomesDefaultArrangement();
     await testExistingArrangementsArePreserved();
@@ -144,6 +158,7 @@ async function run() {
     await testEmptySongGetsDefaultArrangement();
     await testEnsureSongArrangementsKeepsOnlyFirstDefault();
     await testEnsureSongArrangementsMarksFirstWhenNoneDefault();
+    await testLegacyResolveKeepsArrangementIdInCollection();
     console.log('songArrangements.test.js: all tests passed');
 }
 

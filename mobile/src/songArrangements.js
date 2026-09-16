@@ -98,7 +98,12 @@ function resolveSongWithArrangement(song, arrangementId, options = {}) {
     }
 
     const arrangements = ensureSongArrangements(song, options);
-    const arrangement = findArrangement(song, arrangementId, options);
+    const arrangement = (
+        arrangementId
+            ? arrangements.find((item) => item.id === arrangementId)
+            : null
+    ) || arrangements.find((item) => item.isDefault) || arrangements[0];
+
     if (!arrangement) {
         return null;
     }

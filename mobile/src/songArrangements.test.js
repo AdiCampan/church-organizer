@@ -47,6 +47,8 @@ function testLegacyFallback() {
 
     assert.equal(resolved.key, 'G');
     assert.equal(resolved.pdfUrl, 'legacy.pdf');
+    assert.equal(resolved.arrangements.length, 1);
+    assert.equal(resolved.arrangement.id, resolved.arrangements[0].id);
 }
 
 function testKeepsOnlyFirstDefaultFlag() {
