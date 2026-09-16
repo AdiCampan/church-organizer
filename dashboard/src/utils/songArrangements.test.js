@@ -104,6 +104,37 @@ async function testEmptySongGetsDefaultArrangement() {
     assert.equal(arrangements[0].name, 'Principal');
 }
 
+async function testEnsureSongArrangementsKeepsOnlyFirstDefault() {
+    const song = {
+        title: 'Song',
+        arrangements: [
+            createEmptyArrangement({ id: 'a1', name: 'A', isDefault: true }),
+            createEmptyArrangement({ id: 'a2', name: 'B', isDefault: true }),
+            createEmptyArrangement({ id: 'a3', name: 'C', isDefault: false }),
+        ],
+    };
+
+    const arrangements = ensureSongArrangements(song);
+    assert.equal(arrangements.filter((item) => item.isDefault).length, 1);
+    assert.equal(arrangements[0].isDefault, true);
+    assert.equal(arrangements[1].isDefault, false);
+    assert.equal(arrangements[2].isDefault, false);
+}
+
+async function testEnsureSongArrangementsMarksFirstWhenNoneDefault() {
+    const song = {
+        title: 'Song',
+        arrangements: [
+            createEmptyArrangement({ id: 'a1', name: 'A', isDefault: false }),
+            createEmptyArrangement({ id: 'a2', name: 'B', isDefault: false }),
+        ],
+    };
+
+    const arrangements = ensureSongArrangements(song);
+    assert.equal(arrangements[0].isDefault, true);
+    assert.equal(arrangements[1].isDefault, false);
+}
+
 async function run() {
     await testLegacySongBecomesDefaultArrangement();
     await testExistingArrangementsArePreserved();
@@ -111,6 +142,8 @@ async function run() {
     await testSetDefaultArrangement();
     await testBuildSongSavePayloadSyncsDefaultToTopLevel();
     await testEmptySongGetsDefaultArrangement();
+    await testEnsureSongArrangementsKeepsOnlyFirstDefault();
+    await testEnsureSongArrangementsMarksFirstWhenNoneDefault();
     console.log('songArrangements.test.js: all tests passed');
 }
 

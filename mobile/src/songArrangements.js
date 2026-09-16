@@ -4,12 +4,12 @@
 
 let arrangementIdCounter = 0;
 
-export function createArrangementId() {
+function createArrangementId() {
     arrangementIdCounter += 1;
     return `arr_${Date.now()}_${arrangementIdCounter}`;
 }
 
-export function createEmptyArrangement(overrides = {}) {
+function createEmptyArrangement(overrides = {}) {
     return {
         id: overrides.id || createArrangementId(),
         name: typeof overrides.name === 'string' ? overrides.name : '',
@@ -32,7 +32,7 @@ function isValidArrangement(arrangement) {
     );
 }
 
-export function ensureSongArrangements(song, options = {}) {
+function ensureSongArrangements(song, options = {}) {
     const defaultName = options.defaultName || 'Default';
 
     if (!song || typeof song !== 'object') {
@@ -68,19 +68,21 @@ export function ensureSongArrangements(song, options = {}) {
         ];
     }
 
-    const hasDefault = existing.some((arrangement) => arrangement.isDefault);
+    const firstDefaultIndex = existing.findIndex((arrangement) => arrangement.isDefault);
+    const defaultIndex = firstDefaultIndex >= 0 ? firstDefaultIndex : 0;
+
     return existing.map((arrangement, index) => ({
         ...arrangement,
-        isDefault: hasDefault ? arrangement.isDefault : index === 0,
+        isDefault: index === defaultIndex,
     }));
 }
 
-export function getDefaultArrangement(song, options = {}) {
+function getDefaultArrangement(song, options = {}) {
     const arrangements = ensureSongArrangements(song, options);
     return arrangements.find((arrangement) => arrangement.isDefault) || arrangements[0];
 }
 
-export function findArrangement(song, arrangementId, options = {}) {
+function findArrangement(song, arrangementId, options = {}) {
     const arrangements = ensureSongArrangements(song, options);
     if (!arrangementId) {
         return getDefaultArrangement(song, options);
@@ -90,7 +92,7 @@ export function findArrangement(song, arrangementId, options = {}) {
         || getDefaultArrangement(song, options);
 }
 
-export function resolveSongWithArrangement(song, arrangementId, options = {}) {
+function resolveSongWithArrangement(song, arrangementId, options = {}) {
     if (!song || typeof song !== 'object') {
         return null;
     }
@@ -113,3 +115,12 @@ export function resolveSongWithArrangement(song, arrangementId, options = {}) {
         youtubeUrl: arrangement.youtubeUrl,
     };
 }
+
+module.exports = {
+    createArrangementId,
+    createEmptyArrangement,
+    ensureSongArrangements,
+    getDefaultArrangement,
+    findArrangement,
+    resolveSongWithArrangement,
+};

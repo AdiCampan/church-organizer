@@ -176,20 +176,39 @@ const EventDetails = () => {
         }
     };
 
+    const resolveOosArrangementId = (songId, arrangementId) => {
+        if (!songId) return '';
+
+        const song = allSongs.find((entry) => entry.id === songId);
+        if (!song) return arrangementId || '';
+
+        const arrangements = ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
+        if (arrangementId && arrangements.some((arrangement) => arrangement.id === arrangementId)) {
+            return arrangementId;
+        }
+
+        return getDefaultArrangement(song, { defaultName: t('defaultArrangementName') }).id;
+    };
+
     const handleAddOOSItem = async (e) => {
         e?.preventDefault();
         if (!newItem.title) return;
+
+        const resolvedItem = {
+            ...newItem,
+            arrangementId: resolveOosArrangementId(newItem.songId, newItem.arrangementId),
+        };
 
         let updatedOOS;
 
         if (editingOosId) {
             // Edit existing item
             updatedOOS = oos.map(item =>
-                item.id === editingOosId ? { ...newItem, id: editingOosId } : item
+                item.id === editingOosId ? { ...resolvedItem, id: editingOosId } : item
             );
         } else {
             // Add new item
-            updatedOOS = [...oos, { ...newItem, id: Date.now().toString() }];
+            updatedOOS = [...oos, { ...resolvedItem, id: Date.now().toString() }];
         }
 
         try {
@@ -209,7 +228,7 @@ const EventDetails = () => {
             title: item.title,
             duration: item.duration,
             songId: item.songId || '',
-            arrangementId: item.arrangementId || '',
+            arrangementId: resolveOosArrangementId(item.songId, item.arrangementId),
             details: item.details || '',
             targetTeams: item.targetTeams || ['all']
         });
@@ -224,6 +243,12 @@ const EventDetails = () => {
         const song = allSongs.find((item) => item.id === songId);
         if (!song) return [];
         return ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
+    };
+
+    const getSelectedDefaultArrangementId = (songId) => {
+        const song = allSongs.find((item) => item.id === songId);
+        if (!song) return '';
+        return getDefaultArrangement(song, { defaultName: t('defaultArrangementName') }).id;
     };
 
     const getOosSongLabel = (item) => {
@@ -657,7 +682,7 @@ const EventDetails = () => {
                             />
                             {newItem.songId && getSelectedSongArrangements(newItem.songId).length > 0 && (
                                 <select
-                                    value={newItem.arrangementId || getSelectedSongArrangements(newItem.songId)[0]?.id || ''}
+                                    value={newItem.arrangementId || getSelectedDefaultArrangementId(newItem.songId)}
                                     onChange={(event) => setNewItem({ ...newItem, arrangementId: event.target.value })}
                                     style={styles.oosInput}
                                     aria-label={t('arrangement')}

@@ -1,7 +1,7 @@
-import assert from 'node:assert/strict';
-import { resolveSongWithArrangement } from './songArrangements.js';
+const assert = require('assert');
+const { ensureSongArrangements, resolveSongWithArrangement } = require('./songArrangements');
 
-async function testResolveUsesSelectedArrangement() {
+function testResolveUsesSelectedArrangement() {
     const song = {
         title: 'Song',
         lyrics: 'Lyrics',
@@ -38,7 +38,7 @@ async function testResolveUsesSelectedArrangement() {
     assert.equal(resolved.lyrics, 'Lyrics');
 }
 
-async function testLegacyFallback() {
+function testLegacyFallback() {
     const resolved = resolveSongWithArrangement({
         title: 'Legacy',
         key: 'G',
@@ -49,10 +49,41 @@ async function testLegacyFallback() {
     assert.equal(resolved.pdfUrl, 'legacy.pdf');
 }
 
-async function run() {
-    await testResolveUsesSelectedArrangement();
-    await testLegacyFallback();
-    console.log('songArrangements.test.js: all tests passed');
+function testKeepsOnlyFirstDefaultFlag() {
+    const arrangements = ensureSongArrangements({
+        title: 'Song',
+        arrangements: [
+            {
+                id: 'a1',
+                name: 'A',
+                key: 'C',
+                bpm: '',
+                meter: '',
+                pdfUrl: null,
+                mp3Url: null,
+                youtubeUrl: '',
+                isDefault: true,
+            },
+            {
+                id: 'a2',
+                name: 'B',
+                key: 'D',
+                bpm: '',
+                meter: '',
+                pdfUrl: null,
+                mp3Url: null,
+                youtubeUrl: '',
+                isDefault: true,
+            },
+        ],
+    });
+
+    assert.equal(arrangements.filter((item) => item.isDefault).length, 1);
+    assert.equal(arrangements[0].isDefault, true);
+    assert.equal(arrangements[1].isDefault, false);
 }
 
-run();
+testResolveUsesSelectedArrangement();
+testLegacyFallback();
+testKeepsOnlyFirstDefaultFlag();
+console.log('songArrangements.test.js: all tests passed');

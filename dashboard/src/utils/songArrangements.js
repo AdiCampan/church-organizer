@@ -114,10 +114,12 @@ export function ensureSongArrangements(song, options = {}) {
         ];
     }
 
-    const hasDefault = existing.some((arrangement) => arrangement.isDefault);
+    const firstDefaultIndex = existing.findIndex((arrangement) => arrangement.isDefault);
+    const defaultIndex = firstDefaultIndex >= 0 ? firstDefaultIndex : 0;
+
     return existing.map((arrangement, index) => ({
         ...arrangement,
-        isDefault: hasDefault ? arrangement.isDefault : index === 0,
+        isDefault: index === defaultIndex,
     }));
 }
 
