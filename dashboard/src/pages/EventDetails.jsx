@@ -7,6 +7,11 @@ import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
 import SongSearchSelect from '../components/SongSearchSelect';
 import { sendAssignmentPushNotification } from '../services/assignmentPush';
+import {
+    ensureSongArrangements,
+    getDefaultArrangement,
+    resolveSongWithArrangement,
+} from '../utils/songArrangements';
 
 
 const EventDetails = () => {
@@ -26,9 +31,10 @@ const EventDetails = () => {
 
     // Order of Service state
     const [oos, setOos] = useState([]);
-    const [newItem, setNewItem] = useState({ title: '', duration: '', songId: '', details: '', targetTeams: ['all'] });
+    const [newItem, setNewItem] = useState({ title: '', duration: '', songId: '', arrangementId: '', details: '', targetTeams: ['all'] });
     const [editingOosId, setEditingOosId] = useState(null); // ID of item being edited
     const [previewSong, setPreviewSong] = useState(null);
+    const [previewArrangementId, setPreviewArrangementId] = useState(null);
 
     const formatLocalDateKey = (date) => {
         const year = date.getFullYear();
@@ -170,27 +176,46 @@ const EventDetails = () => {
         }
     };
 
+    const resolveOosArrangementId = (songId, arrangementId) => {
+        if (!songId) return '';
+
+        const song = allSongs.find((entry) => entry.id === songId);
+        if (!song) return arrangementId || '';
+
+        const arrangements = ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
+        if (arrangementId && arrangements.some((arrangement) => arrangement.id === arrangementId)) {
+            return arrangementId;
+        }
+
+        return getDefaultArrangement(song, { defaultName: t('defaultArrangementName') }).id;
+    };
+
     const handleAddOOSItem = async (e) => {
         e?.preventDefault();
         if (!newItem.title) return;
+
+        const resolvedItem = {
+            ...newItem,
+            arrangementId: resolveOosArrangementId(newItem.songId, newItem.arrangementId),
+        };
 
         let updatedOOS;
 
         if (editingOosId) {
             // Edit existing item
             updatedOOS = oos.map(item =>
-                item.id === editingOosId ? { ...newItem, id: editingOosId } : item
+                item.id === editingOosId ? { ...resolvedItem, id: editingOosId } : item
             );
         } else {
             // Add new item
-            updatedOOS = [...oos, { ...newItem, id: Date.now().toString() }];
+            updatedOOS = [...oos, { ...resolvedItem, id: Date.now().toString() }];
         }
 
         try {
             await updateDoc(doc(db, 'events', eventId), {
                 orderOfService: updatedOOS
             });
-            setNewItem({ title: '', duration: '', songId: '', details: '', targetTeams: ['all'] });
+            setNewItem({ title: '', duration: '', songId: '', arrangementId: '', details: '', targetTeams: ['all'] });
             setEditingOosId(null);
         } catch (err) {
             console.error(err);
@@ -203,6 +228,7 @@ const EventDetails = () => {
             title: item.title,
             duration: item.duration,
             songId: item.songId || '',
+            arrangementId: resolveOosArrangementId(item.songId, item.arrangementId),
             details: item.details || '',
             targetTeams: item.targetTeams || ['all']
         });
@@ -210,7 +236,34 @@ const EventDetails = () => {
 
     const handleCancelOOSEdit = () => {
         setEditingOosId(null);
-        setNewItem({ title: '', duration: '', songId: '', details: '', targetTeams: ['all'] });
+        setNewItem({ title: '', duration: '', songId: '', arrangementId: '', details: '', targetTeams: ['all'] });
+    };
+
+    const getSelectedSongArrangements = (songId) => {
+        const song = allSongs.find((item) => item.id === songId);
+        if (!song) return [];
+        return ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
+    };
+
+    const getSelectedDefaultArrangementId = (songId) => {
+        const song = allSongs.find((item) => item.id === songId);
+        if (!song) return '';
+        return getDefaultArrangement(song, { defaultName: t('defaultArrangementName') }).id;
+    };
+
+    const getOosSongLabel = (item) => {
+        const song = allSongs.find((entry) => entry.id === item.songId);
+        if (!song) return null;
+        const resolved = resolveSongWithArrangement(song, item.arrangementId, {
+            defaultName: t('defaultArrangementName'),
+        });
+        if (!resolved) return song.title;
+        const arrangementName = resolved.arrangement?.name;
+        const arrangements = ensureSongArrangements(song);
+        if (arrangements.length > 1 && arrangementName) {
+            return `${song.title} · ${arrangementName}`;
+        }
+        return song.title;
     };
 
     const handleRemoveOOSItem = async (itemId) => {
@@ -566,10 +619,14 @@ const EventDetails = () => {
                                                     <>
                                                         {item.duration ? ' • ' : ''}
                                                         <span
-                                                            onClick={(e) => { e.stopPropagation(); setPreviewSong(allSongs.find(s => s.id === item.songId)); }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setPreviewSong(allSongs.find(s => s.id === item.songId));
+                                                                setPreviewArrangementId(item.arrangementId || null);
+                                                            }}
                                                             style={{ color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
                                                         >
-                                                            {allSongs.find(s => s.id === item.songId)?.title}
+                                                            {getOosSongLabel(item)}
                                                         </span>
                                                     </>
                                                 )}
@@ -612,13 +669,33 @@ const EventDetails = () => {
                                 noResultsLabel={t('noSongsFound')}
                                 clearLabel={t('clearSong')}
                                 onChange={(songId, selectedSong) => {
+                                    const defaultArrangement = selectedSong
+                                        ? getDefaultArrangement(selectedSong, { defaultName: t('defaultArrangementName') })
+                                        : null;
                                     setNewItem({
                                         ...newItem,
                                         songId,
+                                        arrangementId: defaultArrangement?.id || '',
                                         duration: selectedSong?.duration || newItem.duration || ''
                                     });
                                 }}
                             />
+                            {newItem.songId && getSelectedSongArrangements(newItem.songId).length > 0 && (
+                                <select
+                                    value={newItem.arrangementId || getSelectedDefaultArrangementId(newItem.songId)}
+                                    onChange={(event) => setNewItem({ ...newItem, arrangementId: event.target.value })}
+                                    style={styles.oosInput}
+                                    aria-label={t('arrangement')}
+                                >
+                                    {getSelectedSongArrangements(newItem.songId).map((arrangement) => (
+                                        <option key={arrangement.id} value={arrangement.id}>
+                                            {arrangement.name || t('arrangement')}
+                                            {arrangement.key ? ` (${arrangement.key})` : ''}
+                                            {arrangement.isDefault ? ` — ${t('defaultArrangement')}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '4px', marginTop: '4px' }}>
                                 <button
                                     type="button"
@@ -689,8 +766,13 @@ const EventDetails = () => {
             </div>
             {previewSong && (
                 <SongPreviewModal
+                    key={`${previewSong.id}-${previewArrangementId || 'default'}`}
                     song={previewSong}
-                    onClose={() => setPreviewSong(null)}
+                    arrangementId={previewArrangementId}
+                    onClose={() => {
+                        setPreviewSong(null);
+                        setPreviewArrangementId(null);
+                    }}
                 />
             )}
         </div>
