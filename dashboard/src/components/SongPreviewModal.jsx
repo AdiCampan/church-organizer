@@ -15,7 +15,7 @@ const getInitialArrangementId = (song, arrangementId, defaultName) => {
     return arrangements.find((item) => item.isDefault)?.id || arrangements[0]?.id || '';
 };
 
-const SongPreviewModal = ({ song, arrangementId = null, usage = null, onClose }) => {
+const SongPreviewModal = ({ song, arrangementId = null, usage = null, usageUnavailable = false, onClose }) => {
     const { t, language } = useLanguage();
     const arrangements = ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
     const fallbackArrangementId = getInitialArrangementId(song, arrangementId, t('defaultArrangementName'));
@@ -50,25 +50,31 @@ const SongPreviewModal = ({ song, arrangementId = null, usage = null, onClose })
                     </button>
                 </div>
 
-                {usage && (
+                {(usageUnavailable || usage) && (
                     <div style={styles.usageSection}>
                         <h3 style={styles.sectionTitle}>{t('usageTitle')}</h3>
-                        <div style={styles.usageCounts}>
-                            <span style={styles.usageChip}>{t('sungLastMonth')}: {usage.month}</span>
-                            <span style={styles.usageChip}>{t('sungLastQuarter')}: {usage.quarter}</span>
-                            <span style={styles.usageChip}>{t('sungLastYear')}: {usage.year}</span>
-                        </div>
-                        {usage.uses.length === 0 ? (
-                            <p style={styles.emptyUsage}>{t('notUsedInLastYear')}</p>
+                        {usageUnavailable ? (
+                            <p style={styles.emptyUsage}>{t('usageUnavailable')}</p>
                         ) : (
-                            <ul style={styles.usageList}>
-                                {usage.uses.map((use, index) => (
-                                    <li key={`${use.eventId}-${use.date.getTime()}-${index}`} style={styles.usageItem}>
-                                        <span>{formatSongUsageDate(use.date, language)}</span>
-                                        {use.title ? <span style={styles.usageEvent}>{use.title}</span> : null}
-                                    </li>
-                                ))}
-                            </ul>
+                            <>
+                                <div style={styles.usageCounts}>
+                                    <span style={styles.usageChip}>{t('sungLastMonth')}: {usage.month}</span>
+                                    <span style={styles.usageChip}>{t('sungLastQuarter')}: {usage.quarter}</span>
+                                    <span style={styles.usageChip}>{t('sungLastYear')}: {usage.year}</span>
+                                </div>
+                                {usage.uses.length === 0 ? (
+                                    <p style={styles.emptyUsage}>{t('notUsedInLastYear')}</p>
+                                ) : (
+                                    <ul style={styles.usageList}>
+                                        {usage.uses.map((use, index) => (
+                                            <li key={`${use.eventId}-${use.date.getTime()}-${index}`} style={styles.usageItem}>
+                                                <span>{formatSongUsageDate(use.date, language)}</span>
+                                                {use.title ? <span style={styles.usageEvent}>{use.title}</span> : null}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </>
                         )}
                     </div>
                 )}

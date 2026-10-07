@@ -12,6 +12,7 @@ export async function loadSongUsageMap(now = new Date()) {
     const snapshot = await getDocs(query(
         collection(db, 'events'),
         where('date', '>=', Timestamp.fromDate(year)),
+        where('date', '<=', Timestamp.fromDate(now)),
         orderBy('date', 'asc')
     ));
     const events = snapshot.docs.map((eventDoc) => ({ id: eventDoc.id, ...eventDoc.data() }));

@@ -15,6 +15,34 @@ import {
     resolveSongWithArrangement,
 } from '../utils/songArrangements';
 
+function eventUsageSignature(eventData) {
+    if (!eventData || typeof eventData !== 'object') {
+        return '';
+    }
+
+    const rawDate = eventData.date;
+    let dateKey = '';
+    if (rawDate && typeof rawDate.toMillis === 'function') {
+        dateKey = String(rawDate.toMillis());
+    } else if (rawDate && typeof rawDate.toDate === 'function') {
+        const parsed = rawDate.toDate();
+        dateKey = parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? String(parsed.getTime()) : '';
+    } else if (rawDate instanceof Date) {
+        dateKey = Number.isNaN(rawDate.getTime()) ? '' : String(rawDate.getTime());
+    } else if (typeof rawDate === 'string' || typeof rawDate === 'number') {
+        dateKey = String(rawDate);
+    }
+
+    const items = Array.isArray(eventData.orderOfService) ? eventData.orderOfService : [];
+    const songKey = items.map((item) => {
+        if (typeof item?.songId === 'string' && item.songId) {
+            return item.songId;
+        }
+        return typeof item?.song === 'string' ? item.song : '';
+    }).join('\n');
+
+    return `${dateKey}\n${songKey}`;
+}
 
 const EventDetails = () => {
     const { t, language } = useLanguage();
@@ -38,6 +66,7 @@ const EventDetails = () => {
     const [previewSong, setPreviewSong] = useState(null);
     const [previewArrangementId, setPreviewArrangementId] = useState(null);
     const [usageBySongId, setUsageBySongId] = useState({});
+    const [usageLoadFailed, setUsageLoadFailed] = useState(false);
 
     const formatLocalDateKey = (date) => {
         const year = date.getFullYear();
@@ -51,14 +80,10 @@ const EventDetails = () => {
 
         const loadInitialData = async () => {
             try {
-                const [teamsSnapshot, peopleSnapshot, songsSnapshot, usageMap] = await Promise.all([
+                const [teamsSnapshot, peopleSnapshot, songsSnapshot] = await Promise.all([
                     getDocs(collection(db, 'teams')),
                     getDocs(collection(db, 'users')),
                     getDocs(collection(db, 'songs')),
-                    loadSongUsageMap().catch((usageError) => {
-                        console.error('Error loading song usage:', usageError);
-                        return {};
-                    }),
                 ]);
 
                 if (!isMounted) return;
@@ -66,7 +91,6 @@ const EventDetails = () => {
                 setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 setAvailablePeople(peopleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 setAllSongs(songsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-                setUsageBySongId(usageMap);
             } catch (err) {
                 console.error("Error loading event details data:", err);
                 if (!isMounted) return;
@@ -77,6 +101,27 @@ const EventDetails = () => {
         };
 
         loadInitialData();
+
+        let latestUsageRequest = 0;
+        let appliedUsageSignature = null;
+
+        const refreshSongUsage = async () => {
+            const requestId = ++latestUsageRequest;
+            try {
+                const usageMap = await loadSongUsageMap();
+                if (!isMounted || requestId !== latestUsageRequest) {
+                    return;
+                }
+                setUsageBySongId(usageMap);
+                setUsageLoadFailed(false);
+            } catch (usageError) {
+                console.error('Error loading song usage:', usageError);
+                if (!isMounted || requestId !== latestUsageRequest) {
+                    return;
+                }
+                setUsageLoadFailed(true);
+            }
+        };
 
         // Subscribe to assignments for this event
         const qSchedules = query(collection(db, 'schedules'), where('eventId', '==', eventId));
@@ -91,6 +136,11 @@ const EventDetails = () => {
                 setEvent(data);
                 setOos(data.orderOfService || []);
                 setLoading(false);
+                const nextSignature = eventUsageSignature(data);
+                if (appliedUsageSignature !== nextSignature) {
+                    appliedUsageSignature = nextSignature;
+                    refreshSongUsage();
+                }
             } else {
                 navigate('/events');
             }
@@ -777,7 +827,8 @@ const EventDetails = () => {
                     key={`${previewSong.id}-${previewArrangementId || 'default'}`}
                     song={previewSong}
                     arrangementId={previewArrangementId}
-                    usage={getSongUsage(usageBySongId, previewSong.id)}
+                    usage={usageLoadFailed ? null : getSongUsage(usageBySongId, previewSong.id)}
+                    usageUnavailable={usageLoadFailed}
                     onClose={() => {
                         setPreviewSong(null);
                         setPreviewArrangementId(null);

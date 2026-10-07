@@ -34,16 +34,6 @@ function startOfDay(date) {
 }
 
 /**
- * @param {Date} date
- * @returns {Date}
- */
-function endOfDay(date) {
-    const result = new Date(date.getTime());
-    result.setHours(23, 59, 59, 999);
-    return result;
-}
-
-/**
  * @param {Date | { toDate?: () => Date, seconds?: number } | string | number | null | undefined} value
  * @returns {Date | null}
  */
@@ -66,7 +56,24 @@ export function toEventDate(value) {
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    if (typeof value === 'string' || typeof value === 'number') {
+    if (typeof value === 'string') {
+        const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+        if (dateOnly) {
+            const year = Number(dateOnly[1]);
+            const month = Number(dateOnly[2]);
+            const day = Number(dateOnly[3]);
+            const parsed = new Date(year, month - 1, day);
+            if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+                return null;
+            }
+            return parsed;
+        }
+
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (typeof value === 'number') {
         const parsed = new Date(value);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
@@ -77,7 +84,7 @@ export function toEventDate(value) {
 /**
  * Rolling windows ending today: 1 month, 3 months and 12 months.
  * @param {Date} now
- * @returns {{ month: Date, quarter: Date, year: Date, end: Date }}
+ * @returns {{ month: Date, quarter: Date, year: Date }}
  */
 export function getUsagePeriodStarts(now = new Date()) {
     const today = startOfDay(now);
@@ -85,7 +92,6 @@ export function getUsagePeriodStarts(now = new Date()) {
         month: startOfDay(addCalendarMonths(today, -1)),
         quarter: startOfDay(addCalendarMonths(today, -3)),
         year: startOfDay(addCalendarMonths(today, -12)),
-        end: endOfDay(now),
     };
 }
 
@@ -128,7 +134,7 @@ export function buildSongUsageMap(events, now = new Date()) {
         }
 
         const eventDate = toEventDate(event.date);
-        if (!eventDate || eventDate < periods.year || eventDate > periods.end) {
+        if (!eventDate || eventDate < periods.year || eventDate > now) {
             return;
         }
 

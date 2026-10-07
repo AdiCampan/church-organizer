@@ -51,6 +51,41 @@ async function testCountsMonthQuarterAndYear() {
     assert.equal(usage.future, undefined);
 }
 
+async function testExcludesServiceLaterTheSameDay() {
+    const usage = buildSongUsageMap([
+        {
+            id: 'later-today',
+            title: 'Culto de noche',
+            date: new Date(2026, 9, 7, 22, 0, 0),
+            orderOfService: [{ songId: 'later-song' }],
+        },
+        eventOn('already-sung', 2026, 9, 7, ['later-song']),
+    ], now);
+
+    assert.equal(usage['later-song'].month, 1);
+    assert.equal(usage['later-song'].uses.length, 1);
+    assert.equal(usage['later-song'].uses[0].eventId, 'already-sung');
+}
+
+async function testParsesDateOnlyStringsAsLocalDates() {
+    const dateOnly = toEventDate('2026-10-07');
+    assert.equal(dateOnly.getFullYear(), 2026);
+    assert.equal(dateOnly.getMonth(), 9);
+    assert.equal(dateOnly.getDate(), 7);
+    assert.equal(dateOnly.getHours(), 0);
+
+    const withTime = toEventDate('2026-10-07T22:30:00');
+    assert.equal(withTime.getFullYear(), 2026);
+    assert.equal(withTime.getMonth(), 9);
+    assert.equal(withTime.getDate(), 7);
+    assert.equal(withTime.getHours(), 22);
+    assert.equal(withTime.getMinutes(), 30);
+
+    const withZone = toEventDate('2026-10-07T19:00:00Z');
+    assert.equal(withZone.toISOString(), '2026-10-07T19:00:00.000Z');
+    assert.equal(toEventDate('2026-02-31'), null);
+}
+
 async function testReadsLegacySongFieldAndTimestamp() {
     const usage = buildSongUsageMap([
         {
@@ -125,6 +160,8 @@ async function testFormatsUsageDate() {
 async function run() {
     await testPeriodStartsUseRollingMonths();
     await testCountsMonthQuarterAndYear();
+    await testExcludesServiceLaterTheSameDay();
+    await testParsesDateOnlyStringsAsLocalDates();
     await testReadsLegacySongFieldAndTimestamp();
     await testIgnoresInvalidEvents();
     await testUsageFilters();

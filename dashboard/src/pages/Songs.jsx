@@ -48,6 +48,7 @@ const Songs = () => {
     const [selectedTagFilters, setSelectedTagFilters] = useState([]);
     const [usageFilter, setUsageFilter] = useState('all');
     const [usageBySongId, setUsageBySongId] = useState({});
+    const [usageLoadFailed, setUsageLoadFailed] = useState(false);
     const [formData, setFormData] = useState(createDefaultFormData);
     const [activeArrangementId, setActiveArrangementId] = useState('');
     const [arrangementFiles, setArrangementFiles] = useState({});
@@ -64,13 +65,9 @@ const Songs = () => {
 
         const loadInitialData = async () => {
             try {
-                const [songsSnapshot, tagsSnapshot, usageMap] = await Promise.all([
+                const [songsSnapshot, tagsSnapshot] = await Promise.all([
                     getDocs(query(collection(db, 'songs'), orderBy('title', 'asc'), limit(20))),
                     getDocs(collection(db, 'song_tags')),
-                    loadSongUsageMap().catch((usageError) => {
-                        console.error('Error fetching song usage:', usageError);
-                        return {};
-                    }),
                 ]);
 
                 if (!isMounted) return;
@@ -84,7 +81,18 @@ const Songs = () => {
                 setLastDoc(songsSnapshot.docs[songsSnapshot.docs.length - 1]);
                 setHasMore(songsSnapshot.docs.length === 20);
                 setAvailableTags(tagsSnapshot.docs.map((tagDoc) => ({ id: tagDoc.id, ...tagDoc.data() })));
-                setUsageBySongId(usageMap);
+
+                try {
+                    const usageMap = await loadSongUsageMap();
+                    if (!isMounted) return;
+                    setUsageBySongId(usageMap);
+                    setUsageLoadFailed(false);
+                } catch (usageError) {
+                    console.error('Error fetching song usage:', usageError);
+                    if (isMounted) {
+                        setUsageLoadFailed(true);
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching songs page data:', err);
             } finally {
@@ -220,7 +228,7 @@ const Songs = () => {
         const matchesTags = selectedTagFilters.length === 0
             || selectedTagFilters.some((tagId) => song.tags?.includes(tagId));
 
-        return matchesSearch && matchesTags && songMatchesUsageFilter(getSongUsage(usageBySongId, song.id), usageFilter);
+        return matchesSearch && matchesTags && (usageLoadFailed || songMatchesUsageFilter(getSongUsage(usageBySongId, song.id), usageFilter));
     });
 
     const updateActiveArrangement = (patch) => {
@@ -350,7 +358,11 @@ const Songs = () => {
 
             setShowAddModal(false);
             resetModalState();
-            fetchSongs();
+            fetchSongs(false, needsFullSongCatalog({
+                searchTerm,
+                tagFilters: selectedTagFilters,
+                usageFilter,
+            }));
         } catch (err) {
             console.error('Error saving song:', err);
             alert(t('errorSavingSong'));
@@ -364,7 +376,11 @@ const Songs = () => {
 
         try {
             await deleteDoc(doc(db, 'songs', id));
-            fetchSongs();
+            fetchSongs(false, needsFullSongCatalog({
+                searchTerm,
+                tagFilters: selectedTagFilters,
+                usageFilter,
+            }));
         } catch (err) {
             console.error(err);
         }
@@ -426,16 +442,20 @@ const Songs = () => {
                         )}
                     </div>
                 )}
-                <label style={styles.usageFilterRow}>
-                    <span>{t('usageFilter')}</span>
-                    <select value={usageFilter} onChange={handleUsageFilter} style={styles.usageSelect}>
-                        <option value="all">{t('usageFilterAll')}</option>
-                        <option value="month">{t('usageFilterMonth')}</option>
-                        <option value="quarter">{t('usageFilterQuarter')}</option>
-                        <option value="year">{t('usageFilterYear')}</option>
-                        <option value="unused">{t('usageFilterUnused')}</option>
-                    </select>
-                </label>
+                {usageLoadFailed ? (
+                    <p style={styles.usageDates}>{t('usageUnavailable')}</p>
+                ) : (
+                    <label style={styles.usageFilterRow}>
+                        <span>{t('usageFilter')}</span>
+                        <select value={usageFilter} onChange={handleUsageFilter} style={styles.usageSelect}>
+                            <option value="all">{t('usageFilterAll')}</option>
+                            <option value="month">{t('usageFilterMonth')}</option>
+                            <option value="quarter">{t('usageFilterQuarter')}</option>
+                            <option value="year">{t('usageFilterYear')}</option>
+                            <option value="unused">{t('usageFilterUnused')}</option>
+                        </select>
+                    </label>
+                )}
             </div>
 
             <div style={styles.songsGrid}>
@@ -506,16 +526,22 @@ const Songs = () => {
                                         </div>
                                     </div>
                                     <div style={styles.usageBlock}>
-                                        <div style={styles.usageCounts}>
-                                            <span style={styles.usageChip}>{t('sungLastMonth')}: {usage.month}</span>
-                                            <span style={styles.usageChip}>{t('sungLastQuarter')}: {usage.quarter}</span>
-                                            <span style={styles.usageChip}>{t('sungLastYear')}: {usage.year}</span>
-                                        </div>
-                                        <p style={styles.usageDates}>
-                                            {usage.uses.length === 0
-                                                ? t('notUsedInLastYear')
-                                                : `${t('lastUsed')}: ${usedOnLabel}${hiddenUseCount > 0 ? ` +${hiddenUseCount}` : ''}`}
-                                        </p>
+                                        {usageLoadFailed ? (
+                                            <p style={styles.usageDates}>{t('usageUnavailable')}</p>
+                                        ) : (
+                                            <>
+                                                <div style={styles.usageCounts}>
+                                                    <span style={styles.usageChip}>{t('sungLastMonth')}: {usage.month}</span>
+                                                    <span style={styles.usageChip}>{t('sungLastQuarter')}: {usage.quarter}</span>
+                                                    <span style={styles.usageChip}>{t('sungLastYear')}: {usage.year}</span>
+                                                </div>
+                                                <p style={styles.usageDates}>
+                                                    {usage.uses.length === 0
+                                                        ? t('notUsedInLastYear')
+                                                        : `${t('lastUsed')}: ${usedOnLabel}${hiddenUseCount > 0 ? ` +${hiddenUseCount}` : ''}`}
+                                                </p>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                                 <button
@@ -830,7 +856,8 @@ const Songs = () => {
             {previewSong && (
                 <SongPreviewModal
                     song={previewSong}
-                    usage={getSongUsage(usageBySongId, previewSong.id)}
+                    usage={usageLoadFailed ? null : getSongUsage(usageBySongId, previewSong.id)}
+                    usageUnavailable={usageLoadFailed}
                     onClose={() => setPreviewSong(null)}
                 />
             )}

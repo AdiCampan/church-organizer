@@ -157,6 +157,7 @@ const translations = {
         sungLastYear: 'Último año',
         lastUsed: 'Última vez',
         notUsedInLastYear: 'Sin uso en el último año',
+        usageUnavailable: 'El historial de uso no está disponible.',
         // Announcements
         wallTitle: 'El Muro',
         wallDescription: 'Comunícate con tus equipos y voluntarios.',
@@ -446,6 +447,7 @@ const translations = {
         sungLastYear: 'Ultimul an',
         lastUsed: 'Ultima dată',
         notUsedInLastYear: 'Fără utilizare în ultimul an',
+        usageUnavailable: 'Istoricul de utilizare nu este disponibil.',
         // Announcements
         wallTitle: 'Anunțuri',
         wallDescription: 'Comunică cu echipele și voluntarii tăi.',
@@ -735,6 +737,7 @@ const translations = {
         sungLastYear: 'Last year',
         lastUsed: 'Last used',
         notUsedInLastYear: 'Unused in the last year',
+        usageUnavailable: 'Usage history is unavailable.',
         // Announcements
         wallTitle: 'The Wall',
         wallDescription: 'Communicate with your teams and volunteers.',
