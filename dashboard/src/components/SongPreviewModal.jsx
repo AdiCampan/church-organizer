@@ -5,6 +5,7 @@ import {
     ensureSongArrangements,
     resolveSongWithArrangement,
 } from '../utils/songArrangements';
+import { formatSongUsageDate } from '../utils/songUsage';
 
 const getInitialArrangementId = (song, arrangementId, defaultName) => {
     const arrangements = ensureSongArrangements(song, { defaultName });
@@ -14,8 +15,8 @@ const getInitialArrangementId = (song, arrangementId, defaultName) => {
     return arrangements.find((item) => item.isDefault)?.id || arrangements[0]?.id || '';
 };
 
-const SongPreviewModal = ({ song, arrangementId = null, onClose }) => {
-    const { t } = useLanguage();
+const SongPreviewModal = ({ song, arrangementId = null, usage = null, onClose }) => {
+    const { t, language } = useLanguage();
     const arrangements = ensureSongArrangements(song, { defaultName: t('defaultArrangementName') });
     const fallbackArrangementId = getInitialArrangementId(song, arrangementId, t('defaultArrangementName'));
     const [selectedArrangementId, setSelectedArrangementId] = useState(fallbackArrangementId);
@@ -48,6 +49,29 @@ const SongPreviewModal = ({ song, arrangementId = null, onClose }) => {
                         <X size={24} />
                     </button>
                 </div>
+
+                {usage && (
+                    <div style={styles.usageSection}>
+                        <h3 style={styles.sectionTitle}>{t('usageTitle')}</h3>
+                        <div style={styles.usageCounts}>
+                            <span style={styles.usageChip}>{t('sungLastMonth')}: {usage.month}</span>
+                            <span style={styles.usageChip}>{t('sungLastQuarter')}: {usage.quarter}</span>
+                            <span style={styles.usageChip}>{t('sungLastYear')}: {usage.year}</span>
+                        </div>
+                        {usage.uses.length === 0 ? (
+                            <p style={styles.emptyUsage}>{t('notUsedInLastYear')}</p>
+                        ) : (
+                            <ul style={styles.usageList}>
+                                {usage.uses.map((use, index) => (
+                                    <li key={`${use.eventId}-${use.date.getTime()}-${index}`} style={styles.usageItem}>
+                                        <span>{formatSongUsageDate(use.date, language)}</span>
+                                        {use.title ? <span style={styles.usageEvent}>{use.title}</span> : null}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
 
                 {arrangements.length > 1 && (
                     <div style={styles.arrangementPicker}>
@@ -171,6 +195,52 @@ const styles = {
         fontSize: '13px',
         outline: 'none',
         backgroundColor: 'white',
+    },
+    usageSection: {
+        marginBottom: '20px',
+    },
+    usageCounts: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        marginBottom: '12px',
+    },
+    usageChip: {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#334155',
+        backgroundColor: '#f1f5f9',
+        borderRadius: '999px',
+        padding: '4px 10px',
+    },
+    emptyUsage: {
+        margin: 0,
+        color: '#94a3b8',
+        fontSize: '13px',
+    },
+    usageList: {
+        listStyle: 'none',
+        margin: 0,
+        padding: 0,
+        maxHeight: '180px',
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+    },
+    usageItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: '12px',
+        fontSize: '13px',
+        color: '#1e293b',
+        padding: '8px 12px',
+        backgroundColor: '#f8fafc',
+        borderRadius: '8px',
+    },
+    usageEvent: {
+        color: '#64748b',
+        textAlign: 'right',
     },
     modalBody: {
         display: 'grid',

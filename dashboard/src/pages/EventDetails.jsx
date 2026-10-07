@@ -7,6 +7,8 @@ import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
 import SongSearchSelect from '../components/SongSearchSelect';
 import { sendAssignmentPushNotification } from '../services/assignmentPush';
+import { loadSongUsageMap } from '../services/loadSongUsage';
+import { getSongUsage } from '../utils/songUsage';
 import {
     ensureSongArrangements,
     getDefaultArrangement,
@@ -35,6 +37,7 @@ const EventDetails = () => {
     const [editingOosId, setEditingOosId] = useState(null); // ID of item being edited
     const [previewSong, setPreviewSong] = useState(null);
     const [previewArrangementId, setPreviewArrangementId] = useState(null);
+    const [usageBySongId, setUsageBySongId] = useState({});
 
     const formatLocalDateKey = (date) => {
         const year = date.getFullYear();
@@ -48,10 +51,14 @@ const EventDetails = () => {
 
         const loadInitialData = async () => {
             try {
-                const [teamsSnapshot, peopleSnapshot, songsSnapshot] = await Promise.all([
+                const [teamsSnapshot, peopleSnapshot, songsSnapshot, usageMap] = await Promise.all([
                     getDocs(collection(db, 'teams')),
                     getDocs(collection(db, 'users')),
-                    getDocs(collection(db, 'songs'))
+                    getDocs(collection(db, 'songs')),
+                    loadSongUsageMap().catch((usageError) => {
+                        console.error('Error loading song usage:', usageError);
+                        return {};
+                    }),
                 ]);
 
                 if (!isMounted) return;
@@ -59,6 +66,7 @@ const EventDetails = () => {
                 setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 setAvailablePeople(peopleSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
                 setAllSongs(songsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                setUsageBySongId(usageMap);
             } catch (err) {
                 console.error("Error loading event details data:", err);
                 if (!isMounted) return;
@@ -769,6 +777,7 @@ const EventDetails = () => {
                     key={`${previewSong.id}-${previewArrangementId || 'default'}`}
                     song={previewSong}
                     arrangementId={previewArrangementId}
+                    usage={getSongUsage(usageBySongId, previewSong.id)}
                     onClose={() => {
                         setPreviewSong(null);
                         setPreviewArrangementId(null);
