@@ -5,6 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Music, Plus, Search, FileText, Play, Trash2, X, Pencil, Youtube, Star } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
 import SongPreviewModal from '../components/SongPreviewModal';
+import { loadSongUsageMap } from '../services/loadSongUsage';
 import {
     buildSongSavePayload,
     createEmptyArrangement,
@@ -12,9 +13,15 @@ import {
     getDefaultArrangement,
     setDefaultArrangement,
 } from '../utils/songArrangements';
+import {
+    formatSongUsageDate,
+    getSongUsage,
+    needsFullSongCatalog,
+    songMatchesUsageFilter,
+} from '../utils/songUsage';
 
 const Songs = () => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
 
     const createDefaultFormData = () => ({
         title: '',
@@ -39,6 +46,9 @@ const Songs = () => {
     const [isEditing, setIsEditing] = useState(null);
     const [availableTags, setAvailableTags] = useState([]);
     const [selectedTagFilters, setSelectedTagFilters] = useState([]);
+    const [usageFilter, setUsageFilter] = useState('all');
+    const [usageBySongId, setUsageBySongId] = useState({});
+    const [usageLoadFailed, setUsageLoadFailed] = useState(false);
     const [formData, setFormData] = useState(createDefaultFormData);
     const [activeArrangementId, setActiveArrangementId] = useState('');
     const [arrangementFiles, setArrangementFiles] = useState({});
@@ -57,7 +67,7 @@ const Songs = () => {
             try {
                 const [songsSnapshot, tagsSnapshot] = await Promise.all([
                     getDocs(query(collection(db, 'songs'), orderBy('title', 'asc'), limit(20))),
-                    getDocs(collection(db, 'song_tags'))
+                    getDocs(collection(db, 'song_tags')),
                 ]);
 
                 if (!isMounted) return;
@@ -71,6 +81,18 @@ const Songs = () => {
                 setLastDoc(songsSnapshot.docs[songsSnapshot.docs.length - 1]);
                 setHasMore(songsSnapshot.docs.length === 20);
                 setAvailableTags(tagsSnapshot.docs.map((tagDoc) => ({ id: tagDoc.id, ...tagDoc.data() })));
+
+                try {
+                    const usageMap = await loadSongUsageMap();
+                    if (!isMounted) return;
+                    setUsageBySongId(usageMap);
+                    setUsageLoadFailed(false);
+                } catch (usageError) {
+                    console.error('Error fetching song usage:', usageError);
+                    if (isMounted) {
+                        setUsageLoadFailed(true);
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching songs page data:', err);
             } finally {
@@ -139,7 +161,11 @@ const Songs = () => {
         setSearchTerm(term);
 
         if (term.length === 0) {
-            fetchSongs(false, selectedTagFilters.length > 0);
+            fetchSongs(false, needsFullSongCatalog({
+                searchTerm: term,
+                tagFilters: selectedTagFilters,
+                usageFilter,
+            }));
             return;
         }
         if (term.length < 2) return;
@@ -177,7 +203,21 @@ const Songs = () => {
             : [...selectedTagFilters, tagId];
 
         setSelectedTagFilters(nextFilters);
-        fetchSongs(false, nextFilters.length > 0 || searchTerm.trim().length >= 2);
+        fetchSongs(false, needsFullSongCatalog({
+            searchTerm,
+            tagFilters: nextFilters,
+            usageFilter,
+        }));
+    };
+
+    const handleUsageFilter = (event) => {
+        const nextFilter = event.target.value;
+        setUsageFilter(nextFilter);
+        fetchSongs(false, needsFullSongCatalog({
+            searchTerm,
+            tagFilters: selectedTagFilters,
+            usageFilter: nextFilter,
+        }));
     };
 
     const filteredSongs = songs.filter((song) => {
@@ -188,7 +228,7 @@ const Songs = () => {
         const matchesTags = selectedTagFilters.length === 0
             || selectedTagFilters.some((tagId) => song.tags?.includes(tagId));
 
-        return matchesSearch && matchesTags;
+        return matchesSearch && matchesTags && (usageLoadFailed || songMatchesUsageFilter(getSongUsage(usageBySongId, song.id), usageFilter));
     });
 
     const updateActiveArrangement = (patch) => {
@@ -318,7 +358,11 @@ const Songs = () => {
 
             setShowAddModal(false);
             resetModalState();
-            fetchSongs();
+            fetchSongs(false, needsFullSongCatalog({
+                searchTerm,
+                tagFilters: selectedTagFilters,
+                usageFilter,
+            }));
         } catch (err) {
             console.error('Error saving song:', err);
             alert(t('errorSavingSong'));
@@ -332,7 +376,11 @@ const Songs = () => {
 
         try {
             await deleteDoc(doc(db, 'songs', id));
-            fetchSongs();
+            fetchSongs(false, needsFullSongCatalog({
+                searchTerm,
+                tagFilters: selectedTagFilters,
+                usageFilter,
+            }));
         } catch (err) {
             console.error(err);
         }
@@ -388,17 +436,37 @@ const Songs = () => {
                             </button>
                         ))}
                         {selectedTagFilters.length > 0 && (
-                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(false, searchTerm.trim().length >= 2); }} style={styles.clearFilterBtn}>
+                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(false, needsFullSongCatalog({ searchTerm, usageFilter })); }} style={styles.clearFilterBtn}>
                                 {t('showAll')}
                             </button>
                         )}
                     </div>
+                )}
+                {usageLoadFailed ? (
+                    <p style={styles.usageDates}>{t('usageUnavailable')}</p>
+                ) : (
+                    <label style={styles.usageFilterRow}>
+                        <span>{t('usageFilter')}</span>
+                        <select value={usageFilter} onChange={handleUsageFilter} style={styles.usageSelect}>
+                            <option value="all">{t('usageFilterAll')}</option>
+                            <option value="month">{t('usageFilterMonth')}</option>
+                            <option value="quarter">{t('usageFilterQuarter')}</option>
+                            <option value="year">{t('usageFilterYear')}</option>
+                            <option value="unused">{t('usageFilterUnused')}</option>
+                        </select>
+                    </label>
                 )}
             </div>
 
             <div style={styles.songsGrid}>
                 {filteredSongs.map((song) => {
                     const { arrangement, arrangementCount } = getSongDisplayMeta(song);
+                    const usage = getSongUsage(usageBySongId, song.id);
+                    const visibleUses = usage.uses.slice(0, 3);
+                    const hiddenUseCount = usage.uses.length - visibleUses.length;
+                    const usedOnLabel = visibleUses
+                        .map((use) => formatSongUsageDate(use.date, language))
+                        .join(' · ');
                     return (
                         <div
                             key={song.id}
@@ -410,7 +478,14 @@ const Songs = () => {
                                     <Music size={20} color="#94a3b8" />
                                 </div>
                                 <div style={{ flex: 1, overflow: 'hidden' }}>
-                                    <h3 style={{ margin: 0, fontSize: '15px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{song.title}</h3>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPreviewSong(song)}
+                                        style={styles.titleButton}
+                                        title={t('viewSong')}
+                                    >
+                                        {song.title}
+                                    </button>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px', flexWrap: 'wrap' }}>
                                         <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
                                             {song.artist && `${song.artist} • `}{arrangement.key}
@@ -450,10 +525,31 @@ const Songs = () => {
                                             )}
                                         </div>
                                     </div>
+                                    <div style={styles.usageBlock}>
+                                        {usageLoadFailed ? (
+                                            <p style={styles.usageDates}>{t('usageUnavailable')}</p>
+                                        ) : (
+                                            <>
+                                                <div style={styles.usageCounts}>
+                                                    <span style={styles.usageChip}>{t('sungLastMonth')}: {usage.month}</span>
+                                                    <span style={styles.usageChip}>{t('sungLastQuarter')}: {usage.quarter}</span>
+                                                    <span style={styles.usageChip}>{t('sungLastYear')}: {usage.year}</span>
+                                                </div>
+                                                <p style={styles.usageDates}>
+                                                    {usage.uses.length === 0
+                                                        ? t('notUsedInLastYear')
+                                                        : `${t('lastUsed')}: ${usedOnLabel}${hiddenUseCount > 0 ? ` +${hiddenUseCount}` : ''}`}
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => openEditSong(song)}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        openEditSong(song);
+                                    }}
                                     style={{ ...styles.iconBtn, color: '#64748b' }}
                                     aria-label={t('edit')}
                                     title={t('edit')}
@@ -475,7 +571,11 @@ const Songs = () => {
                 })}
             </div>
 
-            {hasMore && !searchTerm && selectedTagFilters.length === 0 && (
+            {filteredSongs.length === 0 && !loading && (
+                <p style={{ color: '#64748b', marginTop: '8px' }}>{t('noSongsFound')}</p>
+            )}
+
+            {hasMore && !needsFullSongCatalog({ searchTerm, tagFilters: selectedTagFilters, usageFilter }) && (
                 <div style={{ textAlign: 'center', marginTop: '32px' }}>
                     <button className="btn-secondary" onClick={() => fetchSongs(true)} disabled={loading}>
                         {loading ? t('loading') : t('loadMore')}
@@ -756,6 +856,8 @@ const Songs = () => {
             {previewSong && (
                 <SongPreviewModal
                     song={previewSong}
+                    usage={usageLoadFailed ? null : getSongUsage(usageBySongId, previewSong.id)}
+                    usageUnavailable={usageLoadFailed}
                     onClose={() => setPreviewSong(null)}
                 />
             )}
@@ -774,6 +876,13 @@ const styles = {
     clearFilterBtn: { background: 'none', border: 'none', color: '#007bff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: '6px' },
     songsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' },
     songCard: { padding: '12px 16px', transition: 'all 0.2s' },
+    titleButton: { margin: 0, padding: 0, border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '15px', fontWeight: '700', color: 'inherit', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+    usageFilterRow: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '600', color: '#64748b' },
+    usageSelect: { padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: '1px solid #e2e8f0', backgroundColor: 'white', color: '#334155' },
+    usageBlock: { marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' },
+    usageCounts: { display: 'flex', flexWrap: 'wrap', gap: '6px' },
+    usageChip: { fontSize: '11px', fontWeight: '600', color: '#334155', backgroundColor: '#f1f5f9', borderRadius: '999px', padding: '2px 8px' },
+    usageDates: { margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.4 },
     songMain: { display: 'flex', alignItems: 'center', gap: '12px' },
     musicIcon: { width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.6 },
     iconBtn: { background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' },
