@@ -6,6 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
 import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
+import { resolveStartupLanguage, readDeviceLocaleTag } from './src/deviceLanguage';
 import { deleteUserAccount, getAccountDeletionErrorKey } from './src/accountDeletion';
 import { resolveAgendaItemInteraction } from './src/agendaItemInteraction';
 import { resolveSongWithArrangement } from './src/songArrangements';
@@ -448,7 +449,7 @@ const LoginScreen = ({ t }) => {
             <Text style={styles.label}>{t('email')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="email@ejemplo.com"
+              placeholder="email@example.com"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -1195,7 +1196,11 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [blockoutDates, setBlockoutDates] = useState([]);
   const [isAvailableToday, setIsAvailableToday] = useState(true);
-  const [language, setLanguage] = useState('es');
+  const [language, setLanguage] = useState(() =>
+    resolveStartupLanguage({ deviceLocaleTag: readDeviceLocaleTag() })
+  );
+  const [languageHydrated, setLanguageHydrated] = useState(false);
+  const languageChosenByUserRef = useRef(false);
   const [selectedServiceEvent, setSelectedServiceEvent] = useState(null);
 
   // Rejection modal state
@@ -1211,21 +1216,49 @@ export default function App() {
   const tRef = useRef(t);
   tRef.current = t;
 
-  // Load language preference
+  const selectLanguage = (next) => {
+    languageChosenByUserRef.current = true;
+    setLanguage(next);
+  };
+
+  // Load a saved choice. Ignore Spanish written automatically on first launch.
   useEffect(() => {
-    AsyncStorage.getItem('appLanguage').then(val => {
-      if (val) setLanguage(val);
-    });
+    let cancelled = false;
+    Promise.all([
+      AsyncStorage.getItem('appLanguage'),
+      AsyncStorage.getItem('appLanguageSource'),
+    ])
+      .then(([storedLanguage, languageSource]) => {
+        if (cancelled) return;
+        const nextLanguage = resolveStartupLanguage({
+          storedLanguage,
+          languageSource,
+          deviceLocaleTag: readDeviceLocaleTag(),
+        });
+        if (languageSource === 'user' && nextLanguage === storedLanguage) {
+          languageChosenByUserRef.current = true;
+        }
+        setLanguage(nextLanguage);
+        setLanguageHydrated(true);
+      })
+      .catch(() => {
+        if (!cancelled) setLanguageHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Save language preference
+  // Save language preference only after storage has been read
   useEffect(() => {
+    if (!languageHydrated) return;
+    const source = languageChosenByUserRef.current ? 'user' : 'device';
     AsyncStorage.setItem('appLanguage', language);
-    // Also sync to Firestore if user is logged in and we have a token
+    AsyncStorage.setItem('appLanguageSource', source);
     if (user && expoPushToken) {
       savePushToken(user.uid, expoPushToken, language);
     }
-  }, [language, user, expoPushToken]);
+  }, [language, languageHydrated, user, expoPushToken]);
 
   // Keep track of event listeners to clean them up
   const eventListeners = useRef({});
@@ -1646,7 +1679,7 @@ export default function App() {
           onAddBlockout={handleAddBlockout}
           onRemoveBlockout={handleRemoveBlockout}
           language={language}
-          setLanguage={setLanguage}
+          setLanguage={selectLanguage}
           t={t}
         />
 
