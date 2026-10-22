@@ -1249,8 +1249,8 @@ export default function App() {
         }
         setLanguageHydrated(true);
       })
-      .catch(() => {
-        if (!cancelled) setLanguageHydrated(true);
+      .catch((error) => {
+        console.error('Language preference read failed:', error);
       });
     return () => {
       cancelled = true;
