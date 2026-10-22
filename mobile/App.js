@@ -6,7 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, Users, Bell, LogOut, MapPin, Clock, CheckCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Music, FileText, Play, ExternalLink, Megaphone, Info, AlertTriangle, Settings, X, MinusCircle, ClipboardList, MessageCircle } from 'lucide-react-native';
 import { auth, db } from './src/firebase';
 import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
-import { resolveStartupLanguage, readDeviceLocaleTag } from './src/deviceLanguage';
+import { resolveStartupLanguage, readDeviceLocaleTag, isStoredUserChoice } from './src/deviceLanguage';
 import { deleteUserAccount, getAccountDeletionErrorKey } from './src/accountDeletion';
 import { resolveAgendaItemInteraction } from './src/agendaItemInteraction';
 import { resolveSongWithArrangement } from './src/songArrangements';
@@ -1219,6 +1219,9 @@ export default function App() {
   const selectLanguage = (next) => {
     languageChosenByUserRef.current = true;
     setLanguage(next);
+    // setLanguage is a no-op when next is already active, so persist here too.
+    AsyncStorage.setItem('appLanguage', next);
+    AsyncStorage.setItem('appLanguageSource', 'user');
   };
 
   // Load a saved choice. Ignore Spanish written automatically on first launch.
@@ -1235,10 +1238,15 @@ export default function App() {
           languageSource,
           deviceLocaleTag: readDeviceLocaleTag(),
         });
-        if (languageSource === 'user' && nextLanguage === storedLanguage) {
-          languageChosenByUserRef.current = true;
+        if (!languageChosenByUserRef.current) {
+          if (
+            nextLanguage === storedLanguage &&
+            (languageSource === 'user' || isStoredUserChoice(storedLanguage, languageSource))
+          ) {
+            languageChosenByUserRef.current = true;
+          }
+          setLanguage(nextLanguage);
         }
-        setLanguage(nextLanguage);
         setLanguageHydrated(true);
       })
       .catch(() => {

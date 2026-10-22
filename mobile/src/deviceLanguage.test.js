@@ -43,6 +43,33 @@ assert.strictEqual(
 assert.strictEqual(
   resolveStartupLanguage({
     storedLanguage: 'en',
+    languageSource: null,
+    deviceLocaleTag: 'ro_RO',
+  }),
+  'en'
+);
+
+assert.strictEqual(
+  resolveStartupLanguage({
+    storedLanguage: 'ro',
+    languageSource: null,
+    deviceLocaleTag: 'es_ES',
+  }),
+  'ro'
+);
+
+assert.strictEqual(
+  resolveStartupLanguage({
+    storedLanguage: 'en',
+    languageSource: 'device',
+    deviceLocaleTag: 'ro_RO',
+  }),
+  'ro'
+);
+
+assert.strictEqual(
+  resolveStartupLanguage({
+    storedLanguage: 'en',
     languageSource: 'user',
     deviceLocaleTag: 'ro_RO',
   }),

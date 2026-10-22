@@ -11,12 +11,22 @@ function languageFromLocaleTag(localeTag) {
   return isSupportedLanguage(primary) ? primary : null;
 }
 
+function isMissingLanguageSource(languageSource) {
+  return languageSource == null || languageSource === '';
+}
+
 /**
- * Stored language counts only when the user picked it.
- * A missing source means the previous build auto-saved Spanish on first launch.
+ * An explicit choice, or a legacy choice saved before appLanguageSource existed.
+ * Spanish with no source is the old automatic default, so the device locale wins.
  */
+function isStoredUserChoice(storedLanguage, languageSource) {
+  if (!isSupportedLanguage(storedLanguage)) return false;
+  if (languageSource === 'user') return true;
+  return isMissingLanguageSource(languageSource) && storedLanguage !== DEFAULT_LANGUAGE;
+}
+
 function resolveStartupLanguage({ storedLanguage, languageSource, deviceLocaleTag } = {}) {
-  if (languageSource === 'user' && isSupportedLanguage(storedLanguage)) {
+  if (isStoredUserChoice(storedLanguage, languageSource)) {
     return storedLanguage;
   }
   return languageFromLocaleTag(deviceLocaleTag) || DEFAULT_LANGUAGE;
@@ -50,6 +60,7 @@ function readDeviceLocaleTag() {
 module.exports = {
   DEFAULT_LANGUAGE,
   isSupportedLanguage,
+  isStoredUserChoice,
   languageFromLocaleTag,
   resolveStartupLanguage,
   readDeviceLocaleTag,
