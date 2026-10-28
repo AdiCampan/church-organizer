@@ -75,6 +75,42 @@ if (typeof postcss !== "function") {
   fail("postcss did not export a function");
 }
 
+const decodeUriComponentVersion = packageVersion("decode-uri-component");
+if (decodeUriComponentVersion !== "0.5.1") {
+  fail(`Expected decode-uri-component 0.5.1, found ${decodeUriComponentVersion}`);
+}
+
+const decodeUriComponent = require("decode-uri-component");
+if (typeof decodeUriComponent !== "function") {
+  fail("decode-uri-component did not export a function");
+}
+
+const queryString = require("query-string");
+const parsedQuery = queryString.parse("name=st%C3%A5le");
+if (!parsedQuery || parsedQuery.name !== "ståle") {
+  fail(`query-string could not decode with decode-uri-component: ${JSON.stringify(parsedQuery)}`);
+}
+
+const nodeForgeVersion = packageVersion("node-forge");
+if (nodeForgeVersion !== "1.4.2") {
+  fail(`Expected node-forge 1.4.2, found ${nodeForgeVersion}`);
+}
+
+const nodeForge = require("node-forge");
+if (!nodeForge.md || typeof nodeForge.md.sha256.create !== "function") {
+  fail("node-forge did not export md.sha256.create");
+}
+
+const bracesVersion = packageVersion("braces");
+if (bracesVersion !== "3.0.3") {
+  fail(`Expected braces 3.0.3, found ${bracesVersion}`);
+}
+
+const braces = require("braces");
+if (typeof braces !== "function") {
+  fail("braces did not export a function");
+}
+
 console.log("Override checks passed");
 console.log(
   `image-size ${imageSizeVersion} -> ${dimensions.width}x${dimensions.height}`,
@@ -82,3 +118,6 @@ console.log(
 console.log(`uuid ${uuidVersion} -> ${generatedId}`);
 console.log(`sprintf-js ${packageVersion("sprintf-js")}`);
 console.log(`postcss ${packageVersion("postcss")}`);
+console.log(`decode-uri-component ${decodeUriComponentVersion}`);
+console.log(`node-forge ${nodeForgeVersion}`);
+console.log(`braces ${bracesVersion}`);
