@@ -23,6 +23,7 @@
         "@grpc/grpc-js": "1.14.6",
         "brace-expansion": "2.1.7",
         "body-parser": "2.4.0",
+        "glob": "14.0.2",
         "proxy-addr": "2.0.8",
         "qs": "6.17.0",
         "undici": "7.30.1",
