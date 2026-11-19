@@ -92,8 +92,8 @@ if (!parsedQuery || parsedQuery.name !== "ståle") {
 }
 
 const nodeForgeVersion = packageVersion("node-forge");
-if (nodeForgeVersion !== "1.4.2") {
-  fail(`Expected node-forge 1.4.2, found ${nodeForgeVersion}`);
+if (nodeForgeVersion !== "1.4.3") {
+  fail(`Expected node-forge 1.4.3, found ${nodeForgeVersion}`);
 }
 
 const nodeForge = require("node-forge");

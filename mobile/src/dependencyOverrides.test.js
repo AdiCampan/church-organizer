@@ -42,7 +42,7 @@ assert.strictEqual(parsedQuery.name, "ståle");
 assert.strictEqual(parsedQuery.x, "%");
 assert.strictEqual(queryString.stringify({ name: "ståle" }), "name=st%C3%A5le");
 
-assert.strictEqual(installedVersion("node-forge"), "1.4.2");
+assert.strictEqual(installedVersion("node-forge"), "1.4.3");
 assert.strictEqual(typeof nodeForge.md.sha256.create, "function");
 
 assert.strictEqual(installedVersion("braces"), "3.0.3");
