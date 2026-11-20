@@ -19,6 +19,7 @@ import {
     needsFullSongCatalog,
     songMatchesUsageFilter,
 } from '../utils/songUsage';
+import { buildTagTree, getTagLabel, songMatchesTagFilters } from '../utils/songTags';
 
 const Songs = () => {
     const { t, language } = useLanguage();
@@ -220,13 +221,30 @@ const Songs = () => {
         }));
     };
 
+    const tagTree = buildTagTree(availableTags);
+
+    const renderTagFilterButton = (tag, isSubtag = false) => (
+        <button
+            key={tag.id}
+            onClick={() => toggleTagFilter(tag.id)}
+            style={{
+                ...styles.tagFilterBtn,
+                ...(isSubtag ? styles.subtagFilterBtn : {}),
+                backgroundColor: selectedTagFilters.includes(tag.id) ? tag.color : 'white',
+                color: selectedTagFilters.includes(tag.id) ? 'white' : '#64748b',
+                borderColor: selectedTagFilters.includes(tag.id) ? tag.color : '#e2e8f0'
+            }}
+        >
+            {tag.name}
+        </button>
+    );
+
     const filteredSongs = songs.filter((song) => {
         const normalizedTerm = normalizeText(searchTerm.trim());
         const matchesSearch = !normalizedTerm
             || normalizeText(song.title).includes(normalizedTerm)
             || normalizeText(song.artist).includes(normalizedTerm);
-        const matchesTags = selectedTagFilters.length === 0
-            || selectedTagFilters.some((tagId) => song.tags?.includes(tagId));
+        const matchesTags = songMatchesTagFilters(song, availableTags, selectedTagFilters);
 
         return matchesSearch && matchesTags && (usageLoadFailed || songMatchesUsageFilter(getSongUsage(usageBySongId, song.id), usageFilter));
     });
@@ -420,26 +438,24 @@ const Songs = () => {
                     />
                 </div>
                 {availableTags.length > 0 && (
-                    <div style={styles.tagFilters}>
-                        {availableTags.map((tag) => (
-                            <button
-                                key={tag.id}
-                                onClick={() => toggleTagFilter(tag.id)}
-                                style={{
-                                    ...styles.tagFilterBtn,
-                                    backgroundColor: selectedTagFilters.includes(tag.id) ? tag.color : 'white',
-                                    color: selectedTagFilters.includes(tag.id) ? 'white' : '#64748b',
-                                    borderColor: selectedTagFilters.includes(tag.id) ? tag.color : '#e2e8f0'
-                                }}
-                            >
-                                {tag.name}
-                            </button>
-                        ))}
-                        {selectedTagFilters.length > 0 && (
-                            <button onClick={() => { setSelectedTagFilters([]); fetchSongs(false, needsFullSongCatalog({ searchTerm, usageFilter })); }} style={styles.clearFilterBtn}>
-                                {t('showAll')}
-                            </button>
-                        )}
+                    <div style={styles.tagFilterGroups}>
+                        <div style={styles.tagFilters}>
+                            {tagTree.map((tag) => renderTagFilterButton(tag))}
+                            {selectedTagFilters.length > 0 && (
+                                <button onClick={() => { setSelectedTagFilters([]); fetchSongs(false, needsFullSongCatalog({ searchTerm, usageFilter })); }} style={styles.clearFilterBtn}>
+                                    {t('showAll')}
+                                </button>
+                            )}
+                        </div>
+                        {tagTree
+                            .filter((tag) => tag.children.length > 0
+                                && (selectedTagFilters.includes(tag.id) || tag.children.some((child) => selectedTagFilters.includes(child.id))))
+                            .map((tag) => (
+                                <div key={tag.id} style={styles.subtagFilters}>
+                                    <span style={styles.subtagLabel}>{tag.name}</span>
+                                    {tag.children.map((child) => renderTagFilterButton(child, true))}
+                                </div>
+                            ))}
                     </div>
                 )}
                 {usageLoadFailed ? (
@@ -501,7 +517,7 @@ const Songs = () => {
                                                     if (!tag) return null;
                                                     return (
                                                         <span key={tagId} style={{ ...styles.tagBadge, backgroundColor: tag.color + '15', color: tag.color }}>
-                                                            {tag.name}
+                                                            {getTagLabel(availableTags, tag.id)}
                                                         </span>
                                                     );
                                                 })}
@@ -642,7 +658,7 @@ const Songs = () => {
                             <div style={styles.inputGroup}>
                                 <label>{t('tags')}</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                    {availableTags.map((tag) => (
+                                    {tagTree.flatMap((tag) => [tag, ...tag.children]).map((tag) => (
                                         <button
                                             type="button"
                                             key={tag.id}
@@ -660,7 +676,7 @@ const Songs = () => {
                                                 borderColor: formData.tags?.includes(tag.id) ? tag.color : '#e2e8f0'
                                             }}
                                         >
-                                            {tag.name}
+                                            {getTagLabel(availableTags, tag.id)}
                                         </button>
                                     ))}
                                     {availableTags.length === 0 && (
@@ -871,7 +887,11 @@ const styles = {
     searchContainer: { marginBottom: '32px', display: 'flex', flexDirection: 'column', gap: '16px' },
     searchBox: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'white', padding: '12px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', width: '100%', maxWidth: '500px' },
     searchInput: { border: 'none', outline: 'none', width: '100%', fontSize: '14px' },
+    tagFilterGroups: { display: 'flex', flexDirection: 'column', gap: '8px' },
     tagFilters: { display: 'flex', flexWrap: 'wrap', gap: '8px' },
+    subtagFilters: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', paddingLeft: '12px', borderLeft: '2px solid #e2e8f0' },
+    subtagLabel: { fontSize: '11px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' },
+    subtagFilterBtn: { padding: '4px 10px', fontSize: '11px' },
     tagFilterBtn: { padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', border: '1px solid', cursor: 'pointer', transition: 'all 0.2s' },
     clearFilterBtn: { background: 'none', border: 'none', color: '#007bff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: '6px' },
     songsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' },
