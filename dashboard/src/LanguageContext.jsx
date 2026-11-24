@@ -263,6 +263,11 @@ const translations = {
         newTag: 'Nueva Etiqueta',
         editTag: 'Editar Etiqueta',
         tagPlaceholder: 'Ej: Adoración, Rápida, Himno...',
+        parentTag: 'Etiqueta principal',
+        noParentTag: 'Ninguna (etiqueta principal)',
+        parentTagHint: 'Elige una etiqueta principal para crear una subcategoría.',
+        subtagCount: 'subcategorías',
+        confirmDeleteTagWithSubtags: '¿Eliminar esta etiqueta? Sus subcategorías pasarán a ser etiquetas principales.',
         personalInfo: 'Información Personal',
 
 
@@ -553,6 +558,11 @@ const translations = {
         newTag: 'Etichetă Nouă',
         editTag: 'Editează Eticheta',
         tagPlaceholder: 'Ex: Închinare, Rapidă, Imn...',
+        parentTag: 'Etichetă principală',
+        noParentTag: 'Niciuna (etichetă principală)',
+        parentTagHint: 'Alege o etichetă principală pentru a crea o subcategorie.',
+        subtagCount: 'subcategorii',
+        confirmDeleteTagWithSubtags: 'Ștergi această etichetă? Subcategoriile ei vor deveni etichete principale.',
         personalInfo: 'Informații Personale',
 
 
@@ -843,6 +853,11 @@ const translations = {
         newTag: 'New Tag',
         editTag: 'Edit Tag',
         tagPlaceholder: 'e.g. Worship, Fast, Hymn...',
+        parentTag: 'Parent tag',
+        noParentTag: 'None (top-level tag)',
+        parentTagHint: 'Choose a parent tag to create a subcategory.',
+        subtagCount: 'subcategories',
+        confirmDeleteTagWithSubtags: 'Delete this tag? Its subcategories will become top-level tags.',
         personalInfo: 'Personal Information',
 
 
