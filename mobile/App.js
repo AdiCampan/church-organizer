@@ -8,6 +8,7 @@ import { auth, db } from './src/firebase';
 import { normalizeLoginCredentials, getAuthErrorMessage } from './src/authHelpers';
 import { resolveStartupLanguage, readDeviceLocaleTag, isStoredUserChoice } from './src/deviceLanguage';
 import { deleteUserAccount, getAccountDeletionErrorKey } from './src/accountDeletion';
+import { getVisibleMemberIds } from './src/teamMembership';
 import { resolveAgendaItemInteraction } from './src/agendaItemInteraction';
 import { resolveSongWithArrangement } from './src/songArrangements';
 import {
@@ -19,7 +20,7 @@ import {
   reauthenticateWithCredential,
   deleteUser,
 } from 'firebase/auth';
-import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, doc, updateDoc, getDocs, orderBy, setDoc, getDoc, arrayUnion, arrayRemove, addDoc, deleteDoc, writeBatch, Timestamp } from 'firebase/firestore';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -562,6 +563,10 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
         EmailAuthProvider,
         reauthenticateWithCredential,
         deleteUser,
+        getDocs,
+        collection,
+        writeBatch,
+        arrayRemove,
       });
       resetDeleteFlow();
       onClose();
@@ -752,6 +757,7 @@ const SettingsModal = ({ visible, onClose, user, blockoutDates, onAddBlockout, o
 };
 
 const TeamCard = ({ team, usersMap, t }) => {
+  const memberIds = getVisibleMemberIds(team.members, usersMap);
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -767,7 +773,7 @@ const TeamCard = ({ team, usersMap, t }) => {
           </View>
           <View>
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#1e293b' }}>{team.name}</Text>
-            <Text style={{ fontSize: 13, color: '#64748b' }}>{team.members?.length || 0} {t('members')}</Text>
+            <Text style={{ fontSize: 13, color: '#64748b' }}>{memberIds.length} {t('members')}</Text>
           </View>
         </View>
         <View>
@@ -781,14 +787,14 @@ const TeamCard = ({ team, usersMap, t }) => {
             {team.description || (t('description') === 'Descripción' ? 'Sin descripción' : (t('description') === 'Descriere' ? 'Fără descriere' : 'No description'))}
           </Text>
           <Text style={styles.oosHeader}>{t('myTeam')}</Text>
-          {team.members && team.members.length > 0 ? (
-            team.members.map((memberId, idx) => {
+          {memberIds.length > 0 ? (
+            memberIds.map((memberId, idx) => {
               const userProfile = usersMap[memberId];
-              const userName = userProfile?.name || memberId;
+              const userName = userProfile?.name || '';
               const userRole = userProfile?.role === 'leader' ? 'Líder' : 'Miembro';
 
               return (
-                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: idx === team.members.length - 1 ? 0 : 1, borderBottomColor: '#f1f5f9' }}>
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: idx === memberIds.length - 1 ? 0 : 1, borderBottomColor: '#f1f5f9' }}>
                   <Text style={{ fontSize: 14, color: '#1e293b', fontWeight: '500' }}>
                     {userName}
                   </Text>
