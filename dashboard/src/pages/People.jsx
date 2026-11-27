@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { collection, setDoc, doc, getDocs, query, orderBy, deleteDoc, writeBatch, arrayRemove } from 'firebase/firestore';
 import { UserPlus, Search, Mail, Calendar, CalendarX, Trash2 } from 'lucide-react';
 import { useLanguage } from '../useLanguage';
+import { removeUsersFromTeams } from '../utils/teamMembership';
 
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -105,6 +106,17 @@ const People = () => {
         if (!window.confirm(t('confirmDeletePerson')?.replace('{name}', name) || `${t('delete')} ${name}?`)) return;
 
         try {
+            // Primero se limpian los equipos: si el borrado del usuario fallara
+            // despues, no queda ningun id huerfano en los equipos.
+            await removeUsersFromTeams({
+                db,
+                userIds: [id],
+                getDocs,
+                collection,
+                writeBatch,
+                doc,
+                arrayRemove,
+            });
             await deleteDoc(doc(db, 'users', id));
             fetchPeople();
         } catch (err) {

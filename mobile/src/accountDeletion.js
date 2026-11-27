@@ -1,3 +1,5 @@
+const { removeUsersFromTeams } = require('./teamMembership');
+
 /**
  * Permanently delete the signed-in user's account and associated profile data.
  * Requires a recent password re-authentication (Firebase Auth).
@@ -11,6 +13,10 @@ async function deleteUserAccount({
   EmailAuthProvider,
   reauthenticateWithCredential,
   deleteUser,
+  getDocs,
+  collection,
+  writeBatch,
+  arrayRemove,
 }) {
   if (!authUser || typeof authUser.email !== 'string' || !authUser.email) {
     const error = new Error('Missing authenticated user');
@@ -27,6 +33,22 @@ async function deleteUserAccount({
 
   const credential = EmailAuthProvider.credential(authUser.email, rawPassword);
   await reauthenticateWithCredential(authUser, credential);
+
+  // Quitar el id de los equipos antes de borrar el perfil. Si falla no se
+  // bloquea el borrado de la cuenta (igual que el token FCM).
+  try {
+    await removeUsersFromTeams({
+      db,
+      userIds: [authUser.uid],
+      getDocs,
+      collection,
+      writeBatch,
+      doc,
+      arrayRemove,
+    });
+  } catch (teamCleanupError) {
+    console.warn('Team membership cleanup failed during account deletion:', teamCleanupError);
+  }
 
   await deleteDoc(doc(db, 'users', authUser.uid));
 

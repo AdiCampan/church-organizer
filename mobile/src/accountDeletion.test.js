@@ -43,6 +43,10 @@ function createMocks({ reauthReject, deleteUserReject, fcmReject, password = 'Se
       EmailAuthProvider,
       reauthenticateWithCredential,
       deleteUser,
+      collection: (_db, name) => ({ name }),
+      getDocs: async () => ({ docs: [] }),
+      arrayRemove: (...values) => ({ values }),
+      writeBatch: () => ({ update() {}, commit: async () => {} }),
     },
   };
 }
@@ -74,6 +78,51 @@ async function run() {
     );
     assert.strictEqual(calls[2].path, 'users/user-1');
     assert.strictEqual(calls[3].path, 'fcmTokens/user-1');
+  }
+
+  {
+    const { deps, calls } = createMocks();
+    const teamCalls = [];
+    await deleteUserAccount({
+      ...deps,
+      collection: (_db, name) => ({ name }),
+      getDocs: async () => {
+        teamCalls.push('getDocs');
+        return { docs: [{ id: 'alabanza', data: () => ({ members: ['user-1', 'user-2'], leaders: ['user-1'] }) }] };
+      },
+      arrayRemove: (...values) => ({ values }),
+      writeBatch: () => ({
+        update: (ref, data) => teamCalls.push({ path: ref.path, data }),
+        commit: async () => {
+          teamCalls.push('commit');
+        },
+      }),
+    });
+    assert.deepStrictEqual(teamCalls, [
+      'getDocs',
+      {
+        path: 'teams/alabanza',
+        data: { members: { values: ['user-1'] }, leaders: { values: ['user-1'] } },
+      },
+      'commit',
+    ]);
+    assert.ok(calls.some((c) => c.type === 'deleteDoc' && c.path === 'users/user-1'));
+    assert.ok(calls.some((c) => c.type === 'deleteUser'));
+  }
+
+  {
+    const { deps, calls } = createMocks();
+    await deleteUserAccount({
+      ...deps,
+      collection: (_db, name) => ({ name }),
+      getDocs: async () => {
+        throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+      },
+      arrayRemove: (...values) => ({ values }),
+      writeBatch: () => ({ update() {}, commit: async () => {} }),
+    });
+    assert.ok(calls.some((c) => c.type === 'deleteDoc' && c.path === 'users/user-1'));
+    assert.ok(calls.some((c) => c.type === 'deleteUser'));
   }
 
   {
